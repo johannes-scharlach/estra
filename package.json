@@ -1,0 +1,44 @@
+{
+  "name": "estra",
+  "version": "0.0.0",
+  "private": true,
+  "packageManager": "pnpm@10.33.1",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "pnpm --filter mobile start",
+    "ios": "pnpm --filter mobile ios",
+    "android": "pnpm --filter mobile android",
+    "stack:up": "supabase start && docker compose up -d",
+    "stack:down": "docker compose down && supabase stop",
+    "stack:logs": "docker compose logs -f powersync",
+    "stack:status": "supabase status && docker compose ps",
+    "db:reset": "supabase db reset",
+    "db:diff": "supabase db diff -f",
+    "db:push": "supabase db push",
+    "db:types": "supabase gen types typescript --local > apps/mobile/src/db/database.types.ts",
+    "sync:reload": "docker compose restart powersync",
+    "fn:serve": "supabase functions serve",
+    "fn:deploy": "supabase functions deploy",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "pnpm -r lint"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@op-engineering/op-sqlite",
+      "esbuild",
+      "sharp",
+      "supabase"
+    ]
+  },
+  "devDependencies": {
+    "supabase": "^2.115.0",
+    "typescript": "~6.0.3"
+  },
+  "dependencies": {
+    "expo": "~57.0.14",
+    "react": "19.2.3",
+    "react-native": "0.86.2"
+  }
+}

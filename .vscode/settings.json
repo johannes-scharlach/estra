@@ -1,0 +1,10 @@
+{
+  // Deno is scoped to the edge functions only. Enabling it repo-wide makes
+  // the language server flag every Node import in apps/mobile; leaving it
+  // off entirely makes it flag every URL import in supabase/functions.
+  "deno.enable": true,
+  "deno.enablePaths": ["supabase/functions"],
+  "deno.lint": true,
+  "[typescript]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+  "js/ts.tsdk.path": "node_modules/typescript/lib"
+}

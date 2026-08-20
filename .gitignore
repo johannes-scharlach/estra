@@ -1,0 +1,29 @@
+node_modules/
+.DS_Store
+*.log
+
+# Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+apps/mobile/ios/
+apps/mobile/android/
+
+# Env — anon/publishable keys are not secret, but this keeps a
+# service-role key from ever being pasted in next to one.
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Supabase local
+supabase/.temp/
+supabase/.branches/
+supabase/signing_keys.json
+
+# Native
+*.p8
+*.p12
+*.keystore
+!debug.keystore

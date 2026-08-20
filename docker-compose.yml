@@ -1,0 +1,71 @@
+# Local PowerSync stack. Run `supabase start` FIRST — this compose file
+# attaches to the Docker network Supabase creates, and will fail to start
+# if that network does not exist yet.
+#
+# Vendored from powersync-ja/self-host-demo (demos/supabase) rather than
+# `include:`-ed, because that demo splits itself across ../../services/*.yaml.
+
+services:
+  # PowerSync stores its sync buckets in MongoDB, and requires a replica
+  # set (it uses change streams and transactions).
+  mongo:
+    image: mongo:7.0
+    command: --replSet rs0 --bind_ip_all --quiet
+    restart: unless-stopped
+    volumes:
+      - mongo_storage:/data/db
+
+  # One-shot: initialises the replica set, then exits. Expected to sit in
+  # "Exited (0)" — that is success, not a crash.
+  mongo-rs-init:
+    image: mongo:7.0
+    depends_on:
+      - mongo
+    restart: on-failure
+    entrypoint:
+      - bash
+      - -c
+      - 'mongosh --host mongo:27017 --eval ''try { rs.status().ok && quit(0) } catch {} rs.initiate({_id: "rs0", version: 1, members: [{_id: 0, host: "mongo:27017"}]})'''
+
+  powersync:
+    image: journeyapps/powersync-service:1.24.0
+    restart: unless-stopped
+    depends_on:
+      mongo-rs-init:
+        condition: service_completed_successfully
+    command: ["start", "-r", "unified"]
+    volumes:
+      - ./powersync:/config
+    environment:
+      POWERSYNC_CONFIG_PATH: /config/service.yaml
+      NODE_OPTIONS: --max-old-space-size=1000
+      # Dedicated replication role created in the powersync publication
+      # migration; password issued locally by supabase/seed.sql.
+      # Container name is supabase_db_<project_id> from supabase/config.toml.
+      # Port 5432 is the in-network port, not the one mapped to the host.
+      PS_DATA_SOURCE_URI: postgres://powersync_role:powersync@supabase_db_estra:5432/postgres
+      PS_MONGO_URI: mongodb://mongo:27017/estra
+      PS_PORT: 8080
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://localhost:8080/probes/liveness').then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))"
+      interval: 5s
+      timeout: 1s
+      retries: 15
+    networks:
+      - default
+      - supabase
+
+networks:
+  # Created by `supabase start`; named from project_id in supabase/config.toml.
+  supabase:
+    external: true
+    name: supabase_network_estra
+
+volumes:
+  mongo_storage:

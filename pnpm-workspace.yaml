@@ -1,0 +1,7 @@
+# Note: `supabase/` is deliberately NOT a workspace package.
+# Edge functions run on Deno with URL imports; keeping them out of the
+# Node workspace stops pnpm and the TS language server from trying to
+# resolve two incompatible module systems at once.
+packages:
+  - "apps/*"
+  - "packages/*"

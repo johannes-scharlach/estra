@@ -1,0 +1,50 @@
+# yaml-language-server: $schema=https://unpkg.com/@powersync/service-sync-rules@latest/schema/sync_rules.json
+#
+# What reaches a device, and for whom. This is the one PowerSync artifact
+# shared between the local Docker stack and PowerSync Cloud.
+#
+# Two things to remember:
+#   - The service does NOT watch this file. `pnpm sync:reload` after edits.
+#   - Streams are not an authorization boundary for writes. They control
+#     reads; writes go through Supabase's REST API under RLS. The two must
+#     agree, and RLS is the one that actually stops a malicious client.
+
+config:
+  edition: 3
+
+streams:
+  # Global reference data — same rows for everyone, no parameters. Small
+  # and needed before anything renders, so it syncs first.
+  categories:
+    auto_subscribe: true
+    priority: 1
+    query: SELECT * FROM categories
+
+  # The lists you belong to, plus everyone else who belongs to them, so the
+  # UI can show who you are sharing with.
+  lists:
+    auto_subscribe: true
+    priority: 2
+    queries:
+      - SELECT lists.* FROM lists
+          INNER JOIN list_members ON list_members.list_id = lists.id
+        WHERE list_members.user_id = auth.user_id()
+
+      - SELECT * FROM list_members
+        WHERE list_id IN (
+          SELECT list_id FROM list_members WHERE user_id = auth.user_id()
+        )
+
+  # Every item on every list you belong to, including purchased ones —
+  # those are the "recent" suggestions and the autocomplete source, so they
+  # have to be on the device to work offline.
+  #
+  # If lists ever accumulate enough history for this to hurt, this is the
+  # stream to split: active items auto-subscribed, purchased on demand.
+  list_items:
+    auto_subscribe: true
+    priority: 3
+    query: |
+      SELECT list_items.* FROM list_items
+        INNER JOIN list_members ON list_members.list_id = list_items.list_id
+      WHERE list_members.user_id = auth.user_id()
