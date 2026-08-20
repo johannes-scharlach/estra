@@ -10,6 +10,8 @@
     "dev": "pnpm --filter mobile start",
     "ios": "pnpm --filter mobile ios",
     "android": "pnpm --filter mobile android",
+    "api": "pnpm --filter api dev",
+    "api:deploy": "fly deploy --config apps/api/fly.toml --dockerfile apps/api/Dockerfile",
     "stack:up": "supabase start && docker compose up -d",
     "stack:down": "docker compose down && supabase stop",
     "stack:logs": "docker compose logs -f powersync",

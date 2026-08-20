@@ -16,6 +16,7 @@ All RLS policies and sync rules check this table.
 apps/mobile/          Expo app (expo-router)
   src/db/             PowerSync schema, Supabase connector, providers
   src/lib/            env + Supabase client
+apps/api/             Hono server on Node, deployed to Fly.io
 supabase/             Postgres migrations, seed, edge functions (Deno)
 powersync/            service.yaml (self-host) + sync-config.yaml (shared)
 docker-compose.yml    MongoDB + PowerSync service for local dev
@@ -91,6 +92,46 @@ working off Wi-Fi.
 | `pnpm db:types` | Regenerate Postgres types |
 | `pnpm sync:reload` | Restart PowerSync after editing sync rules |
 | `pnpm fn:serve` | Edge functions with hot reload |
+| `pnpm api` | API server with hot reload (port 8787) |
+| `pnpm api:deploy` | Ship the API server to Fly.io |
+
+## API server
+
+`apps/api` is a Hono server on Node, for work that does not suit an edge
+function — streaming a chat response, anything long-running or stateful.
+Everything else stays in `supabase/functions`.
+See [ADR 5](docs/decisions/0005-api-server-on-fly.md).
+
+```bash
+cp apps/api/.env.example apps/api/.env   # needs a Gemini key, see the file
+pnpm api
+```
+
+Routes under `/v1` need a Supabase access token, verified against the
+project's JWKS. `/health` is open, for Fly's health check.
+
+`POST /v1/chat` runs Gemini 3.7 Flash and speaks the AI SDK's UI message
+stream protocol, so the client is a plain `useChat()`. It takes the whole
+conversation on every request and stores none of it.
+
+```bash
+curl -N http://localhost:8787/v1/chat \
+  -H "authorization: Bearer $TOKEN" \
+  -H 'content-type: application/json' \
+  -d '{"messages":[{"id":"1","role":"user","parts":[{"type":"text","text":"hello there"}]}]}'
+```
+
+Deploying, the first time:
+
+```bash
+fly apps create estra-api
+fly secrets set SUPABASE_URL=https://<project-ref>.supabase.co \
+  GOOGLE_GENERATIVE_AI_API_KEY=... --app estra-api
+pnpm api:deploy
+```
+
+`pnpm api:deploy` runs from the repo root on purpose — the Docker build
+needs the pnpm lockfile, which is above `apps/api`.
 
 ## Changing the schema
 

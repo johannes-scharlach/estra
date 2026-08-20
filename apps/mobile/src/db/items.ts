@@ -39,17 +39,35 @@ export async function addItem(listId: string, name: string, spec?: string) {
   const nameKey = itemNameKey(trimmed);
   const now = new Date().toISOString();
 
-  await powersync.execute(
-    `INSERT INTO list_items
-       (id, list_id, name, name_key, category_id, spec, status, purchase_count, created_at, updated_at)
-     VALUES (?, ?, ?, ?, NULL, ?, 'active', 0, ?, ?)
-     ON CONFLICT (id) DO UPDATE SET
-       status     = 'active',
-       name       = excluded.name,
-       spec       = COALESCE(excluded.spec, list_items.spec),
-       updated_at = excluded.updated_at`,
-    [id, listId, trimmed, nameKey, spec ?? null, now, now],
-  );
+  // PowerSync's local tables are views over ps_data__*, and SQLite has no
+  // UPSERT on a view — so the read and the branch happen here instead, in
+  // one write transaction to keep it atomic.
+  await powersync.writeTransaction(async (tx) => {
+    const existing = await tx.getOptional<{ id: string }>(
+      `SELECT id FROM list_items WHERE id = ?`,
+      [id],
+    );
+
+    if (existing) {
+      await tx.execute(
+        `UPDATE list_items
+            SET status     = 'active',
+                name       = ?,
+                spec       = COALESCE(?, spec),
+                updated_at = ?
+          WHERE id = ?`,
+        [trimmed, spec ?? null, now, id],
+      );
+      return;
+    }
+
+    await tx.execute(
+      `INSERT INTO list_items
+         (id, list_id, name, name_key, category_id, spec, status, purchase_count, created_at, updated_at)
+       VALUES (?, ?, ?, ?, NULL, ?, 'active', 0, ?, ?)`,
+      [id, listId, trimmed, nameKey, spec ?? null, now, now],
+    );
+  });
 }
 
 export async function setItemStatus(id: string, status: 'active' | 'purchased') {

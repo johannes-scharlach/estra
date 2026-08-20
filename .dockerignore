@@ -1,0 +1,21 @@
+# Build context for apps/api is the repo root, so this trims everything the
+# API image does not need — the native projects alone are hundreds of MB.
+node_modules
+**/node_modules
+.git
+.expo
+**/.expo
+dist
+**/dist
+apps/mobile/ios
+apps/mobile/android
+apps/mobile/assets
+supabase/.temp
+supabase/.branches
+supabase/signing_keys.json
+docs
+powersync
+**/.env
+**/.env.local
+**/*.log
+.DS_Store

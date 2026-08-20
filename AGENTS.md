@@ -15,6 +15,8 @@ changes, `docs/schema-changes.md` before touching the schema or sync rules.
   alpha — dev convenience only). Native dev builds use op-sqlite: `pnpm ios`
   once, then `pnpm dev`.
 - Seeded login: `dev@estra.local` / `estra-dev`.
+- `pnpm api` runs the Hono server (`apps/api`); `pnpm api:deploy` ships it
+  to Fly.io from the repo root, which is where the Docker context has to be.
 
 ## Constraints
 
@@ -22,6 +24,11 @@ changes, `docs/schema-changes.md` before touching the schema or sync rules.
   edge-function code goes in `supabase/functions/_shared/`, never `packages/`.
 - op-sqlite build flags (SQLCipher, FTS5) go in the root `package.json`
   (modules hoist there), not `apps/mobile/package.json`.
+- Streaming and long-running work goes in `apps/api`; request/response work
+  stays in `supabase/functions`. ADR 5 has the split.
+- `apps/api` ships as one esbuild bundle (`dist/index.cjs`) with no
+  `node_modules` in the image, so its deps come from the workspace lockfile.
+  CJS, not ESM — the Dockerfile says why.
 
 ## Conventions
 
@@ -43,3 +50,5 @@ During implementation, also ask "What would Kent Beck say?" to write clear code 
 ## Environment control
 
 You're a guest on the user's machine. You never erase data, start or stop services without explicit user consent.
+
+This also extends to things like build and dev scripts. The user owns those and you only advise on it. It's normal for the user to always have the dev script running.
