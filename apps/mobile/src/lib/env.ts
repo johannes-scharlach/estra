@@ -25,4 +25,5 @@ export const env = {
     'EXPO_PUBLIC_POWERSYNC_URL',
     process.env.EXPO_PUBLIC_POWERSYNC_URL,
   ),
+  apiUrl: process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:8787',
 } as const;

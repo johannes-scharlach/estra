@@ -5,6 +5,7 @@ import { logger } from 'hono/logger';
 
 import { requireUser, type AppBindings } from './auth.js';
 import { chat } from './routes/chat.js';
+import { recipes } from './routes/recipes.js';
 
 export const app = new Hono<AppBindings>();
 
@@ -27,6 +28,7 @@ app.get('/health', (c) => c.json({ ok: true }));
 // preflight requests, which carry no Authorization header, are not rejected.
 app.use('/v1/*', requireUser);
 app.route('/v1/chat', chat);
+app.route('/v1/recipes', recipes);
 
 app.notFound((c) => c.json({ error: 'Not found' }, 404));
 

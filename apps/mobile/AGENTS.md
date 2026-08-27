@@ -42,5 +42,9 @@ calls `npx expo install` (npm) which is wrong for this pnpm workspace.
 
 - New UI uses rnr components + Tailwind classes, not `StyleSheet`.
 - `src/components/themed-*.tsx` are pre-uniwind legacy; don't extend them.
+- **Icons:** prefer `expo-symbols` (`SymbolView`) with iOS/Android/web name
+  mappings — it renders SF Symbols on iOS and Material Symbols on Android.
+  Use `lucide-react-native` only when there is no suitable native symbol or
+  for web parity.
 - Run `pnpm --filter mobile lint` after adding components (new vendored files
   sometimes trip import-order rules).

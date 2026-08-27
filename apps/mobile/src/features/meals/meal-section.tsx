@@ -5,7 +5,7 @@ import { useResolveClassNames } from "uniwind";
 import { Button } from "@/components/ui/button";
 import { Text } from "@/components/ui/text";
 
-import type { Recipe } from "./demo-data";
+type Recipe = { id: string; name: string };
 
 type Props = {
   title: string;
@@ -18,11 +18,21 @@ type Props = {
   /** Open slot's × — hides the slot behind "+ Add …". */
   onHide: () => void;
   onView: (recipe: Recipe) => void;
+  onImport: () => void;
+  onCookbook: () => void;
 };
 
-const FOOD_ICON = { ios: "fork.knife", android: "restaurant", web: "restaurant" } as const;
+const FOOD_ICON = {
+  ios: "fork.knife",
+  android: "restaurant",
+  web: "restaurant",
+} as const;
 const X_ICON = { ios: "xmark", android: "close", web: "close" } as const;
-const MENU_ICON = { ios: "ellipsis", android: "more_horiz", web: "more_horiz" } as const;
+const MENU_ICON = {
+  ios: "ellipsis",
+  android: "more_horiz",
+  web: "more_horiz",
+} as const;
 
 /**
  * One meal slot of a day. Planned: a card (tap to view, … for actions).
@@ -37,6 +47,8 @@ export function MealSection({
   onMenu,
   onHide,
   onView,
+  onImport,
+  onCookbook,
 }: Props) {
   const muted = useResolveClassNames("text-muted-foreground").color;
 
@@ -97,20 +109,11 @@ export function MealSection({
               </Pressable>
             ))}
           </ScrollView>
-          {/* Placeholders — import and cookbook are not wired up yet. */}
           <View className="flex-row gap-3 px-6">
-            <Button
-              variant="outline"
-              className="flex-1"
-              onPress={() => console.log("Import meal", { slot: title })}
-            >
+            <Button variant="outline" className="flex-1" onPress={onImport}>
               <Text>Import</Text>
             </Button>
-            <Button
-              variant="outline"
-              className="flex-1"
-              onPress={() => console.log("Pick from cookbook", { slot: title })}
-            >
+            <Button variant="outline" className="flex-1" onPress={onCookbook}>
               <Text>From cookbook</Text>
             </Button>
           </View>

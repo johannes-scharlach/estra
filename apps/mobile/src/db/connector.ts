@@ -6,6 +6,7 @@ import {
 
 import { env } from '../lib/env';
 import { supabase } from '../lib/supabase';
+import { decodeVariantForUpload } from './variants';
 
 /**
  * Postgres error codes that mean "this write will never succeed" — a bad
@@ -51,13 +52,23 @@ export class SupabaseConnector implements PowerSyncBackendConnector {
 
         const result = await (async () => {
           switch (op.op) {
-            case UpdateType.PUT:
-              return table.upsert({ ...op.opData, id: op.id });
-            case UpdateType.PATCH:
+            case UpdateType.PUT: {
+              const data =
+                op.table === 'variants' && op.opData
+                  ? decodeVariantForUpload(op.opData as Record<string, unknown>)
+                  : op.opData;
+              return table.upsert({ ...data, id: op.id });
+            }
+            case UpdateType.PATCH: {
               // opData is undefined when a row was touched but no column
               // actually changed — nothing to send.
               if (!op.opData) return null;
-              return table.update(op.opData).eq('id', op.id);
+              const data =
+                op.table === 'variants'
+                  ? decodeVariantForUpload(op.opData as Record<string, unknown>)
+                  : op.opData;
+              return table.update(data).eq('id', op.id);
+            }
             case UpdateType.DELETE:
               return table.delete().eq('id', op.id);
             default:

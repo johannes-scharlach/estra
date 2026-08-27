@@ -41,6 +41,31 @@ streams:
   #
   # If lists ever accumulate enough history for this to hurt, this is the
   # stream to split: active items auto-subscribed, purchased on demand.
+  # Recipes and variants are global for alpha/beta — like categories, every
+  # device gets every row. Simple, offline-friendly, fine for hundreds of
+  # recipes. Plan (ADR 6/8): before public scale, scope to
+  #   recipes WHERE created_by = auth.user_id()
+  #            OR EXISTS (planned_meal on a list you're on)
+  # and variants via recipe_id. That needs recipes.created_by
+  # (already in migration) and EXISTS streams here.
+  recipes:
+    auto_subscribe: true
+    priority: 3
+    query: SELECT * FROM recipes
+
+  variants:
+    auto_subscribe: true
+    priority: 3
+    query: SELECT * FROM variants
+
+  planned_meals:
+    auto_subscribe: true
+    priority: 3
+    query: |
+      SELECT planned_meals.* FROM planned_meals
+        INNER JOIN list_members ON list_members.list_id = planned_meals.list_id
+      WHERE list_members.user_id = auth.user_id()
+
   list_items:
     auto_subscribe: true
     priority: 3

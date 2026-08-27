@@ -39,6 +39,45 @@ const list_members = new Table(
   { indexes: { by_list: ['list_id'] } },
 );
 
+const recipes = new Table({
+  from_name: column.text,
+  from_url: column.text,
+  created_by: column.text,
+  created_at: column.text,
+  updated_at: column.text,
+});
+
+const variants = new Table({
+  recipe_id: column.text,
+  name: column.text,
+  description: column.text,
+  locale: column.text,
+  total_time: column.text,
+  recipe_yield: column.text,
+  content_markdown: column.text,
+  recipe_category: column.text,
+  recipe_cuisine: column.text,
+  /** JSON array of {qty_text, item_name, prep_note, category_id, swaps:[{qty_text,item_name,prep_note,category_id}]} */
+  ingredient_lines: column.text,
+  instructions: column.text,
+  created_at: column.text,
+  updated_at: column.text,
+});
+
+const planned_meals = new Table(
+  {
+    list_id: column.text,
+    recipe_id: column.text,
+    variant_id: column.text,
+    slot_date: column.text,
+    meal: column.text,
+    servings: column.integer,
+    created_at: column.text,
+    updated_at: column.text,
+  },
+  { indexes: { by_list_date: ['list_id', 'slot_date'] } },
+);
+
 const list_items = new Table(
   {
     list_id: column.text,
@@ -53,11 +92,15 @@ const list_items = new Table(
     added_by: column.text,
     created_at: column.text,
     updated_at: column.text,
+    /** Null for standalone; set for meal-derived rows (ADR 7). */
+    planned_meal_id: column.text,
+    variant_id: column.text,
   },
   {
     indexes: {
       by_list_status: ['list_id', 'status'],
       by_recent: ['list_id', 'updated_at'],
+      by_planned_meal: ['planned_meal_id'],
     },
   },
 );
@@ -66,6 +109,9 @@ export const AppSchema = new Schema({
   categories,
   lists,
   list_members,
+  recipes,
+  variants,
+  planned_meals,
   list_items,
 });
 
@@ -74,5 +120,8 @@ export type Category = Database['categories'];
 export type List = Database['lists'];
 export type ListMember = Database['list_members'];
 export type ListItem = Database['list_items'];
+export type Recipe = Database['recipes'];
+export type Variant = Database['variants'];
+export type PlannedMeal = Database['planned_meals'];
 
 export type ItemStatus = 'active' | 'purchased';

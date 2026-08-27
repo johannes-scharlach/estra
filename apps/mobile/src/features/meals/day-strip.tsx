@@ -4,7 +4,7 @@ import { Pressable, ScrollView } from "react-native";
 import { Text } from "@/components/ui/text";
 import { cn } from "@/lib/utils";
 
-import { dateKey, WEEKDAY_SHORT } from "./demo-data";
+import { dateKey, WEEKDAY_SHORT } from "./slots";
 
 /** Fixed chip geometry keeps scroll-to-center math trivial. */
 const CHIP_W = 48; // w-12
@@ -16,17 +16,27 @@ type Props = {
   todayIndex: number;
   selected: string;
   onSelect: (key: string) => void;
+  className?: string;
 };
 
 /** Horizontally scrollable date tabs, past days left, planned days right. */
-export function DayStrip({ dates, todayIndex, selected, onSelect }: Props) {
+export function DayStrip({
+  dates,
+  todayIndex,
+  selected,
+  onSelect,
+  className,
+}: Props) {
   const scrollRef = useRef<ScrollView>(null);
   const viewport = useRef(0);
   const didInit = useRef(false);
 
   function center(index: number, animated: boolean) {
     scrollRef.current?.scrollTo({
-      x: Math.max(0, EDGE_PAD + index * UNIT + CHIP_W / 2 - viewport.current / 2),
+      x: Math.max(
+        0,
+        EDGE_PAD + index * UNIT + CHIP_W / 2 - viewport.current / 2,
+      ),
       animated,
     });
   }
@@ -47,7 +57,12 @@ export function DayStrip({ dates, todayIndex, selected, onSelect }: Props) {
         initCenter();
       }}
       onContentSizeChange={initCenter}
-      contentContainerStyle={{ paddingHorizontal: EDGE_PAD, paddingVertical: 8, gap: 8 }}
+      contentContainerStyle={{
+        paddingHorizontal: EDGE_PAD,
+        paddingVertical: 8,
+        gap: 8,
+      }}
+      className={cn(className)}
     >
       {dates.map((d, i) => {
         const key = dateKey(d);

@@ -17,4 +17,5 @@ export const env = {
   port: Number(process.env.PORT ?? 8787),
   supabaseUrl: required('SUPABASE_URL').replace(/\/+$/, ''),
   googleApiKey: required('GOOGLE_GENERATIVE_AI_API_KEY'),
+  databaseUrl: required('DATABASE_URL'),
 } as const;

@@ -87,4 +87,4 @@ values
   (gen_random_uuid(), '33333333-3333-3333-3333-333333333333', 'Sourdough', 'sourdough', 'bakery',  'active',    2, '11111111-1111-1111-1111-111111111111'),
   (gen_random_uuid(), '33333333-3333-3333-3333-333333333333', 'Coffee',    'coffee',    'pantry',  'purchased', 6, '11111111-1111-1111-1111-111111111111'),
   (gen_random_uuid(), '33333333-3333-3333-3333-333333333333', 'Dish soap', 'dish soap', 'household','purchased', 1, '11111111-1111-1111-1111-111111111111')
-on conflict (list_id, name_key) do nothing;
+on conflict (list_id, name_key) where planned_meal_id is null do nothing;
