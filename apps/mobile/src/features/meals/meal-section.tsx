@@ -1,9 +1,12 @@
 import { SymbolView } from "expo-symbols";
+import { LinearGradient } from "expo-linear-gradient";
 import { Pressable, ScrollView, View } from "react-native";
 import { useResolveClassNames } from "uniwind";
 
 import { Button } from "@/components/ui/button";
 import { Text } from "@/components/ui/text";
+import { tonalPair } from "@/features/variants/tonal";
+import { useColorScheme } from "@/hooks/use-color-scheme";
 
 type Recipe = { id: string; name: string };
 
@@ -22,11 +25,6 @@ type Props = {
   onCookbook: () => void;
 };
 
-const FOOD_ICON = {
-  ios: "fork.knife",
-  android: "restaurant",
-  web: "restaurant",
-} as const;
 const X_ICON = { ios: "xmark", android: "close", web: "close" } as const;
 const MENU_ICON = {
   ios: "ellipsis",
@@ -51,6 +49,7 @@ export function MealSection({
   onCookbook,
 }: Props) {
   const muted = useResolveClassNames("text-muted-foreground").color;
+  const dark = useColorScheme() === "dark";
 
   return (
     <View className="gap-3">
@@ -69,8 +68,14 @@ export function MealSection({
         <View className="px-6">
           <View className="overflow-hidden rounded-xl border border-border bg-card">
             <Pressable onPress={() => onView(recipe)}>
-              <View className="h-36 items-center justify-center bg-muted">
-                <SymbolView name={FOOD_ICON} tintColor={muted} size={28} />
+              {/* Same tonalPair as the cookbook row and hero — one identity per recipe. */}
+              <View className="h-36">
+                <LinearGradient
+                  colors={tonalPair(recipe.id, dark)}
+                  start={{ x: 0.15, y: 0 }}
+                  end={{ x: 0.85, y: 1 }}
+                  style={{ flex: 1 }}
+                />
               </View>
               <View className="p-4">
                 <Text className="text-lg font-semibold">{recipe.name}</Text>
@@ -98,8 +103,13 @@ export function MealSection({
                 onPress={() => onPlan(c)}
                 className="w-40 overflow-hidden rounded-xl border border-border bg-card"
               >
-                <View className="h-24 items-center justify-center bg-muted">
-                  <SymbolView name={FOOD_ICON} tintColor={muted} size={22} />
+                <View className="h-24">
+                  <LinearGradient
+                    colors={tonalPair(c.id, dark)}
+                    start={{ x: 0.15, y: 0 }}
+                    end={{ x: 0.85, y: 1 }}
+                    style={{ flex: 1 }}
+                  />
                 </View>
                 <View className="p-3">
                   <Text numberOfLines={1} className="text-sm font-medium">

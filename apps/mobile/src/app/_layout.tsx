@@ -41,6 +41,54 @@ export default function RootLayout() {
               }}
             />
             <Stack.Screen
+              name="meals/import"
+              options={{
+                presentation: "formSheet",
+                sheetAllowedDetents: "fitToContents",
+                sheetGrabberVisible: true,
+                headerShown: false,
+              }}
+            />
+            {/* pageSheet, not formSheet: the picker scrolls, and inside a
+                formSheet the detent measuring pass mangles ScrollView frames
+                (react-native-screens #3634). Same pattern as shop/add. */}
+            <Stack.Screen
+              name="meals/pick"
+              options={{
+                presentation: "pageSheet",
+                headerShown: true,
+                title: "From cookbook",
+                contentStyle: { backgroundColor: "transparent" },
+              }}
+            />
+            <Stack.Screen
+              name="cookbook/import"
+              options={{
+                presentation: "formSheet",
+                sheetAllowedDetents: "fitToContents",
+                sheetGrabberVisible: true,
+                headerShown: false,
+              }}
+            />
+            <Stack.Screen
+              name="shop/item"
+              options={{
+                presentation: "formSheet",
+                sheetAllowedDetents: "fitToContents",
+                sheetGrabberVisible: true,
+                headerShown: false,
+              }}
+            />
+            <Stack.Screen
+              name="shop/add"
+              options={{
+                presentation: "pageSheet",
+                headerShown: true,
+                title: "Add Item",
+                contentStyle: { backgroundColor: "transparent" },
+              }}
+            />
+            <Stack.Screen
               name="variant/cook"
               options={{
                 headerShown: false,

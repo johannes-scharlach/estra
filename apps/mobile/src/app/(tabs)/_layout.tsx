@@ -25,7 +25,7 @@ export default function TabsLayout() {
         name="meals"
         options={{
           title: "Meals",
-          // The screen renders its own collapsing large-title header.
+          // Nested native stack provides the large-title header.
           headerShown: false,
           tabBarIcon: tabIcon({
             ios: "fork.knife",
@@ -49,6 +49,8 @@ export default function TabsLayout() {
         name="shop"
         options={{
           title: "Shop",
+          // Nested native stack provides the large-title header.
+          headerShown: false,
           tabBarIcon: tabIcon({
             ios: "cart.fill",
             android: "shopping_cart",
@@ -60,6 +62,7 @@ export default function TabsLayout() {
         name="cookbook"
         options={{
           title: "Cookbook",
+          headerShown: false,
           tabBarIcon: tabIcon({
             ios: "book.fill",
             android: "menu_book",

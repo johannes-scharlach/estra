@@ -1,10 +1,11 @@
-import { router } from "expo-router";
+import { useQuery } from "@powersync/react";
+import { router, Stack } from "expo-router";
+import * as Haptics from "expo-haptics";
 import { SymbolView } from "expo-symbols";
 import { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Animated, Modal, Pressable, ScrollView, View } from "react-native";
+import { ActivityIndicator, Modal, Pressable, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useResolveClassNames } from "uniwind";
-import { useQuery } from "@powersync/react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,8 +27,6 @@ import { clearPlannedMeal, movePlannedMeal, setPlannedMeal } from "@/db/planned-
 import { env } from "@/lib/env";
 import { supabase } from "@/lib/supabase";
 
-const BAR_H = 44;
-const CAL_ICON = { ios: "calendar", android: "calendar_month", web: "calendar_month" } as const;
 const PLUS_ICON = { ios: "plus", android: "add", web: "add" } as const;
 const CHANGE_ICON = { ios: "arrow.2.squarepath", android: "autorenew", web: "autorenew" } as const;
 const MOVE_ICON = { ios: "arrow.left.arrow.right", android: "swap_horiz", web: "swap_horiz" } as const;
@@ -40,7 +39,6 @@ export default function Meals() {
   const [{ dates, todayIndex }] = useState(stripDates);
   const [selected, setSelected] = useState(() => dateKey(new Date()));
   const [jumpOpen, setJumpOpen] = useState(false);
-  const [viewing, setViewing] = useState<DisplayRecipe | null>(null);
   const [menu, setMenu] = useState<{ slot: MealSlot; recipe: DisplayRecipe } | null>(null);
   const [moving, setMoving] = useState(false);
   const [openSlots, setOpenSlots] = useState<Set<string>>(() => new Set());
@@ -53,10 +51,6 @@ export default function Meals() {
   const [cookbookSlot, setCookbookSlot] = useState<MealSlot | null>(null);
   const iconColor = useResolveClassNames("text-foreground").color;
   const mutedColor = useResolveClassNames("text-muted-foreground").color;
-
-  const [scrollY] = useState(() => new Animated.Value(0));
-  const [smallTitleOpacity] = useState(() => scrollY.interpolate({ inputRange: [28, 48], outputRange: [0, 1], extrapolate: "clamp" }));
-  const [largeTitleOpacity] = useState(() => scrollY.interpolate({ inputRange: [0, 32], outputRange: [1, 0], extrapolate: "clamp" }));
 
   const { data: lists } = useQuery<List>("SELECT * FROM lists ORDER BY created_at LIMIT 1");
   const list = lists[0] ?? null;
@@ -133,6 +127,7 @@ export default function Meals() {
 
   async function onPlan(slot: MealSlot, recipe: DisplayRecipe) {
     if (!list) return;
+    void Haptics.selectionAsync();
     const k = `${selected}:${slot}`;
     setPending((prev) => ({ ...prev, [k]: recipe }));
     setOpen(slot, false);
@@ -242,9 +237,11 @@ export default function Meals() {
       // server already inserted recipe+variant; PowerSync will sync it shortly
       const r = { id: json.variantId!, name: (json.recipe as { name: string }).name };
       await onPlan(importSlot, r);
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setImportSlot(null);
       setImportUrl("");
     } catch (e) {
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       setImportError(e instanceof Error ? e.message : String(e));
     } finally {
       setImporting(false);
@@ -255,7 +252,7 @@ export default function Meals() {
 
   if (!list) {
     return (
-      <View className="flex-1 items-center justify-center gap-3 bg-background p-6" style={{ paddingTop: insets.top + BAR_H }}>
+      <View className="flex-1 items-center justify-center gap-3 bg-background p-6">
         <Text variant="muted">No list yet — create one in Shop first.</Text>
         <ActivityIndicator />
       </View>
@@ -263,16 +260,28 @@ export default function Meals() {
   }
 
   return (
-    <View className="flex-1 bg-background">
-      <Animated.ScrollView
-        scrollEventThrottle={16}
-        onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })}
-        contentContainerStyle={{ paddingTop: insets.top + BAR_H, paddingBottom: 40 }}
+    <>
+      <Stack.Toolbar placement="right">
+        <Stack.Toolbar.Button
+          icon="calendar"
+          accessibilityLabel="Jump to date"
+          onPress={() => setJumpOpen(true)}
+        >
+          Jump to date
+        </Stack.Toolbar.Button>
+        <Stack.Toolbar.Button
+          icon="plus"
+          accessibilityLabel="Plan meals"
+          onPress={() => router.push("/meals/plan")}
+        >
+          Plan meals
+        </Stack.Toolbar.Button>
+      </Stack.Toolbar>
+      <ScrollView
+        className="flex-1 bg-background"
+        contentInsetAdjustmentBehavior="automatic"
+        contentContainerClassName="pb-10"
       >
-        <Animated.View style={{ opacity: largeTitleOpacity }} className="px-6 pt-2">
-          <Text className="text-4xl font-bold tracking-tight">Meals</Text>
-        </Animated.View>
-
         <View className="mt-4">
           <DayStrip dates={dates} todayIndex={todayIndex} selected={selected} onSelect={setSelected} />
         </View>
@@ -307,7 +316,7 @@ export default function Meals() {
                 onPlan={(r) => void onPlan(slot, r)}
                 onMenu={(r) => setMenu({ slot, recipe: r })}
                 onHide={() => onHideOpen(slot)}
-                onView={setViewing}
+                onView={(r) => router.push(`/variant/${r.id}` as never)}
                 onImport={() => {
                   setImportSlot(slot);
                   setImportError(null);
@@ -317,37 +326,7 @@ export default function Meals() {
             );
           })}
         </View>
-      </Animated.ScrollView>
-
-      <View style={{ paddingTop: insets.top }} className="absolute inset-x-0 top-0 z-10 bg-background">
-        <View className="h-11 flex-row items-center justify-between px-6">
-          <Animated.View style={{ opacity: smallTitleOpacity }}>
-            <Text className="text-lg font-semibold">Meals</Text>
-          </Animated.View>
-          <View className="flex-row items-center">
-            <Pressable hitSlop={12} onPress={() => setJumpOpen(true)} className="p-2">
-              <SymbolView name={CAL_ICON} tintColor={iconColor} size={22} />
-            </Pressable>
-            <Pressable hitSlop={12} onPress={() => router.push("/meals/plan")} className="p-2">
-              <SymbolView name={PLUS_ICON} tintColor={iconColor} size={24} />
-            </Pressable>
-          </View>
-        </View>
-      </View>
-
-      <Modal visible={!!viewing} transparent animationType="fade" onRequestClose={() => setViewing(null)}>
-        <Pressable className="flex-1 items-center justify-center bg-black/40 px-8" onPress={() => setViewing(null)}>
-          <Pressable onPress={() => {}} className="w-full gap-4 rounded-2xl border border-border bg-card p-6">
-            <View className="gap-1">
-              <Text variant="large">{viewing?.name}</Text>
-              <Text variant="muted">Recipe details coming soon.</Text>
-            </View>
-            <Button variant="outline" onPress={() => setViewing(null)}>
-              <Text>Close</Text>
-            </Button>
-          </Pressable>
-        </Pressable>
-      </Modal>
+      </ScrollView>
 
       <Modal visible={!!menu} transparent animationType="slide" onRequestClose={closeMenu}>
         <Pressable className="flex-1 justify-end bg-black/40" onPress={closeMenu}>
@@ -492,6 +471,6 @@ export default function Meals() {
           </Pressable>
         </Pressable>
       </Modal>
-    </View>
+    </>
   );
 }

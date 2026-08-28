@@ -1,7 +1,9 @@
 import { z } from 'zod';
 
+import { powersync } from './system';
 import type { Variant } from './schema';
 import { IngredientLineSchema, InstructionSchema } from './schemas';
+import type { IngredientLine } from './schemas';
 
 // ---------------------------------------------------------------------------
 // Thin DAL for the variants table — SQLite stores jsonb columns as TEXT
@@ -33,12 +35,16 @@ function parseJson<T>(raw: string, schema: z.ZodType<T>): T {
   return schema.parse(parsed);
 }
 
+/** Parse the ingredient_lines jsonb column (TEXT in SQLite). Throws on partial-sync garbage. */
+export function parseIngredientLines(raw: string | null): IngredientLine[] {
+  return parseJson(raw ?? '[]', IngredientLinesZ);
+}
+
 export function parseVariant(row: Variant): ParsedVariant {
-  const ingredientLinesRaw = row.ingredient_lines ?? '[]';
   const instructionsRaw = row.instructions ?? '[]';
   return {
     ...row,
-    ingredientLines: parseJson(ingredientLinesRaw, IngredientLinesZ),
+    ingredientLines: parseIngredientLines(row.ingredient_lines),
     instructions: parseJson(instructionsRaw, InstructionsZ),
   };
 }
@@ -78,6 +84,21 @@ export async function getVariant(
 ): Promise<ParsedVariant | null> {
   const row = (await tx.getOptional(`SELECT * FROM variants WHERE id = ?`, [id])) as Variant | null | undefined;
   return row ? parseVariant(row) : null;
+}
+
+/**
+ * Wait for a variant to arrive in local SQLite. Server-side imports insert
+ * into Postgres; planning against the new variant needs the row synced down
+ * first (setPlannedMeal projects its ingredient_lines into list_items).
+ */
+export async function waitForVariant(id: string, timeoutMs = 15000): Promise<boolean> {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    const row = await powersync.getOptional(`SELECT id FROM variants WHERE id = ?`, [id]);
+    if (row) return true;
+    if (Date.now() >= deadline) return false;
+    await new Promise((r) => setTimeout(r, 300));
+  }
 }
 
 export async function getVariantForRecipe(

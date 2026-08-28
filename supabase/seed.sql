@@ -78,13 +78,34 @@ values (
 )
 on conflict (list_id, user_id) do nothing;
 
--- Ids here are arbitrary; the app generates deterministic ones from
--- (list_id, name_key) so two offline devices adding the same thing converge.
+-- Match the deterministic ids the app generates from (list_id, name_key) so
+-- seed rows can be re-added without colliding with list_items_standalone_dedupe.
+create extension if not exists "uuid-ossp";
+
+create or replace function public.item_name_key(name text)
+returns text
+language sql
+immutable
+as $$
+  select lower(regexp_replace(trim(name), '\s+', ' ', 'g'));
+$$;
+
+create or replace function public.uuid_for_item(target_list_id uuid, item_name text)
+returns uuid
+language sql
+immutable
+as $$
+  select uuid_generate_v5(
+    '6f9a1c2e-2b7a-5f3d-9c41-0e8b6d5a4f77'::uuid,
+    target_list_id::text || ':' || public.item_name_key(item_name)
+  );
+$$;
+
 insert into public.list_items (id, list_id, name, name_key, category_id, status, purchase_count, added_by)
 values
-  (gen_random_uuid(), '33333333-3333-3333-3333-333333333333', 'Oat milk',  'oat milk',  'dairy',   'active',    4, '11111111-1111-1111-1111-111111111111'),
-  (gen_random_uuid(), '33333333-3333-3333-3333-333333333333', 'Bananas',   'bananas',   'produce', 'active',    9, '11111111-1111-1111-1111-111111111111'),
-  (gen_random_uuid(), '33333333-3333-3333-3333-333333333333', 'Sourdough', 'sourdough', 'bakery',  'active',    2, '11111111-1111-1111-1111-111111111111'),
-  (gen_random_uuid(), '33333333-3333-3333-3333-333333333333', 'Coffee',    'coffee',    'pantry',  'purchased', 6, '11111111-1111-1111-1111-111111111111'),
-  (gen_random_uuid(), '33333333-3333-3333-3333-333333333333', 'Dish soap', 'dish soap', 'household','purchased', 1, '11111111-1111-1111-1111-111111111111')
+  (public.uuid_for_item('33333333-3333-3333-3333-333333333333', 'Oat milk'),  '33333333-3333-3333-3333-333333333333', 'Oat milk',  'oat milk',  'dairy',    'active',    4, '11111111-1111-1111-1111-111111111111'),
+  (public.uuid_for_item('33333333-3333-3333-3333-333333333333', 'Bananas'),   '33333333-3333-3333-3333-333333333333', 'Bananas',   'bananas',   'produce',  'active',    9, '11111111-1111-1111-1111-111111111111'),
+  (public.uuid_for_item('33333333-3333-3333-3333-333333333333', 'Sourdough'), '33333333-3333-3333-3333-333333333333', 'Sourdough', 'sourdough', 'bakery',   'active',    2, '11111111-1111-1111-1111-111111111111'),
+  (public.uuid_for_item('33333333-3333-3333-3333-333333333333', 'Coffee'),    '33333333-3333-3333-3333-333333333333', 'Coffee',    'coffee',    'pantry',   'purchased', 6, '11111111-1111-1111-1111-111111111111'),
+  (public.uuid_for_item('33333333-3333-3333-3333-333333333333', 'Dish soap'), '33333333-3333-3333-3333-333333333333', 'Dish soap', 'dish soap', 'household','purchased', 1, '11111111-1111-1111-1111-111111111111')
 on conflict (list_id, name_key) where planned_meal_id is null do nothing;

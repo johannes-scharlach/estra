@@ -1,115 +1,195 @@
 import { useQuery } from "@powersync/react";
-import { useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, View } from "react-native";
 import { useRouter } from "expo-router";
+import { SymbolView } from "expo-symbols";
+import { LinearGradient } from "expo-linear-gradient";
+import { useState } from "react";
+import { Animated, Pressable, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useResolveClassNames } from "uniwind";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Text } from "@/components/ui/text";
 import type { Variant } from "@/db/schema";
-import { env } from "@/lib/env";
-import { supabase } from "@/lib/supabase";
+import { tonalPair } from "@/features/variants/tonal";
+import { useColorScheme } from "@/hooks/use-color-scheme";
+
+const BAR_H = 44;
+const PLUS_ICON = { ios: "plus", android: "add", web: "add" } as const;
+
+function VariantRow({
+  variant,
+  dark,
+  onPress,
+}: {
+  variant: Variant;
+  dark: boolean;
+  onPress: () => void;
+}) {
+  const meta = [
+    variant.recipe_cuisine,
+    variant.total_time,
+    variant.recipe_yield,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
+  return (
+    <Pressable
+      onPress={onPress}
+      className="flex-row items-center gap-4 px-6 py-3 active:bg-accent"
+    >
+      {/* Same tonalPair as the recipe hero — one identity per recipe. */}
+      <View className="size-16 overflow-hidden rounded-xl">
+        <LinearGradient
+          colors={tonalPair(variant.id, dark)}
+          start={{ x: 0.15, y: 0 }}
+          end={{ x: 0.85, y: 1 }}
+          style={{ flex: 1 }}
+        />
+      </View>
+      <View className="flex-1 gap-0.5">
+        <Text className="text-base font-medium" numberOfLines={2}>
+          {variant.name ?? "…"}
+        </Text>
+        {meta ? (
+          <Text variant="muted" className="text-sm" numberOfLines={1}>
+            {meta}
+          </Text>
+        ) : variant.description ? (
+          <Text variant="muted" className="text-sm" numberOfLines={1}>
+            {variant.description}
+          </Text>
+        ) : null}
+      </View>
+    </Pressable>
+  );
+}
 
 export default function Cookbook() {
   const router = useRouter();
-  const [url, setUrl] = useState("");
-  const [status, setStatus] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const insets = useSafeAreaInsets();
+  const scheme = useColorScheme();
+  const iconColor = useResolveClassNames("text-foreground").color;
 
-  const { data: recent, isLoading } = useQuery<Variant>(
-    "SELECT * FROM variants ORDER BY created_at DESC LIMIT 50",
+  const [search, setSearch] = useState("");
+  const query = search.trim();
+
+  const [scrollY] = useState(() => new Animated.Value(0));
+  const [smallTitleOpacity] = useState(() =>
+    scrollY.interpolate({
+      inputRange: [28, 48],
+      outputRange: [0, 1],
+      extrapolate: "clamp",
+    }),
+  );
+  const [largeTitleOpacity] = useState(() =>
+    scrollY.interpolate({
+      inputRange: [0, 32],
+      outputRange: [1, 0],
+      extrapolate: "clamp",
+    }),
   );
 
-  async function onImport() {
-    const trimmed = url.trim();
-    if (!trimmed) return;
-    setLoading(true);
-    setStatus(null);
-    try {
-      const { data: sess } = await supabase.auth.getSession();
-      const token = sess.session?.access_token;
-      if (!token) throw new Error("Not signed in");
+  const like = `%${query}%`;
+  const { data: variants, isLoading } = useQuery<Variant>(
+    `SELECT * FROM variants
+      WHERE name LIKE ? OR recipe_cuisine LIKE ? OR recipe_category LIKE ?
+      ORDER BY created_at DESC`,
+    [like, like, like],
+  );
 
-      const res = await fetch(`${env.apiUrl}/v1/recipes/import-from-url`, {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ url: trimmed }),
-      });
-      const json = (await res.json()) as {
-        id?: string;
-        variantId?: string;
-        recipe?: unknown;
-        error?: string;
-      };
-      if (!res.ok)
-        throw new Error(json.error ?? `Import failed (${res.status})`);
-      if (!json.recipe || !json.id) throw new Error("No recipe returned");
-
-      setUrl("");
-      setStatus("Imported — syncing…");
-    } catch (e) {
-      setStatus(e instanceof Error ? e.message : String(e));
-    } finally {
-      setLoading(false);
-    }
-  }
+  const empty = !isLoading && variants.length === 0;
 
   return (
-    <View className="flex-1 gap-4 bg-background p-6">
-      <Text variant="h3">Cookbook</Text>
+    <View className="flex-1 bg-background">
+      <Animated.ScrollView
+        scrollEventThrottle={16}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: true },
+        )}
+        contentContainerStyle={{
+          paddingTop: insets.top + BAR_H,
+          paddingBottom: 40,
+        }}
+        keyboardDismissMode="on-drag"
+        keyboardShouldPersistTaps="handled"
+      >
+        <Animated.View style={{ opacity: largeTitleOpacity }} className="px-6 pt-2">
+          <Text className="text-4xl font-bold tracking-tight">Cookbook</Text>
+        </Animated.View>
 
-      <View className="gap-2">
-        <Text variant="muted">Import from URL</Text>
-        <View className="flex-row items-center gap-2">
+        <View className="mt-4 px-6">
           <Input
-            className="flex-1"
-            value={url}
-            onChangeText={setUrl}
-            placeholder="https://… recipe URL"
+            value={search}
+            onChangeText={setSearch}
+            placeholder="Search recipes"
             autoCapitalize="none"
             autoCorrect={false}
-            returnKeyType="done"
-            onSubmitEditing={() => void onImport()}
+            returnKeyType="search"
+            clearButtonMode="while-editing"
           />
-          <Button onPress={() => void onImport()} disabled={loading}>
-            <Text>{loading ? "…" : "Import"}</Text>
-          </Button>
         </View>
-        {status ? <Text variant="small">{status}</Text> : null}
-      </View>
 
-      <Text variant="small" className="font-semibold">
-        Latest 50 imports
-      </Text>
-      {isLoading ? (
-        <ActivityIndicator />
-      ) : (
-        <ScrollView contentContainerClassName="gap-2">
-          {recent.map((r) => (
-            <Pressable
-              key={r.id}
-              onPress={() => router.push(`/variant/${r.id}` as never)}
-              className="rounded-lg border border-border bg-card p-3 active:bg-accent"
-            >
-              <Text className="font-medium">{r.name}</Text>
-              {r.description ? (
-                <Text variant="muted" className="text-sm">
-                  {r.description}
-                </Text>
-              ) : null}
-              <Text variant="muted" className="text-xs">
-                {r.recipe_yield ?? ""} {r.total_time ? `· ${r.total_time}` : ""}
-              </Text>
-            </Pressable>
-          ))}
-          {recent.length === 0 ? (
-            <Text variant="muted">No recipes yet. Paste a URL above.</Text>
-          ) : null}
-        </ScrollView>
-      )}
+        {isLoading ? (
+          <View className="mt-6 gap-3 px-6">
+            {[0, 1, 2].map((i) => (
+              <View key={i} className="flex-row items-center gap-4 py-3">
+                <Skeleton className="size-16 rounded-xl" />
+                <View className="flex-1 gap-2">
+                  <Skeleton className="h-4 w-3/4" />
+                  <Skeleton className="h-3 w-1/2" />
+                </View>
+              </View>
+            ))}
+          </View>
+        ) : empty && query ? (
+          <View className="mt-12 items-center px-6">
+            <Text variant="muted">No matches for “{query}”.</Text>
+          </View>
+        ) : empty ? (
+          <View className="mt-16 items-center gap-4 px-6">
+            <Text variant="muted" className="text-center">
+              Your cookbook is empty. Import a recipe from a URL to start
+              cooking from it.
+            </Text>
+            <Button onPress={() => router.push("/cookbook/import" as never)}>
+              <Text>Import a recipe</Text>
+            </Button>
+          </View>
+        ) : (
+          <View className="mt-4 divide-y divide-border/60 border-y border-border/60">
+            {variants.map((v) => (
+              <VariantRow
+                key={v.id}
+                variant={v}
+                dark={scheme === "dark"}
+                onPress={() => router.push(`/variant/${v.id}` as never)}
+              />
+            ))}
+          </View>
+        )}
+      </Animated.ScrollView>
+
+      <View
+        style={{ paddingTop: insets.top }}
+        className="absolute inset-x-0 top-0 z-10 bg-background"
+      >
+        <View className="h-11 flex-row items-center justify-between px-6">
+          <Animated.View style={{ opacity: smallTitleOpacity }}>
+            <Text className="text-lg font-semibold">Cookbook</Text>
+          </Animated.View>
+          <Pressable
+            hitSlop={12}
+            onPress={() => router.push("/cookbook/import" as never)}
+            className="p-2"
+          >
+            <SymbolView name={PLUS_ICON} tintColor={iconColor} size={24} />
+          </Pressable>
+        </View>
+      </View>
     </View>
   );
 }

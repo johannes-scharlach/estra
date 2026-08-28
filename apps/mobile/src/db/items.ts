@@ -5,8 +5,9 @@ import { powersync } from './system';
 /**
  * Fixed namespace for deriving Estra's deterministic ids. Arbitrary but
  * must never change — changing it re-ids every item in existence.
+ * Exported for db/lists.ts, which derives member ids from the same space.
  */
-const ESTRA_NAMESPACE = '6f9a1c2e-2b7a-5f3d-9c41-0e8b6d5a4f77';
+export const ESTRA_NAMESPACE = '6f9a1c2e-2b7a-5f3d-9c41-0e8b6d5a4f77';
 
 /**
  * The dedupe key. 'Oat Milk  ' and 'oat milk' are the same thing on a
@@ -61,6 +62,29 @@ export async function addItem(listId: string, name: string, spec?: string) {
       return;
     }
 
+    // Seeded or legacy rows may have a random id while still sharing the same
+    // (list_id, name_key). Updating them keeps the local device consistent
+    // and avoids the server-side partial unique violation.
+    const legacy = await tx.getOptional<{ id: string }>(
+      `SELECT id FROM list_items
+        WHERE list_id = ? AND name_key = ? AND planned_meal_id IS NULL
+        LIMIT 1`,
+      [listId, nameKey],
+    );
+
+    if (legacy) {
+      await tx.execute(
+        `UPDATE list_items
+            SET status     = 'active',
+                name       = ?,
+                spec       = COALESCE(?, spec),
+                updated_at = ?
+          WHERE id = ?`,
+        [trimmed, spec ?? null, now, legacy.id],
+      );
+      return;
+    }
+
     await tx.execute(
       `INSERT INTO list_items
          (id, list_id, name, name_key, category_id, spec, status, purchase_count, created_at, updated_at)
@@ -92,4 +116,36 @@ export async function setItemCategory(id: string, categoryId: string | null) {
     `UPDATE list_items SET category_id = ?, updated_at = ? WHERE id = ?`,
     [categoryId, new Date().toISOString(), id],
   );
+}
+
+/** Rename an item in place (custom edit from the item sheet). */
+export async function renameItem(id: string, name: string) {
+  const trimmed = name.trim();
+  if (!trimmed) return;
+  await powersync.execute(
+    `UPDATE list_items SET name = ?, name_key = ?, updated_at = ? WHERE id = ?`,
+    [trimmed, itemNameKey(trimmed), new Date().toISOString(), id],
+  );
+}
+
+/**
+ * Apply a variant swap to a list item: new clean name plus the swap's qty
+ * and prep note folded into spec, so the row re-files under the right
+ * section and still reads like a shopping-list line.
+ */
+export async function applySwap(
+  id: string,
+  opts: { name: string; qtyText: string | null; prepNote: string | null; categoryId: string | null },
+) {
+  const trimmed = opts.name.trim();
+  if (!trimmed) return;
+  const spec = [(opts.qtyText ?? '').trim(), opts.prepNote].filter(Boolean).join(', ') || null;
+  await powersync.execute(
+    `UPDATE list_items SET name = ?, name_key = ?, spec = ?, category_id = ?, updated_at = ? WHERE id = ?`,
+    [trimmed, itemNameKey(trimmed), spec, opts.categoryId, new Date().toISOString(), id],
+  );
+}
+
+export async function removeItem(id: string) {
+  await powersync.execute(`DELETE FROM list_items WHERE id = ?`, [id]);
 }

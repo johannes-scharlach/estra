@@ -18,9 +18,11 @@ async function syncListItemsForMeal(tx: any, listId: string, plannedMealIdValue:
   const variant = await getVariant(tx, variantIdValue);
   if (!variant) throw new Error(`variant ${variantIdValue} not found`);
   const lines = variant.ingredientLines.map((e) => {
+    // Name stays the clean ingredient ("Fresh parsley"); qty + prep go to
+    // spec so the list reads like a shopping list, not a recipe line.
     const qty = (e.qty_text ?? '').trim();
-    const name = qty ? `${qty} ${e.item_name}`.trim() : e.item_name;
-    return { name, spec: e.prep_note ?? null, category_id: e.category_id ?? null };
+    const spec = [qty, e.prep_note].filter(Boolean).join(', ') || null;
+    return { name: e.item_name, spec, category_id: e.category_id ?? null };
   });
   const now = new Date().toISOString();
   for (const line of lines) {
@@ -137,8 +139,8 @@ export async function movePlannedMeal(
       if (!variantMove) throw new Error(`variant ${from.variant_id} not found`);
       const lines = variantMove.ingredientLines.map((e) => {
         const qty = (e.qty_text ?? '').trim();
-        const name = qty ? `${qty} ${e.item_name}`.trim() : e.item_name;
-        return { name, spec: e.prep_note ?? null, category_id: e.category_id ?? null };
+        const spec = [qty, e.prep_note].filter(Boolean).join(', ') || null;
+        return { name: e.item_name, spec, category_id: e.category_id ?? null };
       });
       for (const line of lines) {
         const nameKey = itemNameKey(line.name);

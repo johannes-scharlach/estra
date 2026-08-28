@@ -79,10 +79,11 @@ export function parseIngredientLinesSafe(raw: string | null): {
   }
   const result = IngredientLinesSchema.safeParse(parsed);
   if (!result.success) return { lines: [], error: result.error.message };
+  // Name is the clean ingredient; qty + prep go to spec (see planned-meals.ts).
   const lines = result.data.map((e) => {
     const qty = (e.qty_text ?? '')?.trim() ?? '';
-    const name = qty ? `${qty} ${e.item_name}`.trim() : e.item_name;
-    return { name, spec: e.prep_note ?? null, category_id: e.category_id ?? null };
+    const spec = [qty, e.prep_note].filter(Boolean).join(', ') || null;
+    return { name: e.item_name, spec, category_id: e.category_id ?? null };
   });
   return { lines };
 }
