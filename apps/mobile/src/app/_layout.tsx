@@ -28,6 +28,7 @@ export default function RootLayout() {
         >
           <Stack>
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen name="sign-in" options={{ headerShown: false }} />
             {/* No variant/_layout.tsx by design: [id] must sit above (tabs)
                 in this same stack to get the system back button + swipe-back.
                 Push-time chrome for its sub-screens is declared here. */}
@@ -84,7 +85,7 @@ export default function RootLayout() {
               options={{
                 presentation: "pageSheet",
                 headerShown: true,
-                title: "Add Item",
+                title: "Add items",
                 contentStyle: { backgroundColor: "transparent" },
               }}
             />

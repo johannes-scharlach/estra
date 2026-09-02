@@ -1,86 +1,40 @@
-import { Tabs } from "expo-router";
-import { SymbolView } from "expo-symbols";
-import type { ColorValue } from "react-native";
+import { Redirect } from "expo-router";
+import { NativeTabs } from "expo-router/unstable-native-tabs";
 
-import { SignIn } from "@/components/sign-in";
 import { useAuth } from "@/db/provider";
-
-type IconName = Parameters<typeof SymbolView>[0]["name"];
-
-function tabIcon(name: IconName) {
-  return function TabIcon({ color }: { color: ColorValue }) {
-    return <SymbolView name={name} tintColor={color} size={24} />;
-  };
-}
 
 export default function TabsLayout() {
   const { session, ready } = useAuth();
 
   if (!ready) return null;
-  if (!session) return <SignIn />;
+  if (!session) return <Redirect href="/sign-in" />;
 
   return (
-    <Tabs>
-      <Tabs.Screen
-        name="meals"
-        options={{
-          title: "Meals",
-          // Nested native stack provides the large-title header.
-          headerShown: false,
-          tabBarIcon: tabIcon({
-            ios: "fork.knife",
-            android: "restaurant",
-            web: "restaurant",
-          }),
-        }}
-      />
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: "Home",
-          tabBarIcon: tabIcon({
-            ios: "house.fill",
-            android: "home_filled",
-            web: "home_filled",
-          }),
-        }}
-      />
-      <Tabs.Screen
-        name="shop"
-        options={{
-          title: "Shop",
-          // Nested native stack provides the large-title header.
-          headerShown: false,
-          tabBarIcon: tabIcon({
-            ios: "cart.fill",
-            android: "shopping_cart",
-            web: "shopping_cart",
-          }),
-        }}
-      />
-      <Tabs.Screen
-        name="cookbook"
-        options={{
-          title: "Cookbook",
-          headerShown: false,
-          tabBarIcon: tabIcon({
-            ios: "book.fill",
-            android: "menu_book",
-            web: "menu_book",
-          }),
-        }}
-      />
-      <Tabs.Screen
-        name="more"
-        options={{
-          title: "More",
-          tabBarIcon: tabIcon({
-            ios: "ellipsis",
-            android: "more_horiz",
-            web: "more_horiz",
-          }),
-        }}
-      />
-    </Tabs>
+    <NativeTabs>
+      <NativeTabs.Trigger name="meals">
+        <NativeTabs.Trigger.Label>Meals</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon sf="fork.knife" md="restaurant" />
+      </NativeTabs.Trigger>
+
+      <NativeTabs.Trigger name="index">
+        <NativeTabs.Trigger.Label>Home</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon sf="house.fill" md="home" />
+      </NativeTabs.Trigger>
+
+      <NativeTabs.Trigger name="shop">
+        <NativeTabs.Trigger.Label>Shop</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon sf="cart.fill" md="shopping_cart" />
+      </NativeTabs.Trigger>
+
+      <NativeTabs.Trigger name="cookbook">
+        <NativeTabs.Trigger.Label>Cookbook</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon sf="book.fill" md="menu_book" />
+      </NativeTabs.Trigger>
+
+      <NativeTabs.Trigger name="more" role="more">
+        <NativeTabs.Trigger.Label>More</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon sf="ellipsis" md="more_horiz" />
+      </NativeTabs.Trigger>
+    </NativeTabs>
   );
 }

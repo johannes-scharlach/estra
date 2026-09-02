@@ -1,10 +1,9 @@
 import { useQuery } from "@powersync/react";
-import { useRouter } from "expo-router";
-import { SymbolView } from "expo-symbols";
+import { Stack, useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
+import { SymbolView } from "expo-symbols";
 import { useState } from "react";
-import { Animated, Pressable, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Pressable, ScrollView, View } from "react-native";
 import { useResolveClassNames } from "uniwind";
 
 import { Button } from "@/components/ui/button";
@@ -15,7 +14,6 @@ import type { Variant } from "@/db/schema";
 import { tonalPair } from "@/features/variants/tonal";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 
-const BAR_H = 44;
 const PLUS_ICON = { ios: "plus", android: "add", web: "add" } as const;
 
 function VariantRow({
@@ -69,28 +67,11 @@ function VariantRow({
 
 export default function Cookbook() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const scheme = useColorScheme();
   const iconColor = useResolveClassNames("text-foreground").color;
 
   const [search, setSearch] = useState("");
   const query = search.trim();
-
-  const [scrollY] = useState(() => new Animated.Value(0));
-  const [smallTitleOpacity] = useState(() =>
-    scrollY.interpolate({
-      inputRange: [28, 48],
-      outputRange: [0, 1],
-      extrapolate: "clamp",
-    }),
-  );
-  const [largeTitleOpacity] = useState(() =>
-    scrollY.interpolate({
-      inputRange: [0, 32],
-      outputRange: [1, 0],
-      extrapolate: "clamp",
-    }),
-  );
 
   const like = `%${query}%`;
   const { data: variants, isLoading } = useQuery<Variant>(
@@ -104,24 +85,29 @@ export default function Cookbook() {
 
   return (
     <View className="flex-1 bg-background">
-      <Animated.ScrollView
-        scrollEventThrottle={16}
-        onScroll={Animated.event(
-          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: true },
-        )}
-        contentContainerStyle={{
-          paddingTop: insets.top + BAR_H,
-          paddingBottom: 40,
+      <Stack.Screen
+        options={{
+          headerRight: () => (
+            <Pressable
+              onPress={() => router.push("/cookbook/import" as never)}
+              hitSlop={12}
+              accessibilityLabel="Import recipe"
+              accessibilityRole="button"
+              className="items-center justify-center p-2"
+            >
+              <SymbolView name={PLUS_ICON} tintColor={iconColor} size={22} />
+            </Pressable>
+          ),
         }}
+      />
+
+      <ScrollView
+        contentContainerStyle={{ paddingBottom: 40 }}
         keyboardDismissMode="on-drag"
         keyboardShouldPersistTaps="handled"
+        contentInsetAdjustmentBehavior="automatic"
       >
-        <Animated.View style={{ opacity: largeTitleOpacity }} className="px-6 pt-2">
-          <Text className="text-4xl font-bold tracking-tight">Cookbook</Text>
-        </Animated.View>
-
-        <View className="mt-4 px-6">
+        <View className="mt-2 px-6">
           <Input
             value={search}
             onChangeText={setSearch}
@@ -171,25 +157,7 @@ export default function Cookbook() {
             ))}
           </View>
         )}
-      </Animated.ScrollView>
-
-      <View
-        style={{ paddingTop: insets.top }}
-        className="absolute inset-x-0 top-0 z-10 bg-background"
-      >
-        <View className="h-11 flex-row items-center justify-between px-6">
-          <Animated.View style={{ opacity: smallTitleOpacity }}>
-            <Text className="text-lg font-semibold">Cookbook</Text>
-          </Animated.View>
-          <Pressable
-            hitSlop={12}
-            onPress={() => router.push("/cookbook/import" as never)}
-            className="p-2"
-          >
-            <SymbolView name={PLUS_ICON} tintColor={iconColor} size={24} />
-          </Pressable>
-        </View>
-      </View>
+      </ScrollView>
     </View>
   );
 }

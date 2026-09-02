@@ -12,7 +12,6 @@ export default function More() {
 
   return (
     <View className="flex-1 gap-3 bg-background p-6">
-      <Text variant="h3">More</Text>
       <Text variant="muted">{session?.user.email}</Text>
       <Text variant="muted">
         {status.hasSynced

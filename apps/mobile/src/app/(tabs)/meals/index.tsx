@@ -28,6 +28,11 @@ import { env } from "@/lib/env";
 import { supabase } from "@/lib/supabase";
 
 const PLUS_ICON = { ios: "plus", android: "add", web: "add" } as const;
+const CALENDAR_ICON = {
+  ios: "calendar",
+  android: "calendar_today",
+  web: "calendar_today",
+} as const;
 const CHANGE_ICON = { ios: "arrow.2.squarepath", android: "autorenew", web: "autorenew" } as const;
 const MOVE_ICON = { ios: "arrow.left.arrow.right", android: "swap_horiz", web: "swap_horiz" } as const;
 const SKIP_ICON = { ios: "forward.end", android: "skip_next", web: "skip_next" } as const;
@@ -261,22 +266,32 @@ export default function Meals() {
 
   return (
     <>
-      <Stack.Toolbar placement="right">
-        <Stack.Toolbar.Button
-          icon="calendar"
-          accessibilityLabel="Jump to date"
-          onPress={() => setJumpOpen(true)}
-        >
-          Jump to date
-        </Stack.Toolbar.Button>
-        <Stack.Toolbar.Button
-          icon="plus"
-          accessibilityLabel="Plan meals"
-          onPress={() => router.push("/meals/plan")}
-        >
-          Plan meals
-        </Stack.Toolbar.Button>
-      </Stack.Toolbar>
+      <Stack.Screen
+        options={{
+          headerRight: () => (
+            <View className="flex-row items-center gap-1">
+              <Pressable
+                onPress={() => setJumpOpen(true)}
+                hitSlop={12}
+                accessibilityLabel="Jump to date"
+                accessibilityRole="button"
+                className="items-center justify-center p-2"
+              >
+                <SymbolView name={CALENDAR_ICON} tintColor={iconColor} size={22} />
+              </Pressable>
+              <Pressable
+                onPress={() => router.push("/meals/plan")}
+                hitSlop={12}
+                accessibilityLabel="Plan meals"
+                accessibilityRole="button"
+                className="items-center justify-center p-2"
+              >
+                <SymbolView name={PLUS_ICON} tintColor={iconColor} size={22} />
+              </Pressable>
+            </View>
+          ),
+        }}
+      />
       <ScrollView
         className="flex-1 bg-background"
         contentInsetAdjustmentBehavior="automatic"

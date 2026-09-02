@@ -12,8 +12,8 @@ direction (yet). That gives:
 - **react-native-reusables (rnr)** — shadcn/ui for RN. Vendored components in
   `src/components/ui/`, built on rn-primitives. Default neutral shadcn theme,
   no styling opinions.
-- **@expo/ui** — real SwiftUI widgets. Apple-only sprinkle (a native switch,
-  glass effect), not the base layer.
+- **@expo/ui** — real SwiftUI and jetpack compose widgets. Use the expo-ui skill
+  if you need to build a screen with a real native feel.
 
 ## How it fits together
 

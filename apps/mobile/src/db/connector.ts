@@ -6,7 +6,26 @@ import {
 
 import { env } from '../lib/env';
 import { supabase } from '../lib/supabase';
-import { decodeVariantForUpload } from './variants';
+
+const VARIANT_JSON_COLUMNS = ['ingredient_lines', 'instructions'] as const;
+
+/** Decode a raw SQLite row map for upload — string -> object for Postgres jsonb. */
+function decodeVariantForUpload(data: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = { ...data };
+  for (const col of VARIANT_JSON_COLUMNS) {
+    const v = out[col];
+    if (typeof v === 'string') {
+      try {
+        out[col] = JSON.parse(v);
+      } catch (e) {
+        const err = new Error(`Invalid JSON in ${col}: ${e instanceof Error ? e.message : String(e)}`) as Error & { code: string };
+        err.code = '22P02';
+        throw err;
+      }
+    }
+  }
+  return out;
+}
 
 /**
  * Postgres error codes that mean "this write will never succeed" — a bad

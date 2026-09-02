@@ -22,9 +22,6 @@ export type ParsedVariant = Omit<Variant, 'ingredient_lines' | 'instructions'> &
   instructions: z.infer<typeof InstructionSchema>[];
 };
 
-/** Columns that are jsonb in Postgres, TEXT in SQLite. */
-export const VARIANT_JSON_COLUMNS = new Set(['ingredient_lines', 'instructions'] as const);
-
 function parseJson<T>(raw: string, schema: z.ZodType<T>): T {
   let parsed: unknown;
   try {
@@ -55,24 +52,6 @@ export function serializeVariant(parsed: ParsedVariant): Variant {
     ingredient_lines: JSON.stringify(parsed.ingredientLines),
     instructions: JSON.stringify(parsed.instructions),
   };
-}
-
-/** Decode a raw SQLite row map for upload — string -> object for Postgres jsonb. */
-export function decodeVariantForUpload(data: Record<string, unknown>): Record<string, unknown> {
-  const out: Record<string, unknown> = { ...data };
-  for (const col of VARIANT_JSON_COLUMNS) {
-    const v = out[col];
-    if (typeof v === 'string') {
-      try {
-        out[col] = JSON.parse(v);
-      } catch (e) {
-        const err = new Error(`Invalid JSON in ${col}: ${e instanceof Error ? e.message : String(e)}`) as Error & { code: string };
-        err.code = '22P02';
-        throw err;
-      }
-    }
-  }
-  return out;
 }
 
 // Convenience helpers — thin wrappers around raw SQL, still explicit SQL

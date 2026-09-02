@@ -37,6 +37,11 @@ const UNCHECKED_ICON = {
   android: "radio_button_unchecked",
   web: "radio_button_unchecked",
 } as const;
+const PLUS_ICON = {
+  ios: "plus",
+  android: "add",
+  web: "add",
+} as const;
 
 type ActiveRow = ListItem & {
   category_name: string | null;
@@ -46,6 +51,7 @@ type ActiveRow = ListItem & {
 export default function Shop() {
   const { session } = useAuth();
   const router = useRouter();
+  const iconColor = useResolveClassNames("text-foreground").color;
   const { data: lists } = useQuery<List>(
     "SELECT * FROM lists ORDER BY created_at",
   );
@@ -64,17 +70,23 @@ export default function Shop() {
 
   return (
     <>
-      <Stack.Toolbar placement="right">
-        <Stack.Toolbar.Button
-          icon="plus"
-          accessibilityLabel="Add item"
-          onPress={() =>
-            router.push({ pathname: "/shop/add", params: { listId: list.id } })
-          }
-        >
-          Add
-        </Stack.Toolbar.Button>
-      </Stack.Toolbar>
+      <Stack.Screen
+        options={{
+          headerRight: () => (
+            <Pressable
+              onPress={() =>
+                router.push({ pathname: "/shop/add", params: { listId: list.id } })
+              }
+              hitSlop={12}
+              accessibilityLabel="Add item"
+              accessibilityRole="button"
+              className="items-center justify-center p-2"
+            >
+              <SymbolView name={PLUS_ICON} tintColor={iconColor} size={22} />
+            </Pressable>
+          ),
+        }}
+      />
       <ListScreen list={list} />
     </>
   );
