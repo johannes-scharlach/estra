@@ -110,15 +110,17 @@ pnpm api
 Routes under `/v1` need a Supabase access token, verified against the
 project's JWKS. `/health` is open, for Fly's health check.
 
-`POST /v1/chat` runs Gemini 3.7 Flash and speaks the AI SDK's UI message
-stream protocol, so the client is a plain `useChat()`. It takes the whole
-conversation on every request and stores none of it.
+`POST /v1/chats/:id/messages` is the cook. It takes one new user message,
+loads the chat's history from Postgres, streams the reply in the AI SDK's
+UI message stream protocol, and persists both messages. The chat id is
+chosen by the client; the first message creates the chat. See
+[ADR 9](docs/decisions/0009-chats-in-the-database.md).
 
 ```bash
-curl -N http://localhost:8787/v1/chat \
+curl -N http://localhost:8787/v1/chats/$(uuidgen | tr A-Z a-z)/messages \
   -H "authorization: Bearer $TOKEN" \
   -H 'content-type: application/json' \
-  -d '{"messages":[{"id":"1","role":"user","parts":[{"type":"text","text":"hello there"}]}]}'
+  -d '{"listId":"<list uuid>","message":{"id":"'$(uuidgen | tr A-Z a-z)'","role":"user","parts":[{"type":"text","text":"half a squash and some bacon"}]}}'
 ```
 
 Deploying, the first time:

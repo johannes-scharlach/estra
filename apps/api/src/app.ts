@@ -4,7 +4,7 @@ import { HTTPException } from 'hono/http-exception';
 import { logger } from 'hono/logger';
 
 import { requireUser, type AppBindings } from './auth.js';
-import { chat } from './routes/chat.js';
+import { chats } from './routes/chats.js';
 import { recipes } from './routes/recipes.js';
 
 export const app = new Hono<AppBindings>();
@@ -27,7 +27,7 @@ app.get('/health', (c) => c.json({ ok: true }));
 // Everything under /v1 needs a Supabase access token. Mounted after cors so
 // preflight requests, which carry no Authorization header, are not rejected.
 app.use('/v1/*', requireUser);
-app.route('/v1/chat', chat);
+app.route('/v1/chats', chats);
 app.route('/v1/recipes', recipes);
 
 app.notFound((c) => c.json({ error: 'Not found' }, 404));

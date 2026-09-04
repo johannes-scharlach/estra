@@ -1,6 +1,8 @@
 // Must be imported before anything touches a PowerSync watched query —
 // those are async iterators, which Hermes does not implement natively.
 import "@azure/core-asynciterator-polyfill";
+// Stream primitives for the AI SDK chat client; same reason, same place.
+import "../polyfills";
 
 import "../global.css";
 
@@ -86,6 +88,15 @@ export default function RootLayout() {
                 presentation: "pageSheet",
                 headerShown: true,
                 title: "Add items",
+                contentStyle: { backgroundColor: "transparent" },
+              }}
+            />
+            <Stack.Screen
+              name="chats/history"
+              options={{
+                presentation: "pageSheet",
+                headerShown: true,
+                title: "Chats",
                 contentStyle: { backgroundColor: "transparent" },
               }}
             />

@@ -2,6 +2,7 @@
 
 Date: 2026-08-20
 Status: Accepted
+Amended by: 9 (chat now persists server-side)
 
 ## Context
 

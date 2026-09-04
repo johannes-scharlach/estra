@@ -105,6 +105,31 @@ const list_items = new Table(
   },
 );
 
+/** ADR 9: written only by the API server; clients read. */
+const chats = new Table(
+  {
+    list_id: column.text,
+    created_by: column.text,
+    title: column.text,
+    created_at: column.text,
+    updated_at: column.text,
+  },
+  { indexes: { by_list_recent: ['list_id', 'updated_at'] } },
+);
+
+const chat_messages = new Table(
+  {
+    chat_id: column.text,
+    list_id: column.text,
+    /** 'user' | 'assistant' | 'system' */
+    role: column.text,
+    /** JSON: AI SDK UIMessage.parts */
+    parts: column.text,
+    created_at: column.text,
+  },
+  { indexes: { by_chat: ['chat_id', 'created_at'] } },
+);
+
 export const AppSchema = new Schema({
   categories,
   lists,
@@ -113,6 +138,8 @@ export const AppSchema = new Schema({
   variants,
   planned_meals,
   list_items,
+  chats,
+  chat_messages,
 });
 
 export type Database = (typeof AppSchema)['types'];
@@ -123,5 +150,7 @@ export type ListItem = Database['list_items'];
 export type Recipe = Database['recipes'];
 export type Variant = Database['variants'];
 export type PlannedMeal = Database['planned_meals'];
+export type Chat = Database['chats'];
+export type ChatMessage = Database['chat_messages'];
 
 export type ItemStatus = 'active' | 'purchased';

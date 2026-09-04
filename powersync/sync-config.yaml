@@ -73,3 +73,22 @@ streams:
       SELECT list_items.* FROM list_items
         INNER JOIN list_members ON list_members.list_id = list_items.list_id
       WHERE list_members.user_id = auth.user_id()
+
+  # Conversations with the cook (ADR 9). Written only by the API server;
+  # every member of the list reads them. list_id is denormalised onto
+  # chat_messages so this is the same one-join shape as list_items.
+  chats:
+    auto_subscribe: true
+    priority: 3
+    query: |
+      SELECT chats.* FROM chats
+        INNER JOIN list_members ON list_members.list_id = chats.list_id
+      WHERE list_members.user_id = auth.user_id()
+
+  chat_messages:
+    auto_subscribe: true
+    priority: 3
+    query: |
+      SELECT chat_messages.* FROM chat_messages
+        INNER JOIN list_members ON list_members.list_id = chat_messages.list_id
+      WHERE list_members.user_id = auth.user_id()
