@@ -1,6 +1,5 @@
 import { useQuery } from "@powersync/react";
 import { useRouter, Stack } from "expo-router";
-import * as Haptics from "expo-haptics";
 import { SymbolView } from "expo-symbols";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, ScrollView, View } from "react-native";
@@ -173,7 +172,6 @@ function ListScreen({ list }: { list: List }) {
       });
       return;
     }
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setPending((prev) => new Set(prev).add(id));
     timers.current.set(
       id,
@@ -191,7 +189,6 @@ function ListScreen({ list }: { list: List }) {
   }
 
   async function uncheck(id: string) {
-    void Haptics.selectionAsync();
     await setItemStatus(id, "active");
   }
 

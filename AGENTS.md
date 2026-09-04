@@ -6,7 +6,8 @@ changes, `docs/schema-changes.md` before touching the schema or sync rules.
 
 ## Commands
 
-- Verify with `pnpm typecheck` and `pnpm lint`. There is no test suite.
+- Verify with `pnpm typecheck` and `pnpm lint`. Mobile message-wording
+  tests: `pnpm --filter mobile test`.
 - The Supabase CLI is a dev dependency, not a global: `pnpm supabase <cmd>`.
 - `pnpm stack:up` runs `supabase start` before `docker compose up` — the
   compose file needs the Docker network Supabase creates. `mongo-rs-init`

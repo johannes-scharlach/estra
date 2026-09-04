@@ -1,6 +1,5 @@
 import { useQuery } from "@powersync/react";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { SymbolView } from "expo-symbols";
 import { useMemo, useState } from "react";
@@ -51,7 +50,6 @@ export default function CookMode() {
     const next = Math.round(e.nativeEvent.contentOffset.x / width);
     if (next !== page) {
       setPage(next);
-      void Haptics.selectionAsync();
     }
   }
 

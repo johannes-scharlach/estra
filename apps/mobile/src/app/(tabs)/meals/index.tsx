@@ -132,7 +132,6 @@ export default function Meals() {
 
   async function onPlan(slot: MealSlot, recipe: DisplayRecipe) {
     if (!list) return;
-    void Haptics.selectionAsync();
     const k = `${selected}:${slot}`;
     setPending((prev) => ({ ...prev, [k]: recipe }));
     setOpen(slot, false);

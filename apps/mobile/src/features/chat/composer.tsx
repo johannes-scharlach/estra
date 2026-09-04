@@ -1,4 +1,3 @@
-import * as Haptics from "expo-haptics";
 import { Image } from "expo-image";
 import { SymbolView } from "expo-symbols";
 import { useState } from "react";
@@ -42,7 +41,6 @@ export function Composer({
   function submit() {
     const trimmed = text.trim();
     if ((!trimmed && !photo) || busy) return;
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setText("");
     setPhoto(null);
     onSend(trimmed, photo);
@@ -69,7 +67,6 @@ export function Composer({
             <Pressable
               key={s}
               onPress={() => {
-                void Haptics.selectionAsync();
                 onSend(s, null);
               }}
               className="rounded-full border border-border bg-background px-3.5 py-1.5 active:bg-accent"

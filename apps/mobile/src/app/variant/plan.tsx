@@ -1,4 +1,5 @@
 import { useQuery } from "@powersync/react";
+import * as Crypto from "expo-crypto";
 import {
   useLocalSearchParams,
   useNavigation,
@@ -16,6 +17,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Text } from "@/components/ui/text";
 import type { List, Variant } from "@/db/schema";
 import { setPlannedMeal } from "@/db/planned-meals";
+import { saveAndPlanMessage } from "@/features/chat/compose";
+import { queueMessage } from "@/features/chat/message-queue";
 import { DayStrip } from "@/features/meals/day-strip";
 import {
   dateKey,
@@ -29,14 +32,20 @@ const MINUS_ICON = { ios: "minus", android: "remove", web: "remove" } as const;
 const PLUS_ICON = { ios: "plus", android: "add", web: "add" } as const;
 
 /** Native formSheet: detents, grabber, swipe-to-dismiss. Unmounts on close,
- *  so picker state is always fresh. */
+ *  so picker state is always fresh.
+ *
+ *  Two modes: with a variant id it plans that recipe; with `dish` instead
+ *  (from a chat Sketch's Save & plan) it is a pending form — nothing runs
+ *  behind the sheet, and confirming sends one chat message stating exactly
+ *  what was agreed; the assistant does the save + plan (two tool calls). */
 export default function PlanVariantSheet() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, dish } = useLocalSearchParams<{ id?: string; dish?: string }>();
   const router = useRouter();
   const navigation =
     useNavigation<NativeStackNavigationProp<Record<string, never>>>();
   const mutedColor = useResolveClassNames("text-muted-foreground").color;
 
+  const pending = !id;
   const { data: variants } = useQuery<Variant>(
     "SELECT * FROM variants WHERE id = ? LIMIT 1",
     [id ?? ""],
@@ -70,6 +79,17 @@ export default function PlanVariantSheet() {
   );
 
   async function onAdd() {
+    if (pending) {
+      // The commit: one honest message back on the chat screen.
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      queueMessage({
+        messageId: Crypto.randomUUID(),
+        text: saveAndPlanMessage({ day: selectedDate, meal: selectedMeal, servings }),
+        photo: null,
+      });
+      router.back();
+      return;
+    }
     if (!variant?.recipe_id || !effectiveListId) return;
     setSaving(true);
     setError(null);
@@ -99,9 +119,11 @@ export default function PlanVariantSheet() {
           scroll view is a direct subview of the content wrapper. Keep DayStrip
           at this depth; do not wrap it. */}
       <View className="gap-1 px-6 pt-4">
-        <Text className="text-lg font-semibold">Add to plan</Text>
+        <Text className="text-lg font-semibold">
+          {pending ? "Save & plan" : "Add to plan"}
+        </Text>
         <Text variant="muted" className="text-sm" numberOfLines={1}>
-          {variant?.name ?? "…"}
+          {pending ? (dish ?? "This recipe") : (variant?.name ?? "…")}
         </Text>
       </View>
 
@@ -202,9 +224,13 @@ export default function PlanVariantSheet() {
         <Button
           size="lg"
           onPress={() => void onAdd()}
-          disabled={saving || !effectiveListId}
+          disabled={saving || (!pending && !effectiveListId)}
         >
-          {saving ? <ActivityIndicator /> : <Text>Add to plan</Text>}
+          {saving ? (
+            <ActivityIndicator />
+          ) : (
+            <Text>{pending ? "Save & plan" : "Add to plan"}</Text>
+          )}
         </Button>
         <Button variant="ghost" onPress={() => router.back()} disabled={saving}>
           <Text>Cancel</Text>

@@ -5,8 +5,8 @@ import { env } from "@/lib/env";
 import { supabase } from "@/lib/supabase";
 
 /** Mirrors the server's message type: suggested replies ride as a data part. */
-export type CookUIMessage = UIMessage<never, { suggestions: string[] }>;
-export type Parts = CookUIMessage["parts"];
+export type AssistantUIMessage = UIMessage<never, { suggestions: string[] }>;
+export type Parts = AssistantUIMessage["parts"];
 
 /**
  * Sends one user message and yields the assistant reply as it grows
@@ -19,18 +19,18 @@ export type Parts = CookUIMessage["parts"];
 export async function* streamReply(opts: {
   chatId: string;
   listId: string;
-  message: CookUIMessage;
-}): AsyncGenerator<CookUIMessage> {
+  message: AssistantUIMessage;
+}): AsyncGenerator<AssistantUIMessage> {
   const { data } = await supabase.auth.getSession();
   const token = data.session?.access_token;
   if (!token) throw new Error("Not signed in");
 
-  const transport = new DefaultChatTransport<CookUIMessage>({
+  const transport = new DefaultChatTransport<AssistantUIMessage>({
     api: `${env.apiUrl}/v1/chats/${opts.chatId}/messages`,
     fetch: expoFetch as unknown as typeof globalThis.fetch,
     headers: { authorization: `Bearer ${token}` },
     // Only the newest message travels; history lives on the server. Local
-    // time lets the cook reason about season and region.
+    // time lets the assistant reason about season and region.
     prepareSendMessagesRequest: ({ messages }) => ({
       body: {
         listId: opts.listId,
@@ -48,10 +48,17 @@ export async function* streamReply(opts: {
     abortSignal: undefined,
   });
 
-  for await (const message of readUIMessageStream<CookUIMessage>({ stream })) yield message;
+  // Without terminateOnError an error part from the server (model 5xx
+  // after retries) is swallowed and the stream just ends empty.
+  for await (const message of readUIMessageStream<AssistantUIMessage>({
+    stream,
+    terminateOnError: true,
+  })) {
+    yield message;
+  }
 }
 
-export function userMessage(text: string, id: string, files: Parts = []): CookUIMessage {
+export function userMessage(text: string, id: string, files: Parts = []): AssistantUIMessage {
   const parts: Parts = [...files];
   if (text) parts.push({ type: "text", text });
   return { id, role: "user", parts };
@@ -79,7 +86,7 @@ export function suggestionsOf(parts: Parts): string[] {
 }
 
 /** Whether a tool call is still running, and which. Tool parts are
- *  otherwise invisible: the cook's own words carry the result. */
+ *  otherwise invisible: the assistant's own words carry the result. */
 export function runningTool(parts: Parts): string | null {
   for (const p of parts) {
     if (!p.type.startsWith("tool-")) continue;

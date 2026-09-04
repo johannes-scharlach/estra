@@ -2,11 +2,13 @@ import { randomUUID } from "node:crypto";
 
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import {
+  APICallError,
   convertToModelMessages,
   createUIMessageStream,
   createUIMessageStreamResponse,
   generateText,
   Output,
+  RetryError,
   safeValidateUIMessages,
   stepCountIs,
   streamText,
@@ -17,9 +19,9 @@ import {
 import { Hono } from "hono";
 import { z } from "zod";
 
+import { ASSISTANT_SYSTEM_PROMPT } from "../assistant-prompt.js";
 import type { AppBindings } from "../auth.js";
 import { buildChatTools } from "../chat-tools.js";
-import { COOK_SYSTEM_PROMPT } from "../cook-prompt.js";
 import { pool } from "../db.js";
 import { env } from "../env.js";
 
@@ -29,7 +31,10 @@ const google = createGoogleGenerativeAI({ apiKey: env.googleApiKey });
 
 // The conversational turn needs range and reliable tool use; suggestions
 // are a cheap utility call.
-const CHAT_MODEL = "gemini-3.7-flash";
+const CHAT_MODEL =
+  process.env.NODE_ENV === "production"
+    ? "gemini-flash-latest"
+    : "gemini-flash-lite-latest";
 const UTILITY_MODEL = "gemini-flash-lite-latest";
 
 /** A chat that ran for a week must not cost a week of tokens per turn. */
@@ -44,10 +49,10 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
  */
 const PLAN_PROMPT = `## The plan
 
-The household keeps a plan: a calendar with a lunch, dinner and treat slot per day, and a shopping list that derives itself from what is planned. Read it with readPlan before answering anything about the week. When the user asks to plan a dish, the recipe has to be in the cookbook first — save it with addToCookbook if it is not, then planMeal; both in one go, never asking them to say it twice. A move or a skipped night is one sentence from the user, never a form: unplanMeal and planMeal do the bookkeeping, and you say what moved. When a meal is planned, mention in a few words what will land on the shopping list, so they can strike what they already have — and never ask them to track quantities or keep an inventory. If you are unsure whether something is still around, ask like a cook: "is the chard all used up?"`;
+The household keeps a plan: a calendar with a lunch, dinner and treat slot per day, and a shopping list that derives itself from what is planned. Read it with readPlan before answering anything about the week. When the user asks to plan a dish, the recipe has to be in the cookbook first — save it with addToCookbook if it is not, then planMeal; both in one go, never asking them to say it twice. A move or a skipped night is one sentence from the user, never a form: unplanMeal and planMeal do the bookkeeping, and you say what moved. When a meal is planned, mention in a few words what will land on the shopping list, so they can strike what they already have — and never ask them to track quantities or keep an inventory. If you are unsure whether something is still around, ask the way one home cook asks another: "is the chard all used up?"`;
 
 /** Suggested replies ride on the assistant message as a data part. */
-export type CookUIMessage = UIMessage<never, { suggestions: string[] }>;
+export type AssistantUIMessage = UIMessage<never, { suggestions: string[] }>;
 
 type MessageRow = {
   id: string;
@@ -72,7 +77,7 @@ function sketchTitle(message: UIMessage): string | null {
 const SuggestionsSchema = z.object({
   suggestions: z
     .array(z.string())
-    .describe("2-4 short replies the user is most likely to tap next"),
+    .describe("2-6 short replies the user is most likely to tap next"),
 });
 
 async function generateSuggestions(assistantText: string): Promise<string[]> {
@@ -80,20 +85,20 @@ async function generateSuggestions(assistantText: string): Promise<string[]> {
   const { output } = await generateText({
     model: google(UTILITY_MODEL),
     output: Output.object({ schema: SuggestionsSchema }),
-    prompt: `You suggest quick replies in a cooking assistant chat. Below is the assistant's latest message. Propose 2-4 short replies the user is most likely to want to send next, written in the user's voice.
+    prompt: `You suggest quick replies in a cooking assistant chat. Below is the assistant's latest message. Propose 2-6 short replies the user is most likely to want to send next, written in the user's voice.
 
 Guidelines:
-- If the assistant pitched several ideas (<idea> tags), offer one reply per idea, like: Tell me more about <idea title>
-- If the assistant sketched out a dish (<sketch> tag: what it's like to eat, what you'd need, how the cooking goes), the first reply is: Save it to my cookbook
+- If the assistant pitched several ideas (<idea> tags), the user can just tap the idea to expand on it. Offer replies that suggest to merge two of the ideas or substitute an ingredient either for a more seasonal or for a more commonly available one.
+- If the assistant sketched out a dish (<sketch> tag: what it's like to eat, what you'd need, how the cooking goes), the first reply is: Save & plan it
 - If the assistant just saved a recipe to the cookbook, the first reply is: Plan it for tonight
 - Otherwise suggest the most natural next moves (a tweak, a swap, a question about the dish).
 - Keep each reply under 8 words. No numbering, no punctuation at the end.
-- Write the replies in the same language as the assistant's message.
+- Write the replies in the same language as the assistant's message. (e.g. if the assistant's message is in French, write the replies in French)
 
 Assistant's message:
 ${assistantText.slice(-4000)}`,
   });
-  return output.suggestions.slice(0, 4);
+  return output.suggestions;
 }
 
 // The AI SDK's default media downloader refuses loopback/private IP hosts (an
@@ -118,6 +123,17 @@ export const downloadMedia: Experimental_DownloadFunction = (requests) =>
       };
     }),
   );
+
+/**
+ * One friendly line for the phone; the real stack goes to the server log.
+ * Provider 5xx (rate limits, capacity) is the common case and is temporary.
+ */
+function errorTextFor(e: unknown): string {
+  if (RetryError.isInstance(e) || APICallError.isInstance(e)) {
+    return "The model is busy right now. Try again in a moment.";
+  }
+  return "Something went wrong on our end. Try again in a moment.";
+}
 
 /**
  * ADR 9: the server is the only writer. The body carries just the newest
@@ -177,9 +193,12 @@ chats.post("/:id/messages", async (c) => {
       await client.query("ROLLBACK");
       return c.json({ error: "Chat belongs to another list" }, 403);
     }
+    // A retry after a failed turn resends the same message id; keep it a
+    // no-op instead of a primary-key error.
     await client.query(
       `INSERT INTO chat_messages (id, chat_id, list_id, role, parts)
-       VALUES ($1, $2, $3, 'user', $4::jsonb)`,
+       VALUES ($1, $2, $3, 'user', $4::jsonb)
+       ON CONFLICT (id) DO NOTHING`,
       [message.id, chatId, listId, JSON.stringify(message.parts)],
     );
     const rows = await client.query<MessageRow>(
@@ -197,15 +216,15 @@ chats.post("/:id/messages", async (c) => {
     client.release();
   }
 
-  const uiMessages: CookUIMessage[] = history.map((r) => ({
+  const uiMessages: AssistantUIMessage[] = history.map((r) => ({
     id: r.id,
     role: r.role,
-    parts: r.parts as CookUIMessage["parts"],
+    parts: r.parts as AssistantUIMessage["parts"],
   }));
   const assistantId = randomUUID();
 
   const system = [
-    COOK_SYSTEM_PROMPT,
+    ASSISTANT_SYSTEM_PROMPT,
     PLAN_PROMPT,
     localTime
       ? `The user's current local time is ${localTime}. The timezone reflects their broad region — use it for seasonal produce and measurement defaults, not as an exact location.`
@@ -235,15 +254,21 @@ chats.post("/:id/messages", async (c) => {
   // come back, and a tool call in progress is never left half done.
   result.consumeStream();
 
-  const stream = createUIMessageStream<CookUIMessage>({
+  const stream = createUIMessageStream<AssistantUIMessage>({
     originalMessages: uiMessages,
     generateId: () => assistantId,
+    // The stream's error part is all the phone ever sees of a failure, so
+    // keep it to the friendly line and log the real cause here.
+    onError: (error) => {
+      console.error("chat stream failed", error);
+      return errorTextFor(error);
+    },
     execute: async ({ writer }) => {
       // Written chunk by chunk rather than merged so the suggestions part is
       // guaranteed to land after the last text, before finish.
       const ui = toUIMessageStream<
         ReturnType<typeof buildChatTools>,
-        CookUIMessage
+        AssistantUIMessage
       >({
         stream: result.stream,
         sendFinish: false,

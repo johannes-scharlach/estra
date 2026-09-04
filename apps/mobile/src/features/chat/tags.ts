@@ -24,10 +24,19 @@ function attr(attrs: string | undefined, name: string): string {
 
 function parseIdeas(body: string): Idea[] {
   const ideas: Idea[] = [];
+  let lastEnd = 0;
   for (const m of body.matchAll(IDEA)) {
     const title = attr(m[1], "title");
     const text = (m[2] ?? "").trim();
     if (title || text) ideas.push({ title, body: text });
+    lastEnd = m.index + m[0].length;
+  }
+  // A trailing tag that hasn't finished arriving still gets its card:
+  // titled if the title made it, "…" (in the renderer) if it didn't.
+  const partial = /<idea\b[^>]*$/.exec(body.slice(lastEnd));
+  if (partial) {
+    const title = /title="([^"]*)"/.exec(partial[0])?.[1]?.trim() ?? "";
+    ideas.push({ title, body: "" });
   }
   return ideas;
 }

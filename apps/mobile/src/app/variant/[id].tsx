@@ -3,7 +3,6 @@ import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
 import { LinearGradient } from "expo-linear-gradient";
-import * as Haptics from "expo-haptics";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ColorValue } from "react-native";
 import { Linking, Pressable, Share, StyleSheet, View } from "react-native";
@@ -274,7 +273,6 @@ export default function VariantPage() {
       const swaps = line?.swaps ?? [];
       if (!swaps.length) return;
 
-      void Haptics.selectionAsync();
       setActiveSwaps((prev) => {
         const cur = prev[idx] ?? -1;
         let next: number;
@@ -296,7 +294,6 @@ export default function VariantPage() {
   );
 
   const onShare = useCallback(async () => {
-    void Haptics.selectionAsync();
     const message = [variant?.name, variant?.description, recipe?.from_url]
       .filter(Boolean)
       .join("\n");

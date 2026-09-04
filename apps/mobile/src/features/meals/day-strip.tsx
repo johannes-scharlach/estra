@@ -8,7 +8,6 @@ import {
   type ViewStyle,
 } from "react-native";
 import { GlassView } from "expo-glass-effect";
-import * as Haptics from "expo-haptics";
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -162,7 +161,6 @@ export function DayStrip({
             <Pressable
               key={key}
               onPress={() => {
-                void Haptics.selectionAsync();
                 translateX.value = withTiming(i * UNIT, {
                   duration: 250,
                   easing: EASE_IN_OUT,

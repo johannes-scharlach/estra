@@ -91,6 +91,23 @@ export default function RootLayout() {
                 contentStyle: { backgroundColor: "transparent" },
               }}
             />
+            {/* The conversation: pushed from the Home entry, no tab bar.
+                Back is the only chrome — history lives on Home. */}
+            <Stack.Screen
+              name="chats/[id]"
+              options={{
+                presentation: "card",
+              }}
+            />
+            <Stack.Screen
+              name="chats/ideas"
+              options={{
+                presentation: "pageSheet",
+                headerShown: true,
+                title: "Weeknight ideas",
+                contentStyle: { backgroundColor: "transparent" },
+              }}
+            />
             <Stack.Screen
               name="chats/history"
               options={{

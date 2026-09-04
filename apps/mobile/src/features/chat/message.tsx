@@ -1,11 +1,11 @@
-import * as Haptics from "expo-haptics";
 import { Image } from "expo-image";
 import { SymbolView } from "expo-symbols";
-import { useMemo } from "react";
-import { Pressable, View } from "react-native";
+import { useMemo, useRef, useState } from "react";
+import { Pressable, ScrollView, useWindowDimensions, View, type NativeScrollEvent, type NativeSyntheticEvent } from "react-native";
 import { useResolveClassNames } from "uniwind";
 
 import { Text } from "@/components/ui/text";
+import { cn } from "@/lib/utils";
 
 import { Markdown } from "./markdown";
 import { imageParts } from "./photo";
@@ -37,42 +37,124 @@ export function UserMessage({ parts }: { parts: Parts }) {
   );
 }
 
-/** Ideas do have an action — tap to hear more — so they are cards. Vertical,
- *  because choosing between four directions wants all four on screen. */
+/** Ideas do have an action — tap to hear more — so they are cards. You flip
+ *  through them one at a time: choosing between directions is flipping, not
+ *  scrolling. The deck stays in the transcript after a pick. */
 function Ideas({ ideas, onPick }: { ideas: Idea[]; onPick: (idea: Idea) => void }) {
   const chevron = useResolveClassNames("text-muted-foreground").color;
+  const { width: windowWidth } = useWindowDimensions();
+  // The message column is the screen minus its px-5 padding.
+  const pageWidth = windowWidth - 40;
+
+  const [page, setPage] = useState(0);
+  const [maxHeight, setMaxHeight] = useState(0);
+  const pageRef = useRef(0);
+  const clamped = Math.min(page, Math.max(ideas.length - 1, 0));
+
+  function onScrollEnd(e: NativeSyntheticEvent<NativeScrollEvent>) {
+    const next = Math.round(e.nativeEvent.contentOffset.x / pageWidth);
+    if (next !== pageRef.current) {
+      pageRef.current = next;
+      setPage(next);
+    }
+  }
+
+  function measure(h: number) {
+    setMaxHeight((m) => Math.max(m, h));
+  }
+
   return (
     <View className="my-2 gap-2">
-      {ideas.map((idea, i) => (
-        <Pressable
-          key={`${i}-${idea.title}`}
-          onPress={() => {
-            void Haptics.selectionAsync();
-            onPick(idea);
-          }}
-          disabled={!idea.title}
-          className="flex-row items-center gap-3 rounded-2xl bg-secondary px-4 py-3 active:bg-accent"
-        >
-          <View className="flex-1 gap-1">
-            <Text className="text-base font-semibold leading-snug">{idea.title || "…"}</Text>
-            {idea.body ? <Markdown text={idea.body} size="small" /> : null}
+      <ScrollView
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        onMomentumScrollEnd={onScrollEnd}
+        style={{ width: pageWidth }}
+      >
+        {ideas.map((idea, i) => (
+          <View key={`${i}-${idea.title}`} style={{ width: pageWidth }}>
+            <Pressable
+              onPress={() => {
+                if (i !== clamped || !idea.title) return;
+                onPick(idea);
+              }}
+              onLayout={(e) => measure(e.nativeEvent.layout.height)}
+              style={maxHeight ? { minHeight: maxHeight } : undefined}
+              className="flex-row items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3.5 active:bg-accent"
+            >
+              <View className="flex-1 gap-1">
+                <Text className="text-base font-semibold leading-snug">{idea.title || "…"}</Text>
+                {idea.body ? (
+                  // pointerEvents none: the markdown view is a native text
+                  // view whose own tap recognizer swallows touches — without
+                  // this the card only responds on its title.
+                  <View pointerEvents="none">
+                    <Markdown text={idea.body} size="small" />
+                  </View>
+                ) : null}
+              </View>
+              <View className="size-6 shrink-0 items-center justify-center rounded-full bg-muted">
+                <SymbolView name={CHEVRON_ICON} tintColor={chevron} size={13} weight="semibold" />
+              </View>
+            </Pressable>
           </View>
-          <SymbolView name={CHEVRON_ICON} tintColor={chevron} size={14} />
-        </Pressable>
-      ))}
+        ))}
+      </ScrollView>
+      {ideas.length > 1 ? (
+        <View className="flex-row items-center justify-center gap-2">
+          <View className="flex-row gap-1">
+            {ideas.map((_, i) => (
+              <View
+                key={i}
+                className={cn(
+                  "size-1.5 rounded-full",
+                  i === clamped ? "bg-foreground" : "bg-foreground/25",
+                )}
+              />
+            ))}
+          </View>
+          <Text variant="muted" className="text-xs" style={{ fontVariant: ["tabular-nums"] }}>
+            {clamped + 1} of {ideas.length}
+          </Text>
+        </View>
+      ) : null}
     </View>
   );
 }
 
 /** A Sketch is a page, not a card: no container, just type. The writing has
- *  to carry the taste of the dish. Nothing here is tappable (ADR 9). */
-function Sketch({ title, body, streaming }: { title: string; body: string; streaming: boolean }) {
+ *  to carry the taste of the dish. One deliberate exception to "nothing is
+ *  tappable": the commit button, the form-based save & plan (ADR 9). */
+function Sketch({
+  title,
+  body,
+  streaming,
+  onSavePlan,
+}: {
+  title: string;
+  body: string;
+  streaming: boolean;
+  onSavePlan?: (title: string) => void;
+}) {
   return (
     <View className="my-3 gap-3">
       {title ? (
         <Text className="text-3xl font-semibold leading-tight tracking-tight">{title}</Text>
       ) : null}
       {body ? <Markdown text={body} size="page" streaming={streaming} /> : null}
+      {onSavePlan && title ? (
+        <Pressable
+          onPress={() => {
+            onSavePlan(title);
+          }}
+          accessibilityRole="button"
+          className="mt-1 flex-row items-center justify-center rounded-full border border-border bg-card py-2.5 active:bg-accent"
+        >
+          <Text className="text-sm font-semibold">Save &amp; plan</Text>
+        </Pressable>
+      ) : null}
     </View>
   );
 }
@@ -87,10 +169,12 @@ export function AssistantMessage({
   parts,
   streaming = false,
   onIdea,
+  onSavePlan,
 }: {
   parts: Parts;
   streaming?: boolean;
   onIdea: (idea: Idea) => void;
+  onSavePlan?: (title: string) => void;
 }) {
   const text = messageText(parts);
   const segments = useMemo(() => parseSegments(text), [text]);
@@ -105,7 +189,15 @@ export function AssistantMessage({
           case "ideas":
             return <Ideas key={i} ideas={seg.ideas} onPick={onIdea} />;
           case "sketch":
-            return <Sketch key={i} title={seg.title} body={seg.body} streaming={streaming && last} />;
+            return (
+              <Sketch
+                key={i}
+                title={seg.title}
+                body={seg.body}
+                streaming={streaming && last}
+                onSavePlan={streaming ? undefined : onSavePlan}
+              />
+            );
         }
       })}
       {tool ? (

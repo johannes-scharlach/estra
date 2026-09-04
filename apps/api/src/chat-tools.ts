@@ -6,7 +6,7 @@ import { clearPlannedMeal, MEAL_SLOTS, readPlan, setPlannedMeal } from "./plan.j
 import { RecipeSchema } from "./recipe-schema.js";
 import { insertVariant, variantUrl } from "./variants.js";
 
-// The cook writes recipes from the conversation; provenance is the chat.
+// The assistant writes recipes from the conversation; provenance is the chat.
 const CookRecipeSchema = RecipeSchema.omit({ from: true });
 
 /**
