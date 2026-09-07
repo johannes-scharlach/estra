@@ -1,7 +1,7 @@
 import { useQuery } from "@powersync/react";
 import { Link, Stack, useRouter } from "expo-router";
 import { SymbolView } from "expo-symbols";
-import { Pressable, ScrollView, View } from "react-native";
+import { Platform, Pressable, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useResolveClassNames } from "uniwind";
 
@@ -20,8 +20,9 @@ function when(iso: string | null): string {
   return `${d.getDate()} ${MONTH_SHORT[d.getMonth()]}`;
 }
 
-/** Past conversations for this list, newest first. Picking one closes the
- *  sheet and starts the chat on the main stack — same move as ideas.tsx. */
+/** Past conversations for this list, newest first. On iOS picking one closes
+ *  the sheet and starts the chat on the main stack; Android has no sheet, so
+ *  it's a plain push and back returns here. Same move as ideas.tsx. */
 export default function ChatHistorySheet() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -42,15 +43,17 @@ export default function ChatHistorySheet() {
     <>
       <Stack.Screen
         options={{
-          headerRight: () => (
-            <Pressable
-              onPress={() => router.back()}
-              hitSlop={12}
-              className="size-8 items-center justify-center rounded-full bg-muted"
-            >
-              <SymbolView name={X_ICON} tintColor={mutedColor} size={15} />
-            </Pressable>
-          ),
+          ...(Platform.OS === "ios" && {
+            headerRight: () => (
+              <Pressable
+                onPress={() => router.back()}
+                hitSlop={12}
+                className="size-8 items-center justify-center rounded-full bg-muted"
+              >
+                <SymbolView name={X_ICON} tintColor={mutedColor} size={15} />
+              </Pressable>
+            ),
+          }),
         }}
       />
       {chats.length ? (
@@ -59,7 +62,12 @@ export default function ChatHistorySheet() {
         >
           <View className="divide-y divide-border/40 border-t border-border/40">
             {chats.map((chat) => (
-              <Link key={chat.id} href={`/chats/${chat.id}`} dismissTo asChild>
+              <Link
+                key={chat.id}
+                href={`/chats/${chat.id}`}
+                dismissTo={Platform.OS === "ios"}
+                asChild
+              >
                 <Pressable className="flex-row items-center gap-4 px-6 py-3 active:bg-accent">
                   <Text className="flex-1 font-medium" numberOfLines={2}>
                     {chat.title ?? "New chat"}

@@ -152,7 +152,7 @@ export default function PlanMeals() {
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         <View className="flex-1 gap-6 bg-background p-6">
-          <Text variant="h3">Plan next meals</Text>
+          <Text variant="h3">Which meals are you cooking?</Text>
 
           <View className="gap-1.5">
             <View className="flex-row gap-1.5">
@@ -204,10 +204,7 @@ export default function PlanMeals() {
             </View>
           </View>
 
-          <View className="gap-1">
-            <Text variant="large">What should we cook with?</Text>
-            <Text variant="muted">Guests or anything to keep in mind?</Text>
-          </View>
+          <Text variant="large">Anything to keep in mind?</Text>
 
           <View className="rounded-xl border border-border bg-card shadow-sm shadow-black/5">
             <TextInput
@@ -215,6 +212,7 @@ export default function PlanMeals() {
               value={notes}
               onChangeText={setNotes}
               textAlignVertical="top"
+              placeholder="Guests, cravings, something to use up…"
               className="min-h-28 px-4 py-3 text-base text-foreground"
             />
             <View className="h-px bg-border" />

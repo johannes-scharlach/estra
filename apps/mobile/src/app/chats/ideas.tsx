@@ -1,6 +1,6 @@
 import * as Crypto from "expo-crypto";
 import { useRouter } from "expo-router";
-import { ScrollView, View } from "react-native";
+import { Platform, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { queueMessage } from "@/features/chat/message-queue";
@@ -18,7 +18,11 @@ export default function IdeasSheet() {
   function start(text: string) {
     const chatId = Crypto.randomUUID();
     queueMessage({ messageId: Crypto.randomUUID(), text, photo: null });
-    router.dismissTo(`/chats/${chatId}` as never);
+    if (Platform.OS === "ios") {
+      router.dismissTo(`/chats/${chatId}` as never);
+    } else {
+      router.push(`/chats/${chatId}` as never);
+    }
   }
 
   return (

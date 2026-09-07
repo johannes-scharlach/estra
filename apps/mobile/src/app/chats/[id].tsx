@@ -244,11 +244,6 @@ export default function ChatScreen() {
             {busy && (!inFlight || inFlight.parts.length === 0) ? (
               <Waiting />
             ) : null}
-            <Text variant="small" className="text-muted-foreground">
-              {`DEBUG list=${list ? "yes" : "no"} busy=${busy} inFlight=${
-                inFlight ? `yes(${inFlight.parts.length} parts)` : "no"
-              } pending=${pending.length} rows=${rows.length} error=${error ? "yes" : "no"}`}
-            </Text>
             {error ? (
               <Text
                 variant="small"
