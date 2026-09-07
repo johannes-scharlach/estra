@@ -8,7 +8,7 @@ import { Text } from "@/components/ui/text";
 import { cn } from "@/lib/utils";
 
 import { Markdown } from "./markdown";
-import { imageParts } from "./photo";
+import { imageParts } from "./image-attachment";
 import { messageText, runningTool, type Parts } from "./stream";
 import { parseSegments, type Idea } from "./tags";
 

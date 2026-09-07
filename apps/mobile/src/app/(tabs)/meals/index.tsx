@@ -268,26 +268,15 @@ export default function Meals() {
       <Stack.Screen
         options={{
           headerRight: () => (
-            <View className="flex-row items-center gap-1">
-              <Pressable
-                onPress={() => setJumpOpen(true)}
-                hitSlop={12}
-                accessibilityLabel="Jump to date"
-                accessibilityRole="button"
-                className="items-center justify-center p-2"
-              >
-                <SymbolView name={CALENDAR_ICON} tintColor={iconColor} size={22} />
-              </Pressable>
-              <Pressable
-                onPress={() => router.push("/meals/plan")}
-                hitSlop={12}
-                accessibilityLabel="Plan meals"
-                accessibilityRole="button"
-                className="items-center justify-center p-2"
-              >
-                <SymbolView name={PLUS_ICON} tintColor={iconColor} size={22} />
-              </Pressable>
-            </View>
+            <Pressable
+              onPress={() => setJumpOpen(true)}
+              hitSlop={12}
+              accessibilityLabel="Jump to date"
+              accessibilityRole="button"
+              className="items-center justify-center p-2"
+            >
+              <SymbolView name={CALENDAR_ICON} tintColor={iconColor} size={22} />
+            </Pressable>
           ),
         }}
       />

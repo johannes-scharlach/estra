@@ -13,13 +13,14 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Text } from "@/components/ui/text";
 import type { Chat, ChatMessage, List } from "@/db/schema";
+import { attachUploadedImage, type ChatTurn } from "@/features/chat/chat-turn";
 import { Composer } from "@/features/chat/composer";
 import { AssistantMessage, UserMessage } from "@/features/chat/message";
 import {
   peekQueuedMessage,
   takeQueuedMessage,
 } from "@/features/chat/message-queue";
-import { uploadPhoto, type Photo } from "@/features/chat/photo";
+import { uploadImageAttachment, type ImageAttachment } from "@/features/chat/image-attachment";
 import {
   parseParts,
   streamReply,
@@ -68,15 +69,15 @@ export default function ChatScreen() {
   const [queuedMsg] = useState(() => peekQueuedMessage());
 
   const [pending, setPending] = useState<AssistantUIMessage[]>(() =>
-    // Local echo of the queued message minus its photo (the file part
-    // comes from the async upload): the bubble shows immediately.
+    // Local echo of the queued message minus its images (the file parts
+    // come from the async uploads): the bubble shows immediately.
     queuedMsg ? [userMessage(queuedMsg.text, queuedMsg.messageId, [])] : [],
   );
   const [inFlight, setInFlight] = useState<AssistantUIMessage | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<{
     text: string;
-    failed: AssistantUIMessage;
+    turn: ChatTurn;
   } | null>(null);
 
   // Until the chat row exists this optimistic copy stands in, so the
@@ -92,23 +93,30 @@ export default function ChatScreen() {
       : null);
 
   /**
-   * One turn: local echo, stream, persist (server-side). The state
+   * One turn: local echo, image uploads, stream, persist (server-side). The state
    * updates live behind an async boundary so the kick-off effect below
    * never sets state in its synchronous window.
    */
   const busyRef = useRef(false);
-  async function runTurn(message: AssistantUIMessage) {
-    if (!list) return;
+  async function runTurn(turn: ChatTurn) {
+    if (!list || busyRef.current) return;
     busyRef.current = true;
+    await Promise.resolve();
     setInFlight(null);
     setError(null);
     setBusy(true);
     try {
-      setPending((p) => [...p.filter((m) => m.id !== message.id), message]);
+      setPending((p) => [...p.filter((m) => m.id !== turn.message.id), turn.message]);
+      while (turn.attachments.length) {
+        const file = await uploadImageAttachment(list.id, turn.attachments[0]!);
+        turn = attachUploadedImage(turn, file);
+        const uploaded = turn.message;
+        setPending((p) => p.map((m) => (m.id === uploaded.id ? uploaded : m)));
+      }
       for await (const reply of streamReply({
         chatId,
         listId: list.id,
-        message,
+        message: turn.message,
       })) {
         setInFlight(reply);
       }
@@ -118,7 +126,7 @@ export default function ChatScreen() {
       setInFlight(null);
       setError({
         text: e instanceof Error ? e.message : "Something went wrong",
-        failed: message,
+        turn,
       });
     } finally {
       busyRef.current = false;
@@ -128,12 +136,10 @@ export default function ChatScreen() {
 
   async function send(
     text: string,
-    photo: Photo | null = null,
+    attachments: ImageAttachment[] = [],
     id2 = Crypto.randomUUID(),
   ) {
-    if (!list || busyRef.current) return;
-    const files = photo ? [await uploadPhoto(list.id, photo)] : [];
-    await runTurn(userMessage(text, id2, files));
+    await runTurn({ message: userMessage(text, id2), attachments });
   }
 
   // Send a queued message on focus — on mount for a fresh chat (the
@@ -142,21 +148,15 @@ export default function ChatScreen() {
   // effects, list identity changes) no-ops.
   useFocusEffect(
     useCallback(() => {
-      if (!list) return;
+      if (!list || busyRef.current) return;
       const message = takeQueuedMessage();
       if (!message) return;
-      void kick(message.text, message.photo, message.messageId, list.id);
-      async function kick(
-        text: string,
-        photo: Photo | null,
-        messageId: string,
-        listId: string,
-      ) {
-        const files = photo ? [await uploadPhoto(listId, photo)] : [];
-        await runTurn(userMessage(text, messageId, files));
-      }
+      void runTurn({
+        message: userMessage(message.text, message.messageId),
+        attachments: message.attachments,
+      });
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [list]),
+    }, [list, busy]),
   );
 
   const shown = useMemo((): Shown[] => {
@@ -250,7 +250,7 @@ export default function ChatScreen() {
                 className="text-destructive"
                 onPress={() => {
                   if (busyRef.current) return;
-                  void runTurn(error.failed);
+                  void runTurn(error.turn);
                 }}
               >
                 {error.text} Tap to retry.
@@ -263,7 +263,7 @@ export default function ChatScreen() {
           placeholder="Message"
           busy={busy || !list || !chat}
           suggestions={suggestions}
-          onSend={(text, photo) => void send(text, photo)}
+          onSend={(text, attachments) => void send(text, attachments)}
         />
       </KeyboardAvoidingView>
     </View>

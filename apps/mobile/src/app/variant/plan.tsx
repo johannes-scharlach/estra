@@ -85,7 +85,7 @@ export default function PlanVariantSheet() {
       queueMessage({
         messageId: Crypto.randomUUID(),
         text: saveAndPlanMessage({ day: selectedDate, meal: selectedMeal, servings }),
-        photo: null,
+        attachments: [],
       });
       router.back();
       return;

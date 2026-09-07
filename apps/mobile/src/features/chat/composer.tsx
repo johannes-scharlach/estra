@@ -1,4 +1,3 @@
-import { Image } from "expo-image";
 import { SymbolView } from "expo-symbols";
 import { useState } from "react";
 import { Pressable, ScrollView, TextInput, View } from "react-native";
@@ -8,14 +7,14 @@ import { useResolveClassNames } from "uniwind";
 import { Text } from "@/components/ui/text";
 import { cn } from "@/lib/utils";
 
-import { pickPhoto, type Photo } from "./photo";
+import { pickImageAttachments, type ImageAttachment } from "./image-attachment";
+import { ImageAttachmentStrip } from "./image-attachment-strip";
 
 const SEND_ICON = { ios: "arrow.up", android: "arrow_upward", web: "arrow_upward" } as const;
 const CAMERA_ICON = { ios: "camera", android: "photo_camera", web: "photo_camera" } as const;
-const REMOVE_ICON = { ios: "xmark", android: "close", web: "close" } as const;
 
 /**
- * Text and one photo. Keyboard dictation already covers voice. Suggested
+ * Text and image attachments. Keyboard dictation already covers voice. Suggested
  * replies sit above the bar: actions live here, never in the content, and
  * tapping one just sends it (ADR 9).
  */
@@ -28,27 +27,34 @@ export function Composer({
   placeholder: string;
   busy: boolean;
   suggestions: string[];
-  onSend: (text: string, photo: Photo | null) => void;
+  onSend: (text: string, attachments: ImageAttachment[]) => void;
 }) {
   const insets = useSafeAreaInsets();
   const [text, setText] = useState("");
-  const [photo, setPhoto] = useState<Photo | null>(null);
+  const [attachments, setAttachments] = useState<ImageAttachment[]>([]);
+  const [attachmentError, setAttachmentError] = useState<string | null>(null);
   const placeholderColor = useResolveClassNames("text-muted-foreground").color;
   const iconColor = useResolveClassNames("text-primary-foreground").color;
   const mutedColor = useResolveClassNames("text-muted-foreground").color;
-  const canSend = (text.trim().length > 0 || photo !== null) && !busy;
+  const canSend = (text.trim().length > 0 || attachments.length > 0) && !busy;
 
   function submit() {
     const trimmed = text.trim();
-    if ((!trimmed && !photo) || busy) return;
+    if ((!trimmed && !attachments.length) || busy) return;
     setText("");
-    setPhoto(null);
-    onSend(trimmed, photo);
+    setAttachments([]);
+    setAttachmentError(null);
+    onSend(trimmed, attachments);
   }
 
-  async function addPhoto() {
-    const picked = await pickPhoto();
-    if (picked) setPhoto(picked);
+  async function addAttachments() {
+    setAttachmentError(null);
+    try {
+      const picked = await pickImageAttachments();
+      if (picked.length) setAttachments((current) => [...current, ...picked]);
+    } catch {
+      setAttachmentError("Could not add images. Try again.");
+    }
   }
 
   return (
@@ -67,7 +73,7 @@ export function Composer({
             <Pressable
               key={s}
               onPress={() => {
-                onSend(s, null);
+                onSend(s, []);
               }}
               className="rounded-full border border-border bg-background px-3.5 py-1.5 active:bg-accent"
             >
@@ -76,31 +82,21 @@ export function Composer({
           ))}
         </ScrollView>
       ) : null}
-      {photo ? (
-        <View className="flex-row px-4 pt-2">
-          <View>
-            <Image
-              source={{ uri: photo.uri }}
-              contentFit="cover"
-              style={{ width: 72, height: 72, borderRadius: 12 }}
-            />
-            <Pressable
-              onPress={() => setPhoto(null)}
-              hitSlop={8}
-              accessibilityLabel="Remove photo"
-              className="absolute -right-2 -top-2 size-6 items-center justify-center rounded-full bg-muted"
-            >
-              <SymbolView name={REMOVE_ICON} tintColor={mutedColor} size={11} weight="bold" />
-            </Pressable>
-          </View>
+      {attachments.length ? (
+        <View className="px-2 pt-2">
+          <ImageAttachmentStrip
+            attachments={attachments}
+            onRemove={(index) => setAttachments((current) => current.filter((_, i) => i !== index))}
+          />
         </View>
       ) : null}
+      {attachmentError ? <Text className="px-4 pt-2 text-destructive" accessibilityRole="alert">{attachmentError}</Text> : null}
       <View className="flex-row items-end gap-2 px-4 pt-2">
         <Pressable
-          onPress={() => void addPhoto()}
+          onPress={() => void addAttachments()}
           disabled={busy}
           hitSlop={8}
-          accessibilityLabel="Add a photo"
+          accessibilityLabel="Add images"
           accessibilityRole="button"
           className="mb-0.5 size-9 items-center justify-center rounded-full"
         >

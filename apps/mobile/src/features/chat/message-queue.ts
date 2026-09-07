@@ -1,4 +1,4 @@
-import type { Photo } from "./photo";
+import type { ImageAttachment } from "./image-attachment";
 
 /**
  * A message queued for the chat screen, handed over beside the push: the
@@ -7,7 +7,11 @@ import type { Photo } from "./photo";
  * sheet mid-conversation (ADR 9 — a fresh chat's id is chosen
  * client-side). One slot, in memory only.
  */
-export type QueuedMessage = { messageId: string; text: string; photo: Photo | null };
+export type QueuedMessage = {
+  messageId: string;
+  text: string;
+  attachments: ImageAttachment[];
+};
 
 let queued: QueuedMessage | null = null;
 

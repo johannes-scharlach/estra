@@ -6,17 +6,33 @@ import { addDays, dateKey, SLOT_LABEL, WEEKDAY_LONG, type MealSlot } from "@/fea
  * functions are the tested seam for that rule.
  */
 
-/** Home entry: chips (one photo may accompany). Plain restatement only;
+/** Home entry: chips (images may accompany). Plain restatement only;
  *  ingredients lowercased so the sentence reads plain. */
-export function entryMessage(chips: string[], hasPhoto: boolean): string {
+export function entryMessage(chips: string[], attachmentCount: number): string {
   const names = chips.map((chip) => chip.toLowerCase());
   const list =
     names.length === 1
       ? names[0]
       : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
-  if (hasPhoto && names.length) return `I also have ${list}.`;
+  if (attachmentCount && names.length) return `I also have ${list}.`;
   if (names.length) return `I have ${list}.`;
-  return "What's in here?";
+  return attachmentCount > 1 ? "What's in these?" : "What's in here?";
+}
+
+/** Planning entry: dates stay explicit when the conversation is resumed later. */
+export function mealPlanMessage(opts: {
+  slots: { day: string; meal: MealSlot }[];
+  notes: string;
+  attachmentCount: number;
+}): string {
+  const meals = opts.slots.map(({ day, meal }) => `- ${day}: ${SLOT_LABEL[meal].toLowerCase()}`);
+  return [
+    "Help me draft a meal plan for these meals:",
+    ...meals,
+    opts.notes.trim(),
+    opts.attachmentCount === 1 ? "I've attached an image." : "",
+    opts.attachmentCount > 1 ? "I've attached some images." : "",
+  ].filter(Boolean).join("\n");
 }
 
 /** Day named the way the user saw it on the strip: today, tomorrow,

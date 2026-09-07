@@ -17,7 +17,7 @@ export default function IdeasSheet() {
 
   function start(text: string) {
     const chatId = Crypto.randomUUID();
-    queueMessage({ messageId: Crypto.randomUUID(), text, photo: null });
+    queueMessage({ messageId: Crypto.randomUUID(), text, attachments: [] });
     if (Platform.OS === "ios") {
       router.dismissTo(`/chats/${chatId}` as never);
     } else {
