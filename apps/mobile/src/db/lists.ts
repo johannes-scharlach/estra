@@ -1,7 +1,6 @@
 import * as Crypto from 'expo-crypto';
-import { v5 as uuidv5 } from 'uuid';
+import { estraUuidV5 } from "@/lib/estra-uuid";
 
-import { ESTRA_NAMESPACE } from './items';
 import { powersync } from './system';
 
 /**
@@ -20,7 +19,7 @@ export async function createList(name: string, userId: string | undefined) {
     );
     await tx.execute(
       `INSERT INTO list_members (id, list_id, user_id, joined_at) VALUES (?, ?, ?, ?)`,
-      [uuidv5(`${listId}:${userId}`, ESTRA_NAMESPACE), listId, userId, now],
+      [estraUuidV5(`${listId}:${userId}`), listId, userId, now],
     );
   });
 }

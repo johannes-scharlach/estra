@@ -1,13 +1,6 @@
-import { v5 as uuidv5 } from 'uuid';
+import { estraUuidV5 } from "@/lib/estra-uuid";
 
 import { powersync } from './system';
-
-/**
- * Fixed namespace for deriving Estra's deterministic ids. Arbitrary but
- * must never change — changing it re-ids every item in existence.
- * Exported for db/lists.ts, which derives member ids from the same space.
- */
-export const ESTRA_NAMESPACE = '6f9a1c2e-2b7a-5f3d-9c41-0e8b6d5a4f77';
 
 /**
  * The dedupe key. 'Oat Milk  ' and 'oat milk' are the same thing on a
@@ -25,7 +18,7 @@ export function itemNameKey(name: string): string {
  * come back as a 23505 and be discarded, silently losing someone's add.
  */
 export function itemId(listId: string, name: string): string {
-  return uuidv5(`${listId}:${itemNameKey(name)}`, ESTRA_NAMESPACE);
+  return estraUuidV5(`${listId}:${itemNameKey(name)}`);
 }
 
 /**

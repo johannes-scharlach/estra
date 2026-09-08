@@ -148,7 +148,11 @@ function errorTextFor(e: unknown): string {
  */
 chats.post("/:id/messages", async (c) => {
   const chatId = c.req.param("id");
-  if (!UUID.test(chatId)) return c.json({ error: "invalid chat id" }, 400);
+  if (!UUID.test(chatId))
+    return c.json(
+      { error: { code: "INVALID_REQUEST", message: "Invalid chat ID" } },
+      400,
+    );
 
   const body = await c.req
     .json<{ listId?: unknown; message?: unknown; localTime?: unknown }>()
@@ -158,11 +162,22 @@ chats.post("/:id/messages", async (c) => {
       localTime: undefined,
     }));
   if (typeof body.listId !== "string" || !UUID.test(body.listId)) {
-    return c.json({ error: "listId is required" }, 400);
+    return c.json(
+      { error: { code: "INVALID_REQUEST", message: "List ID is required" } },
+      400,
+    );
   }
   const validated = await safeValidateUIMessages({ messages: [body.message] });
   if (!validated.success || validated.data[0]?.role !== "user") {
-    return c.json({ error: "message must be a user UIMessage" }, 400);
+    return c.json(
+      {
+        error: {
+          code: "INVALID_REQUEST",
+          message: "Message must be a user message",
+        },
+      },
+      400,
+    );
   }
   const message = validated.data[0];
   const listId = body.listId;
@@ -176,7 +191,15 @@ chats.post("/:id/messages", async (c) => {
     [listId, userId],
   );
   if (member.rowCount === 0)
-    return c.json({ error: "Not a member of this list" }, 403);
+    return c.json(
+      {
+        error: {
+          code: "LIST_ACCESS_DENIED",
+          message: "Not a member of this list",
+        },
+      },
+      403,
+    );
 
   let history: MessageRow[];
   const client = await pool.connect();
@@ -193,7 +216,15 @@ chats.post("/:id/messages", async (c) => {
       );
     } else if (existing.rows[0]?.list_id !== listId) {
       await client.query("ROLLBACK");
-      return c.json({ error: "Chat belongs to another list" }, 403);
+      return c.json(
+        {
+          error: {
+            code: "LIST_ACCESS_DENIED",
+            message: "Chat belongs to another list",
+          },
+        },
+        403,
+      );
     }
     // A retry after a failed turn resends the same message id; keep it a
     // no-op instead of a primary-key error.
@@ -213,7 +244,10 @@ chats.post("/:id/messages", async (c) => {
   } catch (e) {
     await client.query("ROLLBACK");
     console.error("chat message insert failed", e);
-    return c.json({ error: "Could not save message" }, 500);
+    return c.json(
+      { error: { code: "INTERNAL_ERROR", message: "Could not save message" } },
+      500,
+    );
   } finally {
     client.release();
   }

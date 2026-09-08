@@ -1,6 +1,5 @@
 import { useQuery } from "@powersync/react";
 import { router } from "expo-router";
-import * as Haptics from "expo-haptics";
 import { SymbolView } from "expo-symbols";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -14,7 +13,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useResolveClassNames } from "uniwind";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Text } from "@/components/ui/text";
 import {
   dateKey,
@@ -34,8 +32,7 @@ import {
   movePlannedMeal,
   setPlannedMeal,
 } from "@/db/planned-meals";
-import { env } from "@/lib/env";
-import { supabase } from "@/lib/supabase";
+import { useImportJobs } from "@/features/meals/use-import-jobs";
 
 const PLUS_ICON = { ios: "plus", android: "add", web: "add" } as const;
 const CHANGE_ICON = {
@@ -70,10 +67,7 @@ export default function Meals() {
   const [pending, setPending] = useState<Record<string, DisplayRecipe | null>>(
     {},
   );
-  const [importSlot, setImportSlot] = useState<MealSlot | null>(null);
-  const [importUrl, setImportUrl] = useState("");
-  const [importing, setImporting] = useState(false);
-  const [importError, setImportError] = useState<string | null>(null);
+  const importJobs = useImportJobs();
   const [cookbookSlot, setCookbookSlot] = useState<MealSlot | null>(null);
   const iconColor = useResolveClassNames("text-foreground").color;
   const mutedColor = useResolveClassNames("text-muted-foreground").color;
@@ -90,7 +84,7 @@ export default function Meals() {
     list ? [list.id] : [],
   );
   const { data: variants } = useQuery<DbVariant>(
-    "SELECT * FROM variants ORDER BY created_at DESC LIMIT 20",
+    "SELECT * FROM variants ORDER BY created_at DESC",
   );
 
   const variantById = useMemo(
@@ -251,51 +245,13 @@ export default function Meals() {
     }
   }
 
-  async function doImport() {
-    if (!list || !importSlot) return;
-    const trimmed = importUrl.trim();
-    if (!trimmed) return;
-    setImporting(true);
-    setImportError(null);
-    try {
-      const { data: sess } = await supabase.auth.getSession();
-      const token = sess.session?.access_token;
-      if (!token) throw new Error("Not signed in");
-      const res = await fetch(`${env.apiUrl}/v1/recipes/import-from-url`, {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ url: trimmed }),
-      });
-      const json = (await res.json()) as {
-        id?: string;
-        variantId?: string;
-        recipe?: unknown;
-        error?: string;
-      };
-      if (!res.ok)
-        throw new Error(json.error ?? `Import failed (${res.status})`);
-      if (!json.recipe || !json.id) throw new Error("No recipe returned");
-      // server already inserted recipe+variant; PowerSync will sync it shortly
-      const r = {
-        id: json.variantId!,
-        name: (json.recipe as { name: string }).name,
-      };
-      await onPlan(importSlot, r);
-      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setImportSlot(null);
-      setImportUrl("");
-    } catch (e) {
-      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      setImportError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setImporting(false);
-    }
+  function openImport(slot: MealSlot) {
+    router.push({ pathname: "/meals/import", params: { slot, date: selected } });
   }
 
-  const moveTargets = menu ? SLOT_ORDER.filter((s) => s !== menu.slot) : [];
+  const moveTargets = menu ? SLOT_ORDER.filter((slot) =>
+    slot !== menu.slot && (!list || !importJobs.getForSlot({ listId: list.id, date: selected, slot })),
+  ) : [];
 
   if (!list) {
     return (
@@ -334,6 +290,33 @@ export default function Meals() {
 
         <View className="mt-6 gap-8">
           {SLOT_ORDER.map((slot) => {
+            const target = { listId: list.id, date: selected, slot };
+            const job = importJobs.getForSlot(target);
+            if (job) {
+              return (
+                <View key={slot} className="gap-3 px-6" accessibilityLiveRegion="polite">
+                  <Text variant="muted">{SLOT_LABEL[slot]}</Text>
+                  {job.status === "error" ? (
+                    <>
+                      <Text className="text-destructive">{job.error.message}</Text>
+                      {job.error.retryable ? (
+                        <Button variant="outline" onPress={() => void importJobs.retry(target)}>
+                          <Text>Retry</Text>
+                        </Button>
+                      ) : null}
+                      <Button variant="ghost" onPress={() => importJobs.dismiss(target)}>
+                        <Text>Dismiss</Text>
+                      </Button>
+                    </>
+                  ) : (
+                    <View className="flex-row items-center gap-3">
+                      <ActivityIndicator />
+                      <Text>{job.status === "syncing" ? "Syncing meal…" : "Importing & planning…"}</Text>
+                    </View>
+                  )}
+                </View>
+              );
+            }
             const recipe = plannedFor(selected, slot);
             const k = openKey(slot);
             const isOpen = openSlots.has(k);
@@ -358,15 +341,12 @@ export default function Meals() {
                 key={slot}
                 title={SLOT_LABEL[slot]}
                 recipe={recipe}
-                contenders={contendersBySlot[slot]}
+                contenders={contendersBySlot[slot].slice(0, 20)}
                 onPlan={(r) => void onPlan(slot, r)}
                 onMenu={(r) => setMenu({ slot, recipe: r })}
                 onHide={() => onHideOpen(slot)}
                 onView={(r) => router.push(`/variant/${r.id}` as never)}
-                onImport={() => {
-                  setImportSlot(slot);
-                  setImportError(null);
-                }}
+                onImport={() => openImport(slot)}
                 onCookbook={() => setCookbookSlot(slot)}
               />
             );
@@ -464,62 +444,6 @@ export default function Meals() {
         </Pressable>
       </Modal>
 
-      {/* Import from URL for a specific slot */}
-      <Modal
-        visible={!!importSlot}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setImportSlot(null)}
-      >
-        <Pressable
-          className="flex-1 items-center justify-center bg-black/40 px-8"
-          onPress={() => setImportSlot(null)}
-        >
-          <Pressable
-            onPress={() => {}}
-            className="w-full gap-3 rounded-2xl border border-border bg-card p-6"
-          >
-            <Text variant="large">
-              Import for {importSlot ? SLOT_LABEL[importSlot] : ""}
-            </Text>
-            <Text variant="muted">
-              Paste a recipe URL — it will be imported and planned for{" "}
-              {selected}.
-            </Text>
-            <Input
-              value={importUrl}
-              onChangeText={setImportUrl}
-              placeholder="https://… recipe URL"
-              autoCapitalize="none"
-              autoCorrect={false}
-              returnKeyType="done"
-              onSubmitEditing={() => void doImport()}
-            />
-            {importError ? (
-              <Text variant="small" className="text-destructive">
-                {importError}
-              </Text>
-            ) : null}
-            <View className="flex-row gap-3">
-              <Button
-                variant="outline"
-                className="flex-1"
-                onPress={() => setImportSlot(null)}
-              >
-                <Text>Cancel</Text>
-              </Button>
-              <Button
-                className="flex-1"
-                onPress={() => void doImport()}
-                disabled={importing || !importUrl.trim()}
-              >
-                <Text>{importing ? "…" : "Import & plan"}</Text>
-              </Button>
-            </View>
-          </Pressable>
-        </Pressable>
-      </Modal>
-
       {/* Pick from cookbook for a specific slot */}
       <Modal
         visible={!!cookbookSlot}
@@ -572,7 +496,7 @@ export default function Meals() {
                   variant="outline"
                   onPress={() => {
                     setCookbookSlot(null);
-                    setImportSlot(cookbookSlot);
+                    if (cookbookSlot) openImport(cookbookSlot);
                   }}
                 >
                   <Text>Import a recipe</Text>

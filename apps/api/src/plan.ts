@@ -1,8 +1,9 @@
 import { randomUUID } from "node:crypto";
+import type { PoolClient } from "pg";
 
-import { v5 as uuidv5 } from "uuid";
-
+import { estraUuidV5 } from "./estra-uuid.js";
 import { pool } from "./db.js";
+import { MealSlotOccupiedError, VariantNotFoundError } from "./errors.js";
 
 /**
  * Server-side twin of apps/mobile/src/db/planned-meals.ts. Same ids, same
@@ -10,13 +11,11 @@ import { pool } from "./db.js";
  * meal planned by the cook and one planned by hand are indistinguishable.
  * Change both together.
  */
-const ESTRA_NAMESPACE = "6f9a1c2e-2b7a-5f3d-9c41-0e8b6d5a4f77";
-
 export const MEAL_SLOTS = ["lunch", "dinner", "treat"] as const;
 export type MealSlot = (typeof MEAL_SLOTS)[number];
 
 export function plannedMealId(listId: string, slotDate: string, meal: string): string {
-  return uuidv5(`${listId}:${slotDate}:${meal}`, ESTRA_NAMESPACE);
+  return estraUuidV5(`${listId}:${slotDate}:${meal}`);
 }
 
 function itemNameKey(name: string): string {
@@ -25,71 +24,55 @@ function itemNameKey(name: string): string {
 
 type Line = { qty_text?: string | null; item_name: string; prep_note?: string; category_id?: string };
 
-export async function setPlannedMeal(opts: {
+export async function setPlannedMeal(client: PoolClient, opts: {
   listId: string;
   slotDate: string;
   meal: MealSlot;
   variantId: string;
   servings?: number;
+  ifOccupied: "reject" | "replace";
 }): Promise<{ plannedMealId: string; name: string | null; items: string[] }> {
   const { listId, slotDate, meal, variantId } = opts;
   const id = plannedMealId(listId, slotDate, meal);
-  const client = await pool.connect();
-  try {
-    await client.query("BEGIN");
-    const v = await client.query<{ recipe_id: string; name: string | null; ingredient_lines: Line[] }>(
-      "SELECT recipe_id, name, ingredient_lines FROM variants WHERE id = $1",
-      [variantId],
-    );
-    const variant = v.rows[0];
-    if (!variant) throw new Error("No such recipe");
+  const v = await client.query<{ recipe_id: string; name: string | null; ingredient_lines: Line[] }>(
+    "SELECT recipe_id, name, ingredient_lines FROM variants WHERE id = $1",
+    [variantId],
+  );
+  const variant = v.rows[0];
+  if (!variant) throw new VariantNotFoundError();
 
+  const written = await client.query(
+    `INSERT INTO planned_meals (id, list_id, recipe_id, variant_id, slot_date, meal, servings)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)
+     ${opts.ifOccupied === "reject" ? "ON CONFLICT (id) DO NOTHING" : `ON CONFLICT (id) DO UPDATE
+       SET recipe_id = EXCLUDED.recipe_id, variant_id = EXCLUDED.variant_id,
+           servings = EXCLUDED.servings, updated_at = now()`}
+     RETURNING id`,
+    [id, listId, variant.recipe_id, variantId, slotDate, meal, opts.servings ?? 2],
+  );
+
+  if (!written.rowCount) throw new MealSlotOccupiedError();
+
+  await client.query("DELETE FROM list_items WHERE planned_meal_id = $1", [id]);
+  const items: string[] = [];
+  for (const line of variant.ingredient_lines) {
+    const qty = (line.qty_text ?? "").trim();
+    const spec = [qty, line.prep_note].filter(Boolean).join(", ") || null;
     await client.query(
-      `INSERT INTO planned_meals (id, list_id, recipe_id, variant_id, slot_date, meal, servings)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
-       ON CONFLICT (id) DO UPDATE
-         SET recipe_id = EXCLUDED.recipe_id, variant_id = EXCLUDED.variant_id,
-             servings = EXCLUDED.servings, updated_at = now()`,
-      [id, listId, variant.recipe_id, variantId, slotDate, meal, opts.servings ?? 2],
+      `INSERT INTO list_items (id, list_id, name, name_key, category_id, spec, status, purchase_count, planned_meal_id, variant_id)
+       VALUES ($1, $2, $3, $4, $5, $6, 'active', 0, $7, $8)`,
+      [randomUUID(), listId, line.item_name, itemNameKey(line.item_name), line.category_id ?? null, spec, id, variantId],
     );
-
-    await client.query("DELETE FROM list_items WHERE planned_meal_id = $1", [id]);
-    const items: string[] = [];
-    for (const line of variant.ingredient_lines) {
-      const qty = (line.qty_text ?? "").trim();
-      const spec = [qty, line.prep_note].filter(Boolean).join(", ") || null;
-      await client.query(
-        `INSERT INTO list_items (id, list_id, name, name_key, category_id, spec, status, purchase_count, planned_meal_id, variant_id)
-         VALUES ($1, $2, $3, $4, $5, $6, 'active', 0, $7, $8)`,
-        [randomUUID(), listId, line.item_name, itemNameKey(line.item_name), line.category_id ?? null, spec, id, variantId],
-      );
-      items.push(spec ? `${line.item_name} (${spec})` : line.item_name);
-    }
-    await client.query("COMMIT");
-    return { plannedMealId: id, name: variant.name, items };
-  } catch (e) {
-    await client.query("ROLLBACK");
-    throw e;
-  } finally {
-    client.release();
+    items.push(spec ? `${line.item_name} (${spec})` : line.item_name);
   }
+  return { plannedMealId: id, name: variant.name, items };
 }
 
-export async function clearPlannedMeal(listId: string, slotDate: string, meal: MealSlot): Promise<boolean> {
+export async function clearPlannedMeal(client: PoolClient, listId: string, slotDate: string, meal: MealSlot): Promise<boolean> {
   const id = plannedMealId(listId, slotDate, meal);
-  const client = await pool.connect();
-  try {
-    await client.query("BEGIN");
-    await client.query("DELETE FROM list_items WHERE planned_meal_id = $1", [id]);
-    const res = await client.query("DELETE FROM planned_meals WHERE id = $1", [id]);
-    await client.query("COMMIT");
-    return (res.rowCount ?? 0) > 0;
-  } catch (e) {
-    await client.query("ROLLBACK");
-    throw e;
-  } finally {
-    client.release();
-  }
+  await client.query("DELETE FROM list_items WHERE planned_meal_id = $1", [id]);
+  const res = await client.query("DELETE FROM planned_meals WHERE id = $1", [id]);
+  return (res.rowCount ?? 0) > 0;
 }
 
 export async function readPlan(listId: string, fromDate: string, days = 14) {

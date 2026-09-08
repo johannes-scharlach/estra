@@ -68,3 +68,4 @@ not evidence of more confidence.
 
 - Full static checks: `pnpm typecheck` and `pnpm lint`
 - Mobile tests: `pnpm --filter mobile test`
+- API unit tests (no database): `pnpm --filter api test`

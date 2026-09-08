@@ -1,48 +1,33 @@
 import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
-import { useState } from "react";
+import * as Crypto from "expo-crypto";
+import { useRef, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Text } from "@/components/ui/text";
-import { env } from "@/lib/env";
-import { supabase } from "@/lib/supabase";
+import { importRecipe } from "@/features/meals/import-adapters";
 
 /** Native formSheet: detents, grabber, swipe-to-dismiss. Unmounts on close,
  *  so the URL draft is always fresh. Same pattern as variant/plan. */
 export default function ImportRecipeSheet() {
   const router = useRouter();
+  const operation = useRef<{ url: string; operationId: string } | null>(null);
   const [url, setUrl] = useState("");
   const [importing, setImporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function onImport() {
     const trimmed = url.trim();
-    if (!trimmed) return;
+    if (!trimmed || importing) return;
     setImporting(true);
     setError(null);
     try {
-      const { data: sess } = await supabase.auth.getSession();
-      const token = sess.session?.access_token;
-      if (!token) throw new Error("Not signed in");
-
-      const res = await fetch(`${env.apiUrl}/v1/recipes/import-from-url`, {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ url: trimmed }),
-      });
-      const json = (await res.json()) as {
-        id?: string;
-        recipe?: unknown;
-        error?: string;
-      };
-      if (!res.ok)
-        throw new Error(json.error ?? `Import failed (${res.status})`);
-      if (!json.recipe || !json.id) throw new Error("No recipe returned");
+      if (operation.current?.url !== trimmed) {
+        operation.current = { url: trimmed, operationId: Crypto.randomUUID() };
+      }
+      await importRecipe(operation.current);
 
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.back();

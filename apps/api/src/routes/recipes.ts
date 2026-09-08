@@ -5,13 +5,29 @@ import { z } from "zod";
 
 import type { AppBindings } from "../auth.js";
 import { env } from "../env.js";
-import { CATEGORIES, localeNames, locales, RecipeSchema, type Locale } from "../recipe-schema.js";
-import { insertVariant } from "../variants.js";
+import {
+  CATEGORIES,
+  localeNames,
+  locales,
+  RecipeSchema,
+  type Locale,
+} from "../recipe-schema.js";
+import { MEAL_SLOTS } from "../plan.js";
+import { findCompletedImport, saveImport } from "../import-and-plan.js";
+import { AppError } from "../errors.js";
 
 const google = createGoogleGenerativeAI({ apiKey: env.googleApiKey });
 
 const FromUrlSchema = z.object({
   url: z.url(),
+  operationId: z.uuid(),
+  plan: z
+    .object({
+      listId: z.string(),
+      date: z.iso.date(),
+      slot: z.enum(MEAL_SLOTS),
+    })
+    .optional(),
   context: z.string().optional(),
   locale: z.enum(locales).optional().default("en"),
 });
@@ -22,12 +38,18 @@ recipes.post("/import-from-url", async (c) => {
   const body = await c.req.json().catch(() => null);
   const parsed = FromUrlSchema.safeParse(body);
   if (!parsed.success) {
-    return c.json(
-      { error: "Invalid body", details: z.prettifyError(parsed.error) },
+    console.error("Invalid import request:", parsed.error.flatten());
+    throw new AppError(
+      "INVALID_REQUEST",
+      "Check the recipe URL and meal slot.",
       400,
     );
   }
-  const { url, context, locale } = parsed.data;
+  const request = parsed.data;
+  const { url, context, locale } = request;
+  const userId = c.get("user").id;
+  const existing = await findCompletedImport(userId, request);
+  if (existing) return c.json(existing);
   const effectiveLocale: Locale = (locale as Locale) ?? "en";
 
   const result = await generateText({
@@ -55,22 +77,12 @@ recipes.post("/import-from-url", async (c) => {
     | { error: string }
     | undefined;
   if (!output || "error" in output) {
-    return c.json(
-      {
-        error: output?.error ?? "Failed to extract recipe",
-      },
+    throw new AppError(
+      "RECIPE_EXTRACTION_FAILED",
+      "Could not read a recipe from that URL.",
       422,
     );
   }
-
-  // Direct Postgres insert — no client round-trip. PowerSync syncs it to devices.
-  let saved: { recipeId: string; variantId: string };
-  try {
-    saved = await insertVariant({ userId: c.get("user").id, recipe: output });
-  } catch (e) {
-    console.error("recipe insert failed", e);
-    return c.json({ error: "Failed to save recipe" }, 500);
-  }
-
-  return c.json({ id: saved.recipeId, variantId: saved.variantId, recipe: output });
+  const saved = await saveImport(userId, request, output);
+  return c.json(saved);
 });

@@ -1,10 +1,17 @@
+import { randomUUID } from "node:crypto";
+
 import { tool } from "ai";
 import { z } from "zod";
 
-import { pool } from "./db.js";
-import { clearPlannedMeal, MEAL_SLOTS, readPlan, setPlannedMeal } from "./plan.js";
+import { pool, inTransaction } from "./db.js";
+import {
+  clearPlannedMeal,
+  MEAL_SLOTS,
+  readPlan,
+  setPlannedMeal,
+} from "./plan.js";
 import { RecipeSchema } from "./recipe-schema.js";
-import { insertVariant, variantUrl } from "./variants.js";
+import { createRecipe, insertVariant, variantUrl } from "./variants.js";
 
 // The assistant writes recipes from the conversation; provenance is the chat.
 const CookRecipeSchema = RecipeSchema.omit({ from: true });
@@ -19,7 +26,9 @@ export function buildChatTools(userId: string, listId: string) {
       description:
         "What is planned on the household's calendar from a given day, two weeks ahead. Read it before answering anything about the week.",
       inputSchema: z.object({
-        fromDate: z.iso.date().describe("YYYY-MM-DD, usually today in the user's local time"),
+        fromDate: z.iso
+          .date()
+          .describe("YYYY-MM-DD, usually today in the user's local time"),
       }),
       execute: async ({ fromDate }) => readPlan(listId, fromDate),
     }),
@@ -34,16 +43,30 @@ export function buildChatTools(userId: string, listId: string) {
         servings: z.number().int().min(1).max(20).optional(),
       }),
       execute: async ({ variantId, date, meal, servings }) =>
-        setPlannedMeal({ listId, slotDate: date, meal, variantId, servings }),
+        inTransaction((client) =>
+          setPlannedMeal(client, {
+            listId,
+            slotDate: date,
+            meal,
+            variantId,
+            servings,
+            ifOccupied: "replace",
+          }),
+        ),
     }),
 
     unplanMeal: tool({
-      description: "Take a meal off the calendar; its shopping items go with it.",
+      description:
+        "Take a meal off the calendar; its shopping items go with it.",
       inputSchema: z.object({
         date: z.iso.date(),
         meal: z.enum(MEAL_SLOTS),
       }),
-      execute: async ({ date, meal }) => ({ removed: await clearPlannedMeal(listId, date, meal) }),
+      execute: async ({ date, meal }) => ({
+        removed: await inTransaction((client) =>
+          clearPlannedMeal(client, listId, date, meal),
+        ),
+      }),
     }),
 
     addToCookbook: tool({
@@ -51,11 +74,19 @@ export function buildChatTools(userId: string, listId: string) {
         "Save the complete recipe to the user's cookbook. Call only when the user explicitly asks to keep it. Returns a url to share as a Markdown link on the recipe name.",
       inputSchema: CookRecipeSchema,
       execute: async (recipe) => {
-        const saved = await insertVariant({
-          userId,
-          recipe: { ...recipe, from: { name: "Estra" } },
+        const saved = await inTransaction(async (client) => {
+          const recipeId = await createRecipe(client, userId);
+          return insertVariant(client, {
+            recipeId,
+            variantId: randomUUID(),
+            recipe,
+          });
         });
-        return { variantId: saved.variantId, name: recipe.name, url: variantUrl(saved.variantId) };
+        return {
+          variantId: saved.variantId,
+          name: recipe.name,
+          url: variantUrl(saved.variantId),
+        };
       },
     }),
 
@@ -73,8 +104,14 @@ export function buildChatTools(userId: string, listId: string) {
         );
         const recipeId = row.rows[0]?.recipe_id;
         if (!recipeId) return { error: "No such recipe" };
-        const saved = await insertVariant({ userId, recipe, recipeId });
-        return { variantId: saved.variantId, name: recipe.name, url: variantUrl(saved.variantId) };
+        const saved = await inTransaction((client) =>
+          insertVariant(client, { recipe, recipeId, variantId: randomUUID() }),
+        );
+        return {
+          variantId: saved.variantId,
+          name: recipe.name,
+          url: variantUrl(saved.variantId),
+        };
       },
     }),
 

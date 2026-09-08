@@ -1,15 +1,14 @@
 import * as Crypto from 'expo-crypto';
-import { v5 as uuidv5 } from 'uuid';
+import { estraUuidV5 } from "@/lib/estra-uuid";
 
 import { powersync } from './system';
 import { getVariant, getVariantForRecipe } from './variants';
 
 import { itemNameKey } from './items';
 
-const ESTRA_NAMESPACE = '6f9a1c2e-2b7a-5f3d-9c41-0e8b6d5a4f77';
 
 export function plannedMealId(listId: string, slotDate: string, meal: string): string {
-  return uuidv5(`${listId}:${slotDate}:${meal}`, ESTRA_NAMESPACE);
+  return estraUuidV5(`${listId}:${slotDate}:${meal}`);
 }
 
 async function syncListItemsForMeal(tx: any, listId: string, plannedMealIdValue: string, variantIdValue: string) {
