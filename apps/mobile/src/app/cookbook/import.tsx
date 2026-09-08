@@ -52,6 +52,7 @@ export default function ImportRecipeSheet() {
 
       <View className="mt-6 gap-2 px-6">
         <Input
+          autoFocus
           value={url}
           onChangeText={setUrl}
           placeholder="https://… recipe URL"

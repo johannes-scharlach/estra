@@ -75,6 +75,7 @@ export default function ImportForSlotSheet() {
 
       <View className="mt-6 gap-2 px-6">
         <Input
+          autoFocus
           value={url}
           onChangeText={(value) => {
             setUrl(value);
