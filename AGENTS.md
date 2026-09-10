@@ -54,3 +54,8 @@ During implementation, also ask "What would Kent Beck say?" to write clear code 
 You're a guest on the user's machine. You never erase data, start or stop services without explicit user consent.
 
 This also extends to things like build and dev scripts. The user owns those and you only advise on it. It's normal for the user to always have the dev script running.
+
+## Delegation
+
+Generally avoid delegating implementation. In particular implementation where craft truly shines. You can of course delegate anything where details don't matter so much.
+If in doubt, ask the user if it's a good task to delegate or not.

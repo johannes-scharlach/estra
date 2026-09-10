@@ -1,5 +1,7 @@
 import * as Crypto from 'expo-crypto';
 import { estraUuidV5 } from "@/lib/estra-uuid";
+import { isValidPortions } from '@/features/meals/portions';
+import type { MealSlot } from '@/features/meals/slots';
 
 import { powersync } from './system';
 import { getVariant, getVariantForRecipe } from './variants';
@@ -53,6 +55,7 @@ export async function setPlannedMeal(opts: {
   const id = plannedMealId(listId, slotDate, meal);
   const now = new Date().toISOString();
   const servings = opts.servings ?? 2;
+  if (!isValidPortions(servings)) throw new Error('Portions must be positive with at most two decimal places');
 
   await powersync.writeTransaction(async (tx) => {
     let vId = opts.variantId;
@@ -89,67 +92,73 @@ export async function clearPlannedMeal(listId: string, slotDate: string, meal: s
   });
 }
 
-export async function movePlannedMeal(
+export async function updatePlannedMealServings(
   listId: string,
   slotDate: string,
-  fromMeal: string,
-  toMeal: string,
-) {
-  const fromId = plannedMealId(listId, slotDate, fromMeal);
-  const toId = plannedMealId(listId, slotDate, toMeal);
+  meal: MealSlot,
+  variantId: string,
+  servings: number,
+): Promise<void> {
+  if (!isValidPortions(servings)) throw new Error('Portions must be positive with at most two decimal places');
+  const id = plannedMealId(listId, slotDate, meal);
+  await powersync.writeTransaction(async (tx) => {
+    const existing = await tx.getOptional(
+      `SELECT id FROM planned_meals WHERE id = ? AND variant_id = ?`,
+      [id, variantId],
+    );
+    if (!existing) throw new Error('Planned meal not found');
+    await tx.execute(
+      `UPDATE planned_meals SET servings = ?, updated_at = ? WHERE id = ?`,
+      [servings, new Date().toISOString(), id],
+    );
+  });
+}
+
+export async function movePlannedMeal(
+  listId: string,
+  from: { date: string; slot: MealSlot; variantId: string },
+  to: { date: string; slot: MealSlot },
+): Promise<void> {
+  const fromId = plannedMealId(listId, from.date, from.slot);
+  const toId = plannedMealId(listId, to.date, to.slot);
 
   await powersync.writeTransaction(async (tx) => {
-    const from = (await tx.getOptional(`SELECT recipe_id, variant_id, servings FROM planned_meals WHERE id = ?`, [
+    const source = (await tx.getOptional(`SELECT recipe_id, variant_id, servings FROM planned_meals WHERE id = ?`, [
       fromId,
     ])) as { recipe_id: string; variant_id: string; servings: number } | null | undefined;
-    if (!from) return;
+    if (!source) throw new Error('Planned meal not found');
+    if (source.variant_id !== from.variantId) throw new Error('Planned meal changed');
+    if (fromId === toId) return;
 
-    const to = (await tx.getOptional(`SELECT recipe_id, variant_id, servings FROM planned_meals WHERE id = ?`, [
+    const target = (await tx.getOptional(`SELECT recipe_id, variant_id, servings FROM planned_meals WHERE id = ?`, [
       toId,
     ])) as { recipe_id: string; variant_id: string; servings: number } | null | undefined;
 
     const now = new Date().toISOString();
 
-    if (to) {
-      // swap — keep ids, swap contents, then refresh both item projections
+    if (target) {
+      // Keep slot ids, swap contents, then refresh both item projections.
       await tx.execute(
         `UPDATE planned_meals SET recipe_id = ?, variant_id = ?, servings = ?, updated_at = ? WHERE id = ?`,
-        [from.recipe_id, from.variant_id, from.servings, now, toId],
+        [source.recipe_id, source.variant_id, source.servings, now, toId],
       );
       await tx.execute(
         `UPDATE planned_meals SET recipe_id = ?, variant_id = ?, servings = ?, updated_at = ? WHERE id = ?`,
-        [to.recipe_id, to.variant_id, to.servings, now, fromId],
+        [target.recipe_id, target.variant_id, target.servings, now, fromId],
       );
-      await syncListItemsForMeal(tx, listId, toId, from.variant_id);
-      await syncListItemsForMeal(tx, listId, fromId, to.variant_id);
+      await syncListItemsForMeal(tx, listId, toId, source.variant_id);
+      await syncListItemsForMeal(tx, listId, fromId, target.variant_id);
     } else {
-      // move — re-id the planned meal and move its items
+      // The new slot needs its deterministic id and a fresh item projection.
       await tx.execute(`DELETE FROM planned_meals WHERE id = ?`, [fromId]);
       await tx.execute(
         `INSERT INTO planned_meals (id, list_id, recipe_id, variant_id, slot_date, meal, servings, created_at, updated_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [toId, listId, from.recipe_id, from.variant_id, slotDate, toMeal, from.servings, now, now],
+        [toId, listId, source.recipe_id, source.variant_id, to.date, to.slot, source.servings, now, now],
       );
-      // Move list_items to new planned_meal_id (keep variant_id)
-      // Delete from old (already cascaded by planned_meal delete, but ensure) and recreate via sync for consistency
+      // Local SQLite does not cascade the Postgres foreign key.
       await tx.execute(`DELETE FROM list_items WHERE planned_meal_id = ?`, [fromId]);
-      await tx.execute(`DELETE FROM list_items WHERE planned_meal_id = ?`, [toId]);
-      const variantMove = await getVariant(tx, from.variant_id);
-      if (!variantMove) throw new Error(`variant ${from.variant_id} not found`);
-      const lines = variantMove.ingredientLines.map((e) => {
-        const qty = (e.qty_text ?? '').trim();
-        const spec = [qty, e.prep_note].filter(Boolean).join(', ') || null;
-        return { name: e.item_name, spec, category_id: e.category_id ?? null };
-      });
-      for (const line of lines) {
-        const nameKey = itemNameKey(line.name);
-        const itemId = Crypto.randomUUID();
-        await tx.execute(
-          `INSERT INTO list_items (id, list_id, name, name_key, category_id, spec, status, purchase_count, created_at, updated_at, planned_meal_id, variant_id)
-           VALUES (?, ?, ?, ?, ?, ?, 'active', 0, ?, ?, ?, ?)`,
-          [itemId, listId, line.name, nameKey, line.category_id, line.spec, now, now, toId, from.variant_id],
-        );
-      }
+      await syncListItemsForMeal(tx, listId, toId, source.variant_id);
     }
   });
 }

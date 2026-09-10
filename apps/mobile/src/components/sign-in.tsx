@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { View } from "react-native";
+import { ScrollView, View } from "react-native";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,39 +15,75 @@ export function SignIn() {
   async function submit() {
     setBusy(true);
     setError(null);
-    console.log("starting sign in");
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
-    console.log("finished sign in, error?", error);
     if (error) setError(error.message);
     setBusy(false);
   }
 
   return (
-    <View className="flex-1 gap-3 bg-background p-6">
-      <Text variant="h3">Estra</Text>
-      <Text variant="muted">Defaults match the local seed user.</Text>
+    <ScrollView
+      className="flex-1 bg-background"
+      contentContainerClassName="flex-grow justify-center px-6 py-12"
+      contentInsetAdjustmentBehavior="automatic"
+      automaticallyAdjustKeyboardInsets
+      keyboardShouldPersistTaps="handled"
+    >
+      <View className="mx-auto w-full max-w-sm gap-8">
+        <View className="gap-2">
+          <Text className="text-4xl font-bold tracking-tight">Estra</Text>
+          <Text variant="lead" className="text-lg">
+            Plan meals. Shop together.
+          </Text>
+        </View>
 
-      <Input
-        value={email}
-        onChangeText={setEmail}
-        autoCapitalize="none"
-        keyboardType="email-address"
-        placeholder="email"
-      />
-      <Input
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-        placeholder="password"
-      />
+        <View className="gap-5">
+          <View className="gap-2">
+            <Text variant="small">Email</Text>
+            <Input
+              className="h-12 rounded-xl px-4"
+              value={email}
+              onChangeText={setEmail}
+              autoCapitalize="none"
+              autoComplete="email"
+              keyboardType="email-address"
+              returnKeyType="next"
+              textContentType="emailAddress"
+            />
+          </View>
 
-      <Button onPress={submit} disabled={busy}>
-        <Text>{busy ? "Signing in…" : "Sign in"}</Text>
-      </Button>
-      {error ? <Text variant="muted">{error}</Text> : null}
-    </View>
+          <View className="gap-2">
+            <Text variant="small">Password</Text>
+            <Input
+              className="h-12 rounded-xl px-4"
+              value={password}
+              onChangeText={setPassword}
+              autoCapitalize="none"
+              autoComplete="current-password"
+              onSubmitEditing={() => void submit()}
+              returnKeyType="go"
+              secureTextEntry
+              textContentType="password"
+            />
+          </View>
+
+          {error ? (
+            <Text className="text-sm text-destructive" selectable>
+              {error}
+            </Text>
+          ) : null}
+
+          <Button
+            className="h-12 rounded-xl"
+            onPress={() => void submit()}
+            disabled={busy}
+          >
+            <Text>{busy ? "Signing in…" : "Sign in"}</Text>
+          </Button>
+        </View>
+      </View>
+    </ScrollView>
   );
 }

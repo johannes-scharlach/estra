@@ -9,14 +9,12 @@ import { Input } from "@/components/ui/input";
 import { Text } from "@/components/ui/text";
 import {
   applySwap,
-  itemNameKey,
   removeItem,
   renameItem,
   setItemStatus,
 } from "@/db/items";
-import { parseIngredientLines } from "@/db/variants";
-import type { IngredientLine } from "@/db/schemas";
 import type { ListItem } from "@/db/schema";
+import { alternativesForItem } from "@/features/shop/alternatives";
 
 /** Row shape: the list item plus its meal provenance, if any. */
 type ItemRow = ListItem & {
@@ -25,42 +23,6 @@ type ItemRow = ListItem & {
   variant_name: string | null;
   ingredient_lines: string | null;
 };
-
-type SwapSuggestion = {
-  id: string;
-  to_qty_text: string;
-  prep_note: string | null;
-  category_id: string | null;
-  displayName: string;
-};
-
-function swapsForItem(name: string, lines: IngredientLine[]): SwapSuggestion[] {
-  // Names are clean (no qty prefix — see planned-meals.ts), so the match is
-  // against the ingredient's item_name, not a rendered qty string.
-  const itemKey = itemNameKey(name);
-  const out: SwapSuggestion[] = [];
-
-  for (const [idx, line] of lines.entries()) {
-    const alternatives = [
-      { qty_text: line.qty_text ?? null, item_name: line.item_name, prep_note: line.prep_note, category_id: line.category_id },
-      ...(line.swaps ?? []).map((s) => ({ qty_text: s.qty_text ?? null, item_name: s.item_name, prep_note: s.prep_note, category_id: s.category_id })),
-    ];
-    if (!alternatives.some((a) => itemNameKey(a.item_name) === itemKey)) continue;
-
-    for (const alt of alternatives) {
-      if (itemNameKey(alt.item_name) === itemKey) continue;
-      out.push({
-        id: `${idx}:${line.item_name}->${alt.item_name}`,
-        to_qty_text: alt.qty_text ?? "",
-        prep_note: alt.prep_note ?? null,
-        category_id: alt.category_id ?? null,
-        displayName: alt.item_name,
-      });
-    }
-  }
-
-  return out.slice(0, 5);
-}
 
 /** Native formSheet: detents, grabber, swipe-to-dismiss. Unmounts on close,
  *  so the rename draft is always fresh. Same pattern as variant/plan. */
@@ -81,12 +43,8 @@ export default function ShopItemSheet() {
 
   const suggestions = useMemo(() => {
     if (!item?.variant_id) return [];
-    try {
-      return swapsForItem(item.name ?? "", parseIngredientLines(item.ingredient_lines));
-    } catch {
-      // invalid JSON — partial sync; no swaps to offer
-      return [];
-    }
+    return alternativesForItem(item.name ?? "", item.ingredient_lines)
+      .filter((alternative) => alternative.name.trim().toLowerCase() !== item.name?.trim().toLowerCase());
   }, [item]);
 
   const [edit, setEdit] = useState("");
@@ -164,24 +122,19 @@ export default function ShopItemSheet() {
             <View className="gap-2">
               {suggestions.map((s) => (
                 <Pressable
-                  key={s.id}
+                  key={s.name}
                   disabled={saving}
                   onPress={() =>
                     void close(() =>
-                      applySwap(item.id, {
-                        name: s.displayName,
-                        qtyText: s.to_qty_text || null,
-                        prepNote: s.prep_note,
-                        categoryId: s.category_id,
-                      }),
+                      applySwap(item.id, s),
                     )
                   }
                   className="rounded-xl border border-border px-3 py-2"
                 >
-                  <Text className="text-sm">{item.name} → {s.displayName}</Text>
-                  {[s.to_qty_text, s.prep_note].filter(Boolean).length > 0 ? (
+                  <Text className="text-sm">{item.name} → {s.name}</Text>
+                  {[s.qtyText, s.prepNote].filter(Boolean).length > 0 ? (
                     <Text variant="muted" className="text-xs">
-                      {[s.to_qty_text, s.prep_note].filter(Boolean).join(", ")}
+                      {[s.qtyText, s.prepNote].filter(Boolean).join(", ")}
                     </Text>
                   ) : null}
                 </Pressable>

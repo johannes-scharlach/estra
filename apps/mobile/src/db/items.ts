@@ -36,9 +36,9 @@ export async function addItem(listId: string, name: string, spec?: string) {
   // PowerSync's local tables are views over ps_data__*, and SQLite has no
   // UPSERT on a view — so the read and the branch happen here instead, in
   // one write transaction to keep it atomic.
-  await powersync.writeTransaction(async (tx) => {
-    const existing = await tx.getOptional<{ id: string }>(
-      `SELECT id FROM list_items WHERE id = ?`,
+  return powersync.writeTransaction(async (tx) => {
+    const existing = await tx.getOptional<{ id: string; spec: string | null }>(
+      `SELECT id, spec FROM list_items WHERE id = ?`,
       [id],
     );
 
@@ -52,14 +52,14 @@ export async function addItem(listId: string, name: string, spec?: string) {
           WHERE id = ?`,
         [trimmed, spec ?? null, now, id],
       );
-      return;
+      return { id, name: trimmed, spec: spec ?? existing.spec };
     }
 
     // Seeded or legacy rows may have a random id while still sharing the same
     // (list_id, name_key). Updating them keeps the local device consistent
     // and avoids the server-side partial unique violation.
-    const legacy = await tx.getOptional<{ id: string }>(
-      `SELECT id FROM list_items
+    const legacy = await tx.getOptional<{ id: string; spec: string | null }>(
+      `SELECT id, spec FROM list_items
         WHERE list_id = ? AND name_key = ? AND planned_meal_id IS NULL
         LIMIT 1`,
       [listId, nameKey],
@@ -75,7 +75,7 @@ export async function addItem(listId: string, name: string, spec?: string) {
           WHERE id = ?`,
         [trimmed, spec ?? null, now, legacy.id],
       );
-      return;
+      return { id: legacy.id, name: trimmed, spec: spec ?? legacy.spec };
     }
 
     await tx.execute(
@@ -84,7 +84,15 @@ export async function addItem(listId: string, name: string, spec?: string) {
        VALUES (?, ?, ?, ?, NULL, ?, 'active', 0, ?, ?)`,
       [id, listId, trimmed, nameKey, spec ?? null, now, now],
     );
+    return { id, name: trimmed, spec: spec ?? null };
   });
+}
+
+export async function setItemSpec(id: string, spec: string) {
+  await powersync.execute(
+    `UPDATE list_items SET spec = ?, updated_at = ? WHERE id = ?`,
+    [spec.trim() || null, new Date().toISOString(), id],
+  );
 }
 
 export async function setItemStatus(id: string, status: 'active' | 'purchased') {

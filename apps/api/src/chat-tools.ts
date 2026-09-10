@@ -40,7 +40,7 @@ export function buildChatTools(userId: string, listId: string) {
         variantId: z.uuid(),
         date: z.iso.date().describe("YYYY-MM-DD in the user's local time"),
         meal: z.enum(MEAL_SLOTS),
-        servings: z.number().int().min(1).max(20).optional(),
+        servings: z.number().positive().multipleOf(0.01).optional(),
       }),
       execute: async ({ variantId, date, meal, servings }) =>
         inTransaction((client) =>

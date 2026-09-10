@@ -52,6 +52,83 @@ export type Database = {
         }
         Relationships: []
       }
+      chat_messages: {
+        Row: {
+          chat_id: string
+          created_at: string
+          id: string
+          list_id: string
+          parts: Json
+          role: string
+        }
+        Insert: {
+          chat_id: string
+          created_at?: string
+          id: string
+          list_id: string
+          parts?: Json
+          role: string
+        }
+        Update: {
+          chat_id?: string
+          created_at?: string
+          id?: string
+          list_id?: string
+          parts?: Json
+          role?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_messages_chat_id_fkey"
+            columns: ["chat_id"]
+            isOneToOne: false
+            referencedRelation: "chats"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_messages_list_id_fkey"
+            columns: ["list_id"]
+            isOneToOne: false
+            referencedRelation: "lists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chats: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          list_id: string
+          title: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          list_id: string
+          title?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          list_id?: string
+          title?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chats_list_id_fkey"
+            columns: ["list_id"]
+            isOneToOne: false
+            referencedRelation: "lists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       list_items: {
         Row: {
           added_by: string | null
@@ -245,17 +322,44 @@ export type Database = {
       }
       recipes: {
         Row: {
-          content_markdown: string | null
           created_at: string
           created_by: string | null
-          description: string | null
           from_name: string | null
           from_url: string | null
           id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          from_name?: string | null
+          from_url?: string | null
+          id?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          from_name?: string | null
+          from_url?: string | null
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      variants: {
+        Row: {
+          content_markdown: string | null
+          created_at: string
+          description: string | null
+          id: string
+          ingredient_lines: Json
+          instructions: Json
           locale: string
-          name: string
+          name: string | null
           recipe_category: string | null
           recipe_cuisine: string | null
+          recipe_id: string
           recipe_yield: string | null
           total_time: string | null
           updated_at: string
@@ -263,15 +367,15 @@ export type Database = {
         Insert: {
           content_markdown?: string | null
           created_at?: string
-          created_by?: string | null
           description?: string | null
-          from_name?: string | null
-          from_url?: string | null
           id?: string
+          ingredient_lines?: Json
+          instructions?: Json
           locale?: string
-          name: string
+          name?: string | null
           recipe_category?: string | null
           recipe_cuisine?: string | null
+          recipe_id: string
           recipe_yield?: string | null
           total_time?: string | null
           updated_at?: string
@@ -279,82 +383,17 @@ export type Database = {
         Update: {
           content_markdown?: string | null
           created_at?: string
-          created_by?: string | null
           description?: string | null
-          from_name?: string | null
-          from_url?: string | null
           id?: string
+          ingredient_lines?: Json
+          instructions?: Json
           locale?: string
-          name?: string
+          name?: string | null
           recipe_category?: string | null
           recipe_cuisine?: string | null
+          recipe_id?: string
           recipe_yield?: string | null
           total_time?: string | null
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      swap_suggestions: {
-        Row: {
-          created_at: string
-          from_item_name: string
-          id: string
-          recipe_id: string
-          to_item_name: string
-          to_qty_text: string
-        }
-        Insert: {
-          created_at?: string
-          from_item_name: string
-          id?: string
-          recipe_id: string
-          to_item_name: string
-          to_qty_text: string
-        }
-        Update: {
-          created_at?: string
-          from_item_name?: string
-          id?: string
-          recipe_id?: string
-          to_item_name?: string
-          to_qty_text?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "swap_suggestions_recipe_id_fkey"
-            columns: ["recipe_id"]
-            isOneToOne: false
-            referencedRelation: "recipes"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      variants: {
-        Row: {
-          created_at: string
-          id: string
-          ingredient_lines: Json
-          instructions: Json
-          recipe_id: string
-          swaps: Json
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          id: string
-          ingredient_lines?: Json
-          instructions?: Json
-          recipe_id: string
-          swaps?: Json
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          ingredient_lines?: Json
-          instructions?: Json
-          recipe_id?: string
-          swaps?: Json
           updated_at?: string
         }
         Relationships: [
@@ -373,6 +412,11 @@ export type Database = {
     }
     Functions: {
       is_list_member: { Args: { target_list_id: string }; Returns: boolean }
+      item_name_key: { Args: { name: string }; Returns: string }
+      uuid_for_item: {
+        Args: { item_name: string; target_list_id: string }
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never

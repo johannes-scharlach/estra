@@ -71,7 +71,7 @@ const planned_meals = new Table(
     variant_id: column.text,
     slot_date: column.text,
     meal: column.text,
-    servings: column.integer,
+    servings: column.real,
     created_at: column.text,
     updated_at: column.text,
   },

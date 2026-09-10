@@ -33,6 +33,10 @@ export async function setPlannedMeal(client: PoolClient, opts: {
   ifOccupied: "reject" | "replace";
 }): Promise<{ plannedMealId: string; name: string | null; items: string[] }> {
   const { listId, slotDate, meal, variantId } = opts;
+  const servings = opts.servings ?? 2;
+  if (!Number.isFinite(servings) || servings <= 0 || Number(servings.toFixed(2)) !== servings) {
+    throw new Error("Portions must be positive with at most two decimal places");
+  }
   const id = plannedMealId(listId, slotDate, meal);
   const v = await client.query<{ recipe_id: string; name: string | null; ingredient_lines: Line[] }>(
     "SELECT recipe_id, name, ingredient_lines FROM variants WHERE id = $1",
@@ -48,7 +52,7 @@ export async function setPlannedMeal(client: PoolClient, opts: {
        SET recipe_id = EXCLUDED.recipe_id, variant_id = EXCLUDED.variant_id,
            servings = EXCLUDED.servings, updated_at = now()`}
      RETURNING id`,
-    [id, listId, variant.recipe_id, variantId, slotDate, meal, opts.servings ?? 2],
+    [id, listId, variant.recipe_id, variantId, slotDate, meal, servings],
   );
 
   if (!written.rowCount) throw new MealSlotOccupiedError();

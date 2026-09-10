@@ -1,26 +1,46 @@
+import { Button, FieldGroup, Host, ListItem } from "@expo/ui";
 import { useStatus } from "@powersync/react";
-import { View } from "react-native";
+import { useResolveClassNames } from "uniwind";
 
-import { Button } from "@/components/ui/button";
-import { Text } from "@/components/ui/text";
 import { useAuth } from "@/db/provider";
+import { getFieldGroupModifiers } from "@/features/more/field-group-modifiers";
 import { supabase } from "@/lib/supabase";
 
 export default function More() {
   const { session } = useAuth();
   const status = useStatus();
+  const backgroundColor = useResolveClassNames("bg-background").backgroundColor;
+  const seedColor = useResolveClassNames("text-primary").color;
+  const lastSynced = status.hasSynced
+    ? (status.lastSyncedAt?.toLocaleTimeString() ?? "Just now")
+    : "Never";
 
   return (
-    <View className="flex-1 gap-3 bg-background p-6">
-      <Text variant="muted">{session?.user.email}</Text>
-      <Text variant="muted">
-        {status.hasSynced
-          ? `Last synced ${status.lastSyncedAt?.toLocaleTimeString()}`
-          : "Never synced"}
-      </Text>
-      <Button variant="outline" onPress={() => void supabase.auth.signOut()}>
-        <Text>Sign out</Text>
-      </Button>
-    </View>
+    <Host
+      seedColor={seedColor}
+      style={{ flex: 1, backgroundColor }}
+      useViewportSizeMeasurement
+    >
+      <FieldGroup
+        modifiers={getFieldGroupModifiers()}
+        style={{ backgroundColor }}
+      >
+        <FieldGroup.Section title="Account">
+          <ListItem supportingText={session?.user.email}>Email</ListItem>
+        </FieldGroup.Section>
+
+        <FieldGroup.Section title="Sync">
+          <ListItem supportingText={lastSynced}>Last synced</ListItem>
+        </FieldGroup.Section>
+
+        <FieldGroup.Section>
+          <Button
+            label="Sign out"
+            variant="text"
+            onPress={() => void supabase.auth.signOut()}
+          />
+        </FieldGroup.Section>
+      </FieldGroup>
+    </Host>
   );
 }

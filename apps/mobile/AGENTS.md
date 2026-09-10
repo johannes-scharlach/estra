@@ -2,13 +2,16 @@
 
 Expo Router + PowerSync + op-sqlite. Repo-wide rules in root `AGENTS.md`.
 
+Targets iOS and Android only. Web is not supported; do not add web fallbacks
+or web-parity code.
+
 ## UI stack
 
 Standard-choice rule: pick the closest-to-default option, no custom design
 direction (yet). That gives:
 
 - **uniwind** — Tailwind CSS v4 for React Native. Not NativeWind (still v3).
-  Same `className` API. Runs on iOS, Android, and react-native-web.
+  Same `className` API. Used on iOS and Android.
 - **react-native-reusables (rnr)** — shadcn/ui for RN. Vendored components in
   `src/components/ui/`, built on rn-primitives. Default neutral shadcn theme,
   no styling opinions.
@@ -42,9 +45,8 @@ calls `npx expo install` (npm) which is wrong for this pnpm workspace.
 
 - New UI uses rnr components + Tailwind classes, not `StyleSheet`.
 - `src/components/themed-*.tsx` are pre-uniwind legacy; don't extend them.
-- **Icons:** prefer `expo-symbols` (`SymbolView`) with iOS/Android/web name
+- **Icons:** prefer `expo-symbols` (`SymbolView`) with iOS/Android name
   mappings — it renders SF Symbols on iOS and Material Symbols on Android.
-  Use `lucide-react-native` only when there is no suitable native symbol or
-  for web parity.
+  Use `lucide-react-native` only when there is no suitable native symbol.
 - Run `pnpm --filter mobile lint` after adding components (new vendored files
   sometimes trip import-order rules).

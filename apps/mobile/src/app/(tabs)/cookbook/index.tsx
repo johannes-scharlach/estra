@@ -84,7 +84,7 @@ export default function Cookbook() {
   const empty = !isLoading && variants.length === 0;
 
   return (
-    <View className="flex-1 bg-background">
+    <>
       <Stack.Screen
         options={{
           headerRight: () => (
@@ -101,7 +101,9 @@ export default function Cookbook() {
         }}
       />
 
+      {/* ScrollView must be the first native child for the large title to collapse. */}
       <ScrollView
+        className="flex-1 bg-background"
         contentContainerStyle={{ paddingBottom: 40 }}
         keyboardDismissMode="on-drag"
         keyboardShouldPersistTaps="handled"
@@ -158,6 +160,6 @@ export default function Cookbook() {
           </View>
         )}
       </ScrollView>
-    </View>
+    </>
   );
 }
