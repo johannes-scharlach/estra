@@ -7,7 +7,6 @@ import { Pressable, ScrollView, View } from "react-native";
 import { useResolveClassNames } from "uniwind";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Text } from "@/components/ui/text";
 import type { Variant } from "@/db/schema";
@@ -101,6 +100,14 @@ export default function Cookbook() {
         }}
       />
 
+      <Stack.SearchBar
+        placeholder="Search recipes"
+        autoCapitalize="none"
+        hideWhenScrolling
+        onChangeText={(event) => setSearch(event.nativeEvent.text)}
+        onCancelButtonPress={() => setSearch("")}
+      />
+
       {/* ScrollView must be the first native child for the large title to collapse. */}
       <ScrollView
         className="flex-1 bg-background"
@@ -109,18 +116,6 @@ export default function Cookbook() {
         keyboardShouldPersistTaps="handled"
         contentInsetAdjustmentBehavior="automatic"
       >
-        <View className="mt-2 px-6">
-          <Input
-            value={search}
-            onChangeText={setSearch}
-            placeholder="Search recipes"
-            autoCapitalize="none"
-            autoCorrect={false}
-            returnKeyType="search"
-            clearButtonMode="while-editing"
-          />
-        </View>
-
         {isLoading ? (
           <View className="mt-6 gap-3 px-6">
             {[0, 1, 2].map((i) => (

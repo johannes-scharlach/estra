@@ -1,8 +1,10 @@
 [
   {
     "title": "Pan-Seared Pork Chops with Jammy Zwetschgen (Plums)",
+    "previewTitle": "Pork chops with jammy plums",
     "section": "Seasonal Late-Summer Specials",
     "ingredients": "Pork chops, Zwetschgen/purple plums, red onion, balsamic vinegar, fresh rosemary",
+    "previewIngredients": "Pork chops, plums, red onion, balsamic, rosemary",
     "time": "~20 mins, one skillet",
     "vibe": "Sweet-tart plum sauce, caramelized pork, autumn-on-the-horizon energy.",
     "months": [
@@ -13,8 +15,10 @@
   },
   {
     "title": "Late-Summer Charred Sweet Corn, Zucchini & Feta Skillet",
+    "previewTitle": "Corn, zucchini & feta skillet",
     "section": "Seasonal Late-Summer Specials",
     "ingredients": "Fresh corn, zucchini, feta, fresh basil, lime or lemon",
+    "previewIngredients": "Corn, zucchini, feta, basil, lime",
     "time": "15 mins, hot skillet",
     "vibe": "Sweet, smoky, salty, bright; perfect with bread or tortillas.",
     "months": [
@@ -25,8 +29,10 @@
   },
   {
     "title": "Brown-Butter Pfifferlinge (Chanterelles) on Toasted Sourdough",
+    "previewTitle": "Mushrooms on toast",
     "section": "Seasonal Late-Summer Specials",
     "ingredients": "Pfifferlinge, sourdough, butter, shallot/red onion, fresh parsley",
+    "previewIngredients": "Chanterelles, sourdough, butter, shallot, parsley",
     "time": "10–12 mins, pan + toaster",
     "vibe": "Deeply earthy, nutty, woodsy; peak forest-in-a-good-way.",
     "months": [
@@ -37,8 +43,10 @@
   },
   {
     "title": "Sheet-Pan Roasted Sausage, Sweet Bell Peppers & New Potatoes",
+    "previewTitle": "Sausage, peppers & potatoes",
     "section": "Seasonal Late-Summer Specials",
     "ingredients": "Salsiccia or coarse bratwurst, sweet pointed peppers, baby potatoes, whole garlic cloves, fresh oregano/thyme",
+    "previewIngredients": "Sausage, peppers, potatoes, garlic, herbs",
     "time": "10 mins prep, ~30 mins oven",
     "vibe": "Sweet caramelized peppers, crispy potatoes, juicy herb sausage.",
     "months": [
@@ -49,8 +57,10 @@
   },
   {
     "title": "Jammy Cherry Tomato & Ricotta Pasta",
+    "previewTitle": "Tomato & ricotta pasta",
     "section": "Seasonal Late-Summer Specials",
     "ingredients": "Cherry/vine tomatoes, rigatoni or paccheri, ricotta (or Schmand/burrata), garlic, fresh basil",
+    "previewIngredients": "Tomatoes, pasta, ricotta, garlic, basil",
     "time": "15 mins, pan + pot",
     "vibe": "Creamy, sweet, bright tomato emulsion clinging to big pasta tubes.",
     "months": [
@@ -61,43 +71,55 @@
   },
   {
     "title": "Flammkuchen with Schmand, bacon and onions",
+    "previewTitle": "Flammkuchen with bacon & onions",
     "section": "Pantry & Fast Comfort",
     "ingredients": "Flammkuchen base, Schmand, bacon, onions",
+    "previewIngredients": "Flammkuchen base, Schmand, bacon, onions",
     "time": "5–10 mins prep, 10–15 mins bake",
     "vibe": "Ultra-thin, crisp, smoky, creamy, sweet-onion comfort."
   },
   {
     "title": "Classic Spaghetti Cacio e Pepe",
+    "previewTitle": "Spaghetti cacio e pepe",
     "section": "Pantry & Fast Comfort",
     "ingredients": "Spaghetti, Pecorino Romano (or Grana Padano), whole black peppercorns, butter",
+    "previewIngredients": "Spaghetti, pecorino, black pepper, butter",
     "time": "15–20 mins, one pot + pan",
     "vibe": "Rich, sharp, peppery, pure cheese-and-pepper minimalism."
   },
   {
     "title": "Spanish Tortilla de Patatas",
+    "previewTitle": "Spanish potato tortilla",
     "section": "Pantry & Fast Comfort",
     "ingredients": "Waxy potatoes, eggs, yellow onion, olive oil",
+    "previewIngredients": "Potatoes, eggs, onion, olive oil",
     "time": "25–35 mins, one pan",
     "vibe": "Custardy, savory, dense but tender; great hot or room temp."
   },
   {
     "title": "Pasta all’Amatriciana",
+    "previewTitle": "Pasta all’Amatriciana",
     "section": "Pantry & Fast Comfort",
     "ingredients": "Rigatoni or bucatini, guanciale (or smoked bacon/Speck), canned San Marzano tomatoes, Pecorino Romano, dried chili flakes",
+    "previewIngredients": "Pasta, guanciale, tomatoes, pecorino, chili",
     "time": "25 mins, one pan + pot",
     "vibe": "Tangy, smoky, spicy, deeply savory."
   },
   {
     "title": "Tuscan White Bean & Tuna Salad",
+    "previewTitle": "White bean & tuna salad",
     "section": "Pantry & Fast Comfort",
     "ingredients": "Canned cannellini beans, tuna in olive oil, red onion, fresh parsley, lemon",
+    "previewIngredients": "White beans, tuna, red onion, parsley, lemon",
     "time": "10 mins, no cooking",
     "vibe": "Bright, herby, olive-oily and refreshing, zero-effort pantry dinner."
   },
   {
     "title": "Garlic & Herb Gnocchi with Crispy Pancetta",
+    "previewTitle": "Gnocchi with crispy pancetta",
     "section": "Pantry & Fast Comfort",
     "ingredients": "Fresh potato gnocchi, diced pancetta or bacon, fresh sage leaves, butter, grated Parmesan",
+    "previewIngredients": "Gnocchi, pancetta, sage, butter, parmesan",
     "time": "15 mins, one pan",
     "vibe": "Nutty browned butter, crispy sage, salty pork, pillowy gnocchi."
   },

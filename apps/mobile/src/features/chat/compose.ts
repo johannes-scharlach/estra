@@ -6,17 +6,24 @@ import { addDays, dateKey, SLOT_LABEL, WEEKDAY_LONG, type MealSlot } from "@/fea
  * functions are the tested seam for that rule.
  */
 
-/** Home entry: chips (images may accompany). Plain restatement only;
- *  ingredients lowercased so the sentence reads plain. */
-export function entryMessage(chips: string[], attachmentCount: number): string {
-  const names = chips.map((chip) => chip.toLowerCase());
+/** Home entry: chips plus any unfinished input (images may accompany).
+ *  Ingredients lowercased so the sentence reads plain. */
+export function entryMessage(chips: string[], attachmentCount: number, draft: string): string {
+  const ingredients = draft.trim() ? [...chips, draft.trim()] : chips;
+  const names = ingredients.map((chip) => chip.toLowerCase());
   const list =
     names.length === 1
       ? names[0]
       : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
   if (attachmentCount && names.length) return `I also have ${list}.`;
   if (names.length) return `I have ${list}.`;
-  return attachmentCount > 1 ? "What's in these?" : "What's in here?";
+  return attachmentCount > 1
+    ? "What could I make with what's in these photos?"
+    : "What could I make with what's in this photo?";
+}
+
+export function dishMessage(dish: string): string {
+  return `Give me a few ideas for making: ${dish.trim()}`;
 }
 
 /** Planning entry: dates stay explicit when the conversation is resumed later. */

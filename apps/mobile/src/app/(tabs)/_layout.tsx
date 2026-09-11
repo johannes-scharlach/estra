@@ -1,16 +1,18 @@
 import { Redirect } from "expo-router";
 import { NativeTabs } from "expo-router/unstable-native-tabs";
+import { useResolveClassNames } from "uniwind";
 
 import { useAuth } from "@/db/provider";
 
 export default function TabsLayout() {
   const { session, ready } = useAuth();
+  const tintColor = useResolveClassNames("text-foreground").color;
 
   if (!ready) return null;
   if (!session) return <Redirect href="/sign-in" />;
 
   return (
-    <NativeTabs>
+    <NativeTabs tintColor={tintColor}>
       <NativeTabs.Trigger name="meals">
         <NativeTabs.Trigger.Label>Meals</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf="fork.knife" md="restaurant" />

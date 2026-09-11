@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { entryMessage, mealPlanMessage, saveAndPlanMessage } from "./compose";
+import { dishMessage, entryMessage, mealPlanMessage, saveAndPlanMessage } from "./compose";
 import { SLOT_LABEL, addDays, dateKey } from "@/features/meals/slots";
 
 // Monday 2026-09-07, so Friday the 11th is four days out.
@@ -8,25 +8,42 @@ const TODAY = new Date(2026, 8, 7);
 
 describe("entryMessage", () => {
   it("restates two chips plainly", () => {
-    expect(entryMessage(["Broccoli", "Sausage"], 0)).toBe("I have broccoli and sausage.");
+    expect(entryMessage(["Broccoli", "Sausage"], 0, "")).toBe("I have broccoli and sausage.");
   });
 
   it("restates one chip", () => {
-    expect(entryMessage(["Broccoli"], 0)).toBe("I have broccoli.");
+    expect(entryMessage(["Broccoli"], 0, "")).toBe("I have broccoli.");
   });
 
   it("joins three chips with and before the last", () => {
-    expect(entryMessage(["Broccoli", "Sausage", "Rice"], 0)).toBe(
+    expect(entryMessage(["Broccoli", "Sausage", "Rice"], 0, "")).toBe(
       "I have broccoli, sausage and rice.",
     );
   });
 
   it("appends the chips after the image message", () => {
-    expect(entryMessage(["Broccoli", "Rice"], 2)).toBe("I also have broccoli and rice.");
+    expect(entryMessage(["Broccoli", "Rice"], 2, "")).toBe("I also have broccoli and rice.");
   });
 
   it("refers to multiple attached images without describing their contents", () => {
-    expect(entryMessage([], 2)).toBe("What's in these?");
+    expect(entryMessage([], 2, "")).toBe("What could I make with what's in these photos?");
+    expect(entryMessage([], 1, "")).toBe("What could I make with what's in this photo?");
+  });
+
+  it("includes unfinished input without requiring a chip", () => {
+    expect(entryMessage(["Broccoli"], 0, "  Rice  ")).toBe("I have broccoli and rice.");
+    expect(entryMessage([], 0, "  Rice  ")).toBe("I have rice.");
+    expect(entryMessage([], 1, "  Rice  ")).toBe("I also have rice.");
+  });
+
+  it("ignores whitespace left in the input", () => {
+    expect(entryMessage(["Broccoli"], 0, "  ")).toBe("I have broccoli.");
+  });
+});
+
+describe("dishMessage", () => {
+  it("asks for directions using the user's own dish, not a full recipe", () => {
+    expect(dishMessage("  Thai curry  ")).toBe("Give me a few ideas for making: Thai curry");
   });
 });
 
