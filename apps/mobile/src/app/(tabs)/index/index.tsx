@@ -10,7 +10,10 @@ import { Input } from "@/components/ui/input";
 import { Text } from "@/components/ui/text";
 import { dishMessage, entryMessage } from "@/features/chat/compose";
 import { EntrySelector } from "@/features/chat/entry-selector";
-import { pickImageAttachments, type ImageAttachment } from "@/features/chat/image-attachment";
+import {
+  pickImageAttachments,
+  type ImageAttachment,
+} from "@/features/chat/image-attachment";
 import { ImageAttachmentStrip } from "@/features/chat/image-attachment-strip";
 import { queueMessage } from "@/features/chat/message-queue";
 import { SeededDeck } from "@/features/chat/seeded-deck";
@@ -25,6 +28,7 @@ const CAMERA_ICON = {
   android: "photo_camera",
   web: "photo_camera",
 } as const;
+const ADD_ICON = { ios: "plus.circle", android: "add_circle" } as const;
 const REMOVE_ICON = { ios: "xmark", android: "close", web: "close" } as const;
 const CALENDAR_ICON = {
   ios: "calendar",
@@ -56,9 +60,10 @@ export default function Home() {
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
 
   const trimmed = draft.trim();
-  const canStart = entry === "dish"
-    ? dish.trim().length > 0
-    : trimmed.length > 0 || chips.length > 0 || attachments.length > 0;
+  const canStart =
+    entry === "dish"
+      ? dish.trim().length > 0
+      : trimmed.length > 0 || chips.length > 0 || attachments.length > 0;
 
   function submitIngredient() {
     const chip = trimmed;
@@ -195,14 +200,33 @@ export default function Home() {
                     submitBehavior="submit"
                     onSubmitEditing={submitIngredient}
                   />
-                  <Pressable
-                    onPress={() => void addAttachments()}
-                    accessibilityLabel="Add images of what you have"
-                    accessibilityRole="button"
-                    className="absolute bottom-0 right-0 top-0 w-12 items-center justify-center active:opacity-60"
-                  >
-                    <SymbolView name={CAMERA_ICON} tintColor={mutedColor} size={22} />
-                  </Pressable>
+                  {trimmed.length > 0 ? (
+                    <Pressable
+                      onPress={submitIngredient}
+                      accessibilityLabel="Add ingredient"
+                      accessibilityRole="button"
+                      className="absolute bottom-0 right-0 top-0 w-12 items-center justify-center active:opacity-60"
+                    >
+                      <SymbolView
+                        name={ADD_ICON}
+                        tintColor={iconColor}
+                        size={22}
+                      />
+                    </Pressable>
+                  ) : (
+                    <Pressable
+                      onPress={() => void addAttachments()}
+                      accessibilityLabel="Add images of what you have"
+                      accessibilityRole="button"
+                      className="absolute bottom-0 right-0 top-0 w-12 items-center justify-center active:opacity-60"
+                    >
+                      <SymbolView
+                        name={CAMERA_ICON}
+                        tintColor={mutedColor}
+                        size={22}
+                      />
+                    </Pressable>
+                  )}
                 </View>
 
                 {chips.length ? (
@@ -229,7 +253,11 @@ export default function Home() {
 
                 <ImageAttachmentStrip
                   attachments={attachments}
-                  onRemove={(index) => setAttachments((current) => current.filter((_, i) => i !== index))}
+                  onRemove={(index) =>
+                    setAttachments((current) =>
+                      current.filter((_, i) => i !== index),
+                    )
+                  }
                   size={96}
                 />
 
@@ -248,7 +276,9 @@ export default function Home() {
             onPress={start}
             className={canStart ? undefined : "bg-secondary opacity-100"}
           >
-            <Text className={canStart ? undefined : "text-muted-foreground"}>Get ideas</Text>
+            <Text className={canStart ? undefined : "text-muted-foreground"}>
+              Get ideas
+            </Text>
           </Button>
         </View>
 
@@ -256,7 +286,11 @@ export default function Home() {
           <View className="flex-row items-center justify-between gap-3">
             <Text className="text-lg font-semibold">Quick meal ideas</Text>
             <Link href="/chats/ideas" asChild>
-              <Pressable accessibilityRole="link" accessibilityLabel="See all quick meal ideas" className="py-2 active:opacity-60">
+              <Pressable
+                accessibilityRole="link"
+                accessibilityLabel="See all quick meal ideas"
+                className="py-2 active:opacity-60"
+              >
                 <Text variant="muted">See all</Text>
               </Pressable>
             </Link>

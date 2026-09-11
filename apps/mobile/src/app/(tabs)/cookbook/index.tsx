@@ -68,6 +68,7 @@ export default function Cookbook() {
   const router = useRouter();
   const scheme = useColorScheme();
   const iconColor = useResolveClassNames("text-foreground").color;
+  const hintColor = useResolveClassNames("text-muted-foreground").color;
 
   const [search, setSearch] = useState("");
   const query = search.trim();
@@ -89,12 +90,11 @@ export default function Cookbook() {
           headerRight: () => (
             <Pressable
               onPress={() => router.push("/cookbook/import" as never)}
-              hitSlop={12}
               accessibilityLabel="Import recipe"
               accessibilityRole="button"
-              className="items-center justify-center p-2"
+              className="size-12 items-center justify-center"
             >
-              <SymbolView name={PLUS_ICON} tintColor={iconColor} size={22} />
+              <SymbolView name={PLUS_ICON} tintColor={iconColor} size={24} />
             </Pressable>
           ),
         }}
@@ -102,6 +102,10 @@ export default function Cookbook() {
 
       <Stack.SearchBar
         placeholder="Search recipes"
+        tintColor={iconColor}
+        headerIconColor={iconColor}
+        textColor={iconColor}
+        hintTextColor={hintColor}
         autoCapitalize="none"
         hideWhenScrolling
         onChangeText={(event) => setSearch(event.nativeEvent.text)}
@@ -143,7 +147,7 @@ export default function Cookbook() {
             </Button>
           </View>
         ) : (
-          <View className="mt-4 divide-y divide-border/60 border-y border-border/60">
+          <View className="mt-4 divide-y divide-border/60">
             {variants.map((v) => (
               <VariantRow
                 key={v.id}

@@ -8,8 +8,12 @@ import {
   useRouter,
 } from "expo-router";
 import { useCallback, useMemo, useRef, useState } from "react";
-import { KeyboardAvoidingView, Platform, ScrollView, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { View } from "react-native";
+import {
+  KeyboardAwareScrollView,
+  KeyboardStickyView,
+  type KeyboardAwareScrollViewRef,
+} from "react-native-keyboard-controller";
 
 import { Text } from "@/components/ui/text";
 import type { Chat, ChatMessage, List } from "@/db/schema";
@@ -20,7 +24,10 @@ import {
   peekQueuedMessage,
   takeQueuedMessage,
 } from "@/features/chat/message-queue";
-import { uploadImageAttachment, type ImageAttachment } from "@/features/chat/image-attachment";
+import {
+  uploadImageAttachment,
+  type ImageAttachment,
+} from "@/features/chat/image-attachment";
 import {
   parseParts,
   streamReply,
@@ -30,10 +37,6 @@ import {
   type Parts,
 } from "@/features/chat/stream";
 import { Waiting } from "@/features/chat/waiting";
-
-// iPhone's compact navigation bar. Measured, not looked up: the header
-// height hook lives in a package this workspace does not expose.
-const NAV_BAR = 44;
 
 type Shown = { id: string; role: string; parts: Parts };
 
@@ -106,7 +109,10 @@ export default function ChatScreen() {
     setError(null);
     setBusy(true);
     try {
-      setPending((p) => [...p.filter((m) => m.id !== turn.message.id), turn.message]);
+      setPending((p) => [
+        ...p.filter((m) => m.id !== turn.message.id),
+        turn.message,
+      ]);
       while (turn.attachments.length) {
         const file = await uploadImageAttachment(list.id, turn.attachments[0]!);
         turn = attachUploadedImage(turn, file);
@@ -180,8 +186,7 @@ export default function ChatScreen() {
   const suggestions =
     last?.role === "assistant" ? suggestionsOf(last.parts) : [];
 
-  const insets = useSafeAreaInsets();
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<KeyboardAwareScrollViewRef>(null);
   const settled = useRef(false);
 
   return (
@@ -192,14 +197,8 @@ export default function ChatScreen() {
           headerBackButtonDisplayMode: "minimal",
         }}
       />
-      <KeyboardAvoidingView
-        className="flex-1"
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-        keyboardVerticalOffset={
-          Platform.OS === "ios" ? insets.top + NAV_BAR : 0
-        }
-      >
-        <ScrollView
+      <View className="flex-1">
+        <KeyboardAwareScrollView
           ref={scrollRef}
           className="flex-1"
           contentContainerClassName="px-5 pb-4"
@@ -257,15 +256,17 @@ export default function ChatScreen() {
               </Text>
             ) : null}
           </View>
-        </ScrollView>
+        </KeyboardAwareScrollView>
 
-        <Composer
-          placeholder="Message"
-          busy={busy || !list || !chat}
-          suggestions={suggestions}
-          onSend={(text, attachments) => void send(text, attachments)}
-        />
-      </KeyboardAvoidingView>
+        <KeyboardStickyView>
+          <Composer
+            placeholder="Message"
+            busy={busy || !list || !chat}
+            suggestions={suggestions}
+            onSend={(text, attachments) => void send(text, attachments)}
+          />
+        </KeyboardStickyView>
+      </View>
     </View>
   );
 }

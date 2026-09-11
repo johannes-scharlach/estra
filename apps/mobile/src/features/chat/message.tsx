@@ -37,14 +37,15 @@ export function UserMessage({ parts }: { parts: Parts }) {
   );
 }
 
-/** Ideas do have an action — tap to hear more — so they are cards. You flip
- *  through them one at a time: choosing between directions is flipping, not
- *  scrolling. The deck stays in the transcript after a pick. */
+/** Ideas do have an action — tap to hear more — so they are cards. Same
+ *  deck as Home's quick ideas: full-bleed, peek at the next card, snap
+ *  through them. The deck stays in the transcript after a pick. */
 function Ideas({ ideas, onPick }: { ideas: Idea[]; onPick: (idea: Idea) => void }) {
   const chevron = useResolveClassNames("text-muted-foreground").color;
   const { width: windowWidth } = useWindowDimensions();
-  // The message column is the screen minus its px-5 padding.
-  const pageWidth = windowWidth - 40;
+  // Same card as the Home deck: leaves room to peek at the next one.
+  const cardWidth = Math.min(300, windowWidth - 76);
+  const gap = 12;
 
   const [page, setPage] = useState(0);
   const [maxHeight, setMaxHeight] = useState(0);
@@ -52,7 +53,7 @@ function Ideas({ ideas, onPick }: { ideas: Idea[]; onPick: (idea: Idea) => void 
   const clamped = Math.min(page, Math.max(ideas.length - 1, 0));
 
   function onScrollEnd(e: NativeSyntheticEvent<NativeScrollEvent>) {
-    const next = Math.round(e.nativeEvent.contentOffset.x / pageWidth);
+    const next = Math.round(e.nativeEvent.contentOffset.x / (cardWidth + gap));
     if (next !== pageRef.current) {
       pageRef.current = next;
       setPage(next);
@@ -64,20 +65,22 @@ function Ideas({ ideas, onPick }: { ideas: Idea[]; onPick: (idea: Idea) => void 
   }
 
   return (
-    <View className="my-2 gap-2">
+    <View className="my-2 -mx-5 gap-2">
       <ScrollView
         horizontal
-        pagingEnabled
         showsHorizontalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         onMomentumScrollEnd={onScrollEnd}
-        style={{ width: pageWidth }}
+        snapToInterval={cardWidth + gap}
+        snapToAlignment="start"
+        decelerationRate="fast"
+        contentContainerClassName="gap-3 px-5"
       >
         {ideas.map((idea, i) => (
-          <View key={`${i}-${idea.title}`} style={{ width: pageWidth }}>
+          <View key={`${i}-${idea.title}`} style={{ width: cardWidth }}>
             <Pressable
               onPress={() => {
-                if (i !== clamped || !idea.title) return;
+                if (!idea.title) return;
                 onPick(idea);
               }}
               onLayout={(e) => measure(e.nativeEvent.layout.height)}

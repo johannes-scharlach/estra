@@ -10,26 +10,42 @@ import {
   DarkTheme,
   DefaultTheme,
   ThemeProvider,
-} from "@react-navigation/native";
+} from "expo-router/react-navigation";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
+import { useResolveClassNames } from "uniwind";
 
 import { SystemProvider } from "@/db/provider";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
+  const baseTheme = colorScheme === "dark" ? DarkTheme : DefaultTheme;
+  const background = useResolveClassNames("bg-background").backgroundColor;
+  const foreground = useResolveClassNames("text-foreground").color;
+  const border = useResolveClassNames("border-border").borderColor;
+  const notification = useResolveClassNames("text-destructive").color;
+  const theme = {
+    ...baseTheme,
+    colors: {
+      ...baseTheme.colors,
+      primary: foreground ?? baseTheme.colors.primary,
+      background: background ?? baseTheme.colors.background,
+      card: background ?? baseTheme.colors.card,
+      text: foreground ?? baseTheme.colors.text,
+      border: border ?? baseTheme.colors.border,
+      notification: notification ?? baseTheme.colors.notification,
+    },
+  };
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <KeyboardProvider>
         <SystemProvider>
-          <ThemeProvider
-            value={colorScheme === "dark" ? DarkTheme : DefaultTheme}
-          >
+          <ThemeProvider value={theme}>
             <Stack>
               <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
               <Stack.Screen name="sign-in" options={{ headerShown: false }} />

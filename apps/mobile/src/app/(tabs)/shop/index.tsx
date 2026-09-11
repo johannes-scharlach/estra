@@ -6,19 +6,11 @@ import { useEffect, useRef, useState } from "react";
 import {
   AccessibilityInfo,
   Alert,
-  type ColorValue,
   Pressable,
   ScrollView,
   View,
 } from "react-native";
-import Animated, {
-  Easing,
-  FadeIn,
-  FadeOut,
-  LinearTransition,
-  ReduceMotion,
-  useReducedMotion,
-} from "react-native-reanimated";
+import Animated from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useResolveClassNames } from "uniwind";
 
@@ -27,31 +19,25 @@ import { Text } from "@/components/ui/text";
 import { applySwap, setItemStatus } from "@/db/items";
 import { createList } from "@/db/lists";
 import { useAuth } from "@/db/provider";
-import type { List, ListItem } from "@/db/schema";
+import type { List } from "@/db/schema";
 import {
   alternativesForItem,
   orderedAlternatives,
-  type Alternative,
 } from "@/features/shop/alternatives";
-import { SwipeItem } from "@/features/shop/swipe-item";
+import {
+  type HeldPosition,
+  holdPositions,
+} from "@/features/shop/held-positions";
+import {
+  type Browse,
+  ROW_LAYOUT,
+  ShopItemRow,
+  type ShopRow,
+} from "@/features/shop/shop-item-row";
 import { SwapSession } from "@/features/shop/swap-session";
-import { cn } from "@/lib/utils";
 
-const CHECK_DELAY_MS = 380;
-const ROW_LAYOUT = LinearTransition.springify()
-  .duration(400)
-  .dampingRatio(1)
-  .reduceMotion(ReduceMotion.System);
-// Re-sorting needs readable travel, rather than a spring's front-loaded snap.
-const SWAP_LAYOUT = LinearTransition.duration(650)
-  .easing(Easing.bezier(0.42, 0, 0.58, 1))
-  .reduceMotion(ReduceMotion.System);
-const NOTICE_ENTER = FadeIn.duration(150);
-const NOTICE_EXIT = FadeOut.duration(200);
-type ShopRow = ListItem & {
-  category_name: string | null;
-  ingredient_lines: string | null;
-};
+const HIGHLIGHT_MS = 4500;
+type Held = Browse & { hold: HeldPosition };
 type Entry = { key: string } & (
   | { kind: "header"; title: string }
   | { kind: "item"; item: ShopRow }
@@ -107,95 +93,21 @@ export default function Shop() {
   );
 }
 
-function IngredientContent({
-  name,
-  spec,
-  plannedMeal,
-  mutedColor,
-  checked = false,
-}: {
-  name: string;
-  spec: string | null;
-  plannedMeal: boolean;
-  mutedColor: ColorValue | undefined;
-  checked?: boolean;
-}) {
-  return (
-    <View className="gap-0.5">
-      <View className="flex-row items-center gap-2">
-        <Text
-          className={cn(
-            "shrink text-sm font-medium",
-            checked && "text-muted-foreground line-through",
-          )}
-          numberOfLines={1}
-        >
-          {name}
-        </Text>
-        {plannedMeal ? (
-          <SymbolView
-            name={{ ios: "fork.knife", android: "restaurant" }}
-            tintColor={mutedColor}
-            size={12}
-          />
-        ) : null}
-      </View>
-      {spec ? (
-        <Text
-          variant="muted"
-          className={cn("text-xs", checked && "line-through")}
-          numberOfLines={1}
-        >
-          {spec}
-        </Text>
-      ) : null}
-    </View>
-  );
-}
-
 function ListScreen({ list }: { list: List }) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const reducedMotion = useReducedMotion();
-  const scrollRef = useRef<ScrollView>(null);
-  const rowLayouts = useRef(new Map<string, { y: number; height: number }>());
-  const mutedColor = useResolveClassNames("text-muted-foreground").color;
-  const primaryColor = useResolveClassNames("text-primary").color;
-  const [pending, setPending] = useState<ReadonlySet<string>>(new Set());
-  const timers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
+  // Sessions are imperative and never read during render; `browsing` holds
+  // what the rows need to show for each one.
   const sessions = useRef(new Map<string, SwapSession>());
-  const [swapSessions, setSwapSessions] = useState(
-    new Map<string, SwapSession>(),
-  );
-  const [selected, setSelected] = useState(new Map<string, Alternative>());
-  const [heldPositions, setHeldPositions] = useState(new Map<string, {
-    itemId: string;
-    index: number;
-    categoryId: string | null;
-    categoryName: string | null;
-  }>());
+  const [browsing, setBrowsing] = useState(new Map<string, Held>());
   const [highlighted, setHighlighted] = useState<string | null>(null);
-  const lastSwap = useRef<{
-    itemId: string;
-    name: string;
-    previousName: string;
-  } | null>(null);
-  const [notice, setNotice] = useState<{
-    itemId: string;
-    name: string;
-    category: string;
-    previousName: string;
-  } | null>(null);
-  const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const viewport = useRef({ y: 0, height: 0 });
+  const highlightTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    const map = timers.current;
     const activeSessions = sessions.current;
     return () => {
-      map.forEach(clearTimeout);
       activeSessions.forEach((session) => session.dispose());
-      if (noticeTimer.current) clearTimeout(noticeTimer.current);
+      if (highlightTimer.current) clearTimeout(highlightTimer.current);
     };
   }, []);
 
@@ -204,12 +116,9 @@ function ListScreen({ list }: { list: List }) {
     return () => {
       sessions.current.forEach((session) => session.dispose());
       sessions.current.clear();
-      setSwapSessions(new Map());
-      setHeldPositions(new Map());
-      setSelected(new Map());
+      setBrowsing(new Map());
       setHighlighted(null);
-      setNotice(null);
-      if (noticeTimer.current) clearTimeout(noticeTimer.current);
+      if (highlightTimer.current) clearTimeout(highlightTimer.current);
     };
   });
 
@@ -224,66 +133,89 @@ function ListScreen({ list }: { list: List }) {
                COALESCE(c.sort_order, 999), COALESCE(c.name, 'zzz'), i.name, i.id`,
     [list.id],
   );
-  const active = rows.filter((item) => item.status === "active");
-  for (const heldPosition of [...heldPositions.values()].sort(
-    (a, b) => a.index - b.index,
-  )) {
-    const index = active.findIndex((item) => item.id === heldPosition.itemId);
-    const heldItem = active[index];
-    if (heldItem) {
-      active.splice(index, 1);
-      // A shared edit can shift indices during the hold; don't split a category.
-      const first = active.findIndex(
-        (item) => item.category_id === heldPosition.categoryId,
-      );
-      const last = active.findLastIndex(
-        (item) => item.category_id === heldPosition.categoryId,
-      );
-      let position = Math.min(heldPosition.index, active.length);
-      if (first !== -1)
-        position = Math.max(first, Math.min(position, last + 1));
-      else {
-        while (
-          position > 0 &&
-          position < active.length &&
-          active[position]?.category_id === active[position - 1]?.category_id
-        )
-          position--;
-      }
-      active.splice(position, 0, {
-        ...heldItem,
-        category_id: heldPosition.categoryId,
-        category_name: heldPosition.categoryName,
-      });
-    }
-  }
+  const active = holdPositions(
+    rows.filter((item) => item.status === "active"),
+    [...browsing.values()].map((held) => held.hold),
+  );
   const checked = rows
     .filter((item) => item.status === "purchased")
     .slice(0, 50);
 
+  function clearHighlightLater() {
+    if (highlightTimer.current) clearTimeout(highlightTimer.current);
+    highlightTimer.current = setTimeout(
+      () => setHighlighted(null),
+      HIGHLIGHT_MS,
+    );
+  }
+
   function releasePosition(itemId: string) {
-    sessions.current.get(itemId)?.dispose();
     sessions.current.delete(itemId);
-    setSwapSessions((current) => {
+    setBrowsing((current) => {
       const next = new Map(current);
       next.delete(itemId);
       return next;
     });
-    setHeldPositions((current) => {
-      const next = new Map(current);
-      next.delete(itemId);
-      return next;
-    });
-    setSelected((current) => {
-      const next = new Map(current);
-      next.delete(itemId);
-      return next;
-    });
-    if (noticeTimer.current) clearTimeout(noticeTimer.current);
-    noticeTimer.current = setTimeout(() => {
-      setHighlighted(null);
-      setNotice(null);
-    }, 4500);
+    clearHighlightLater();
+  }
+
+  function check(id: string) {
+    const purchase = () => setItemStatus(id, "purchased");
+    return sessions.current.get(id)?.check(purchase) ?? purchase();
+  }
+
+  function open(id: string) {
+    router.push({ pathname: "/shop/item", params: { itemId: id } });
+  }
+
+  function swap(item: ShopRow, direction: 1 | -1) {
+    let session = sessions.current.get(item.id);
+    if (!session) {
+      const options = orderedAlternatives(
+        item.name ?? "",
+        alternativesForItem(item.name ?? "", item.ingredient_lines),
+      );
+      if (options.length < 2) return false;
+      const hold: HeldPosition = {
+        itemId: item.id,
+        index: active.findIndex((row) => row.id === item.id),
+        categoryId: item.category_id,
+        categoryName: item.category_name,
+      };
+      setBrowsing((current) =>
+        new Map(current).set(item.id, {
+          options,
+          selected: options[0]!,
+          hold,
+        }),
+      );
+      session = new SwapSession(options, {
+        save: (option) => applySwap(item.id, option),
+        change: (option) =>
+          setBrowsing((current) => {
+            const held = current.get(item.id);
+            if (!held) return current;
+            return new Map(current).set(item.id, { ...held, selected: option });
+          }),
+        release: () => releasePosition(item.id),
+        error: () => {
+          setHighlighted(null);
+          Alert.alert("Couldn't swap item", "Please try again.");
+        },
+      });
+      sessions.current.set(item.id, session);
+    }
+    const index = session.options.indexOf(session.selected);
+    const alternative = session.options[index + direction];
+    if (!alternative) return false;
+    setHighlighted(item.id);
+    clearHighlightLater();
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    session.select(alternative);
+    AccessibilityInfo.announceForAccessibility(
+      `Changed to ${alternative.name}`,
+    );
+    return true;
   }
 
   // Headers and rows share one parent: category changes must move, not remount, a row.
@@ -306,367 +238,47 @@ function ListScreen({ list }: { list: List }) {
       entries.push({ key: item.id, kind: "item", item });
   }
 
-  function toggleCheck(id: string) {
-    if (timers.current.has(id)) {
-      clearTimeout(timers.current.get(id));
-      timers.current.delete(id);
-      sessions.current.get(id)?.cancelCheck();
-      setPending((prev) => {
-        const next = new Set(prev);
-        next.delete(id);
-        return next;
-      });
-      return;
-    }
-    if (pending.has(id)) return;
-    sessions.current.get(id)?.prepareCheck();
-    setPending((prev) => new Set(prev).add(id));
-    timers.current.set(
-      id,
-      setTimeout(() => {
-        timers.current.delete(id);
-        const purchase = () => setItemStatus(id, "purchased");
-        const operation = sessions.current.get(id)?.check(purchase) ?? purchase();
-        void operation
-          .catch(() =>
-            Alert.alert("Couldn't check off item", "Please try again."),
-          )
-          .finally(() =>
-            setPending((prev) => {
-              const next = new Set(prev);
-              next.delete(id);
-              return next;
-            }),
-          );
-      }, CHECK_DELAY_MS),
-    );
-  }
-
-  function swap(item: ShopRow, direction: 1 | -1) {
-    if (pending.has(item.id)) return false;
-    let session = sessions.current.get(item.id);
-    if (!session) {
-      const options = orderedAlternatives(
-        item.name ?? "",
-        alternativesForItem(item.name ?? "", item.ingredient_lines),
-      );
-      if (options.length < 2) return false;
-      setHeldPositions((current) =>
-        new Map(current).set(item.id, {
-          itemId: item.id,
-          index: active.findIndex((row) => row.id === item.id),
-          categoryId: item.category_id,
-          categoryName: item.category_name,
-        }),
-      );
-      const created = new SwapSession(options, {
-        save: (option) => applySwap(item.id, option),
-        change: (option) =>
-          setSelected((current) => new Map(current).set(item.id, option)),
-        release: () => releasePosition(item.id),
-        error: () => {
-          setHighlighted(null);
-          Alert.alert("Couldn't swap item", "Please try again.");
-        },
-      });
-      session = created;
-      sessions.current.set(item.id, session);
-      setSwapSessions((current) => new Map(current).set(item.id, created));
-    }
-    const index = session.options.indexOf(session.selected);
-    const alternative = session.options[index + direction];
-    if (!alternative) return false;
-    lastSwap.current = {
-      itemId: item.id,
-      name: alternative.name.trim(),
-      previousName: item.name ?? "Item",
-    };
-    setHighlighted(item.id);
-    setNotice(null);
-    if (noticeTimer.current) clearTimeout(noticeTimer.current);
-    noticeTimer.current = setTimeout(() => {
-      setHighlighted(null);
-      setNotice(null);
-    }, 4500);
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    session.select(alternative);
-    AccessibilityInfo.announceForAccessibility(`Changed to ${alternative.name}`);
-    return true;
-  }
-
   // Large title collapses only when the ScrollView is the first native
   // child of the screen (expo-router Stack docs). No wrapper View.
   return (
-    <>
-      <ScrollView
-        ref={scrollRef}
-        className="flex-1 bg-background"
-        contentInsetAdjustmentBehavior="automatic"
-        removeClippedSubviews={false}
-        contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
-        onLayout={(event) => {
-          viewport.current.height = event.nativeEvent.layout.height;
-        }}
-        onScroll={(event) => {
-          viewport.current.y = event.nativeEvent.contentOffset.y;
-        }}
-        scrollEventThrottle={16}
-      >
-        {active.length === 0 ? (
-          <Text variant="muted" className="px-6 py-4">
-            Nothing on the list.
-          </Text>
-        ) : null}
-        {entries.map((entry, index) => {
-          if (entry.kind === "header") {
-            return (
-              <Animated.View
-                key={entry.key}
-                layout={ROW_LAYOUT}
-                className="px-6 pb-2 pt-6"
-              >
-                <Text className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
-                  {entry.title}
-                </Text>
-              </Animated.View>
-            );
-          }
-          const { item } = entry;
-          const purchased = item.status === "purchased";
-          const isPending = pending.has(item.id);
-          const session = swapSessions.get(item.id);
-          const optimistic = selected.get(item.id);
-          const displayItem = optimistic
-            ? {
-                ...item,
-                name: optimistic.name,
-                spec:
-                  [optimistic.qtyText, optimistic.prepNote]
-                    .filter(Boolean)
-                    .join(", ") || null,
-              }
-            : item;
-          const options = purchased
-            ? []
-            : session?.options ??
-              orderedAlternatives(
-                displayItem.name ?? "",
-                alternativesForItem(
-                  displayItem.name ?? "",
-                  displayItem.ingredient_lines,
-                ),
-              );
-          const optionIndex = session
-            ? session.options.indexOf(session.selected)
-            : 0;
-          const next = options[optionIndex + 1] ?? null;
-          const previous = options[optionIndex - 1] ?? null;
-          const isHighlighted = highlighted === item.id;
+    <ScrollView
+      className="flex-1 bg-background"
+      contentInsetAdjustmentBehavior="automatic"
+      removeClippedSubviews={false}
+      contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
+    >
+      {active.length === 0 ? (
+        <Text variant="muted" className="px-6 py-4">
+          Nothing on the list.
+        </Text>
+      ) : null}
+      {entries.map((entry, index) => {
+        if (entry.kind === "header") {
           return (
             <Animated.View
               key={entry.key}
-              layout={isHighlighted ? SWAP_LAYOUT : ROW_LAYOUT}
-              style={{ zIndex: isHighlighted ? 1 : 0 }}
-              onLayout={(event) => {
-                const { y, height } = event.nativeEvent.layout;
-                rowLayouts.current.set(item.id, { y, height });
-                if (!isHighlighted || heldPositions.has(item.id)) return;
-                const swapped = lastSwap.current;
-                if (swapped?.itemId !== item.id || swapped.name !== item.name)
-                  return;
-                const visible = viewport.current;
-                if (y + height < visible.y || y > visible.y + visible.height) {
-                  setNotice({
-                    itemId: item.id,
-                    name: item.name ?? "Item",
-                    category: item.category_name ?? "Uncategorised",
-                    previousName: swapped.previousName,
-                  });
-                }
-              }}
+              layout={ROW_LAYOUT}
+              className="px-6 pb-2 pt-6"
             >
-              <View
-                className={cn(
-                  "flex-row items-center pl-3",
-                  isHighlighted && "bg-accent",
-                )}
-              >
-                <SwipeItem
-                  leading={
-                    <Pressable
-                      onPress={() => {
-                        if (purchased)
-                          void setItemStatus(item.id, "active").catch(() =>
-                            Alert.alert(
-                              "Couldn't restore item",
-                              "Please try again.",
-                            ),
-                          );
-                        else toggleCheck(item.id);
-                      }}
-                      accessibilityRole="checkbox"
-                      accessibilityState={{ checked: purchased || isPending }}
-                      accessibilityLabel={`${purchased ? "Restore" : "Check off"} ${displayItem.name}`}
-                      className="min-h-12 min-w-12 items-center justify-center"
-                    >
-                      <SymbolView
-                        name={
-                          purchased || isPending
-                            ? {
-                                ios: "checkmark.circle.fill",
-                                android: "check_circle",
-                              }
-                            : {
-                                ios: "circle",
-                                android: "radio_button_unchecked",
-                              }
-                        }
-                        tintColor={
-                          purchased || isPending ? primaryColor : mutedColor
-                        }
-                        size={24}
-                      />
-                    </Pressable>
-                  }
-                  name={displayItem.name ?? ""}
-                  next={next}
-                  previous={previous}
-                  disabled={purchased || isPending}
-                  onSwap={(direction) => Promise.resolve(swap(displayItem, direction))}
-                  renderOption={(option) => (
-                    <IngredientContent
-                      name={option.name}
-                      spec={
-                        [option.qtyText, option.prepNote]
-                          .filter(Boolean)
-                          .join(", ") || null
-                      }
-                      plannedMeal={!!item.planned_meal_id}
-                      mutedColor={mutedColor}
-                    />
-                  )}
-                  onOpen={() =>
-                    router.push({
-                      pathname: "/shop/item",
-                      params: { itemId: item.id },
-                    })
-                  }
-                >
-                  <View
-                    accessible
-                    onAccessibilityTap={() =>
-                      router.push({
-                        pathname: "/shop/item",
-                        params: { itemId: item.id },
-                      })
-                    }
-                    accessibilityRole="button"
-                    accessibilityLabel={`${displayItem.name}${displayItem.spec ? `, ${displayItem.spec}` : ""}`}
-                    accessibilityHint={
-                      next || previous
-                        ? "Swipe left for the next substitute, right for the previous. Tap for details."
-                        : "Opens item details"
-                    }
-                    accessibilityActions={
-                      next || previous
-                        ? [
-                            { name: "activate", label: "Open details" },
-                            ...(next
-                              ? [{ name: "next", label: `Use ${next.name}` }]
-                              : []),
-                            ...(previous
-                              ? [
-                                  {
-                                    name: "previous",
-                                    label: `Use ${previous.name}`,
-                                  },
-                                ]
-                              : []),
-                          ]
-                        : [{ name: "activate", label: "Open details" }]
-                    }
-                    onAccessibilityAction={(event) => {
-                      if (event.nativeEvent.actionName === "activate")
-                        router.push({
-                          pathname: "/shop/item",
-                          params: { itemId: item.id },
-                        });
-                      if (event.nativeEvent.actionName === "next")
-                        void swap(displayItem, 1);
-                      if (event.nativeEvent.actionName === "previous")
-                        void swap(displayItem, -1);
-                    }}
-                    className="min-h-12 gap-0.5 px-3 py-3"
-                  >
-                    <IngredientContent
-                      name={displayItem.name ?? ""}
-                      spec={displayItem.spec}
-                      plannedMeal={!!displayItem.planned_meal_id}
-                      mutedColor={mutedColor}
-                      checked={purchased || isPending}
-                    />
-                  </View>
-                </SwipeItem>
-              </View>
-              {entries[index + 1]?.kind === "item" ? (
-                <View
-                  pointerEvents="none"
-                  className="absolute bottom-0 left-[72px] right-0 border-b border-border/60"
-                />
-              ) : null}
+              <Text className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
+                {entry.title}
+              </Text>
             </Animated.View>
           );
-        })}
-      </ScrollView>
-      {notice ? (
-        <Animated.View
-          entering={NOTICE_ENTER}
-          exiting={NOTICE_EXIT}
-          className="absolute inset-x-4 rounded-xl bg-foreground"
-          style={{ bottom: insets.bottom + 12 }}
-        >
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={`${notice.name}, ${notice.category}, swapped for ${notice.previousName}. Show item`}
-            accessibilityHint="Scrolls to the item in your shopping list"
-            className="gap-1 px-5 py-4"
-            onPress={() => {
-              const layout = rowLayouts.current.get(notice.itemId);
-              setNotice(null);
-              if (!layout || !rows.some((item) => item.id === notice.itemId))
-                return;
-              scrollRef.current?.scrollTo({
-                y: Math.max(
-                  0,
-                  layout.y - (viewport.current.height - layout.height) / 2,
-                ),
-                animated: !reducedMotion,
-              });
-              setHighlighted(notice.itemId);
-              if (noticeTimer.current) clearTimeout(noticeTimer.current);
-              noticeTimer.current = setTimeout(
-                () => setHighlighted(null),
-                4500,
-              );
-            }}
-          >
-            <View className="flex-row items-center gap-3">
-              <Text className="flex-1 text-base font-semibold text-background">
-                {notice.name}
-              </Text>
-              <Text className="text-sm text-background underline">
-                Show item
-              </Text>
-            </View>
-            <Text
-              accessibilityLiveRegion="polite"
-              className="text-sm text-background"
-            >
-              {notice.category}, swapped for {notice.previousName}
-            </Text>
-          </Pressable>
-        </Animated.View>
-      ) : null}
-    </>
+        }
+        return (
+          <ShopItemRow
+            key={entry.key}
+            item={entry.item}
+            browse={browsing.get(entry.item.id)}
+            highlighted={highlighted === entry.item.id}
+            divider={entries[index + 1]?.kind === "item"}
+            onCheck={check}
+            onSwap={swap}
+            onOpen={open}
+          />
+        );
+      })}
+    </ScrollView>
   );
 }

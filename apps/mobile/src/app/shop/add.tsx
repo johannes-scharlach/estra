@@ -10,10 +10,7 @@ import { usePreventRemove } from "expo-router/react-navigation";
 import { SymbolView } from "expo-symbols";
 import { useRef, useState } from "react";
 import { Alert, Pressable, ScrollView, TextInput, View } from "react-native";
-import {
-  KeyboardAvoidingView,
-  useKeyboardState,
-} from "react-native-keyboard-controller";
+import { KeyboardStickyView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useResolveClassNames } from "uniwind";
 
@@ -28,7 +25,6 @@ export default function AddItemSheet() {
   const router = useRouter();
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
-  const keyboardVisible = useKeyboardState((state) => state.isVisible);
   const inputRef = useRef<TextInput>(null);
   const busy = useRef(false);
   const [saving, setSaving] = useState(false);
@@ -116,11 +112,7 @@ export default function AddItemSheet() {
   }
 
   return (
-    <KeyboardAvoidingView
-      behavior="padding"
-      automaticOffset
-      style={{ flex: 1 }}
-    >
+    <View style={{ flex: 1 }}>
       <Stack.Screen
         options={{
           headerRight: () => (
@@ -221,26 +213,26 @@ export default function AddItemSheet() {
           <Text variant="muted">Start typing to add an item.</Text>
         )}
       </ScrollView>
-      <View
-        className="border-t border-border bg-background px-4 pt-3"
-        style={{
-          paddingBottom: keyboardVisible ? 12 : Math.max(insets.bottom, 12),
-        }}
-      >
-        <Input
-          ref={inputRef}
-          value={draft}
-          onChangeText={setDraft}
-          editable={!!listId}
-          placeholder={lastAdded ? "Next item..." : "Add an item..."}
-          accessibilityLabel="Add an item"
-          autoFocus
-          autoCapitalize="sentences"
-          returnKeyType="next"
-          submitBehavior="submit"
-          onSubmitEditing={() => void add(draft)}
-        />
-      </View>
-    </KeyboardAvoidingView>
+      <KeyboardStickyView>
+        <View
+          className="border-t border-border bg-background px-4 pt-3"
+          style={{ paddingBottom: Math.max(insets.bottom, 12) }}
+        >
+          <Input
+            ref={inputRef}
+            value={draft}
+            onChangeText={setDraft}
+            editable={!!listId}
+            placeholder={lastAdded ? "Next item..." : "Add an item..."}
+            accessibilityLabel="Add an item"
+            autoFocus
+            autoCapitalize="sentences"
+            returnKeyType="next"
+            submitBehavior="submit"
+            onSubmitEditing={() => void add(draft)}
+          />
+        </View>
+      </KeyboardStickyView>
+    </View>
   );
 }

@@ -46,11 +46,11 @@ export class SwapSession {
     });
   }
 
-  prepareCheck() {
+  private prepareCheck() {
     this.checking = true;
   }
 
-  cancelCheck() {
+  private cancelCheck() {
     this.checking = false;
   }
 

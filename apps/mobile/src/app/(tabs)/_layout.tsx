@@ -7,12 +7,23 @@ import { useAuth } from "@/db/provider";
 export default function TabsLayout() {
   const { session, ready } = useAuth();
   const tintColor = useResolveClassNames("text-foreground").color;
+  const mutedColor = useResolveClassNames("text-muted-foreground").color;
+  const backgroundColor = useResolveClassNames("bg-background").backgroundColor;
+  const indicatorColor = useResolveClassNames("bg-accent").backgroundColor;
 
   if (!ready) return null;
   if (!session) return <Redirect href="/sign-in" />;
 
   return (
-    <NativeTabs tintColor={tintColor}>
+    <NativeTabs
+      tintColor={tintColor}
+      iconColor={{ default: mutedColor, selected: tintColor }}
+      labelStyle={{ default: { color: mutedColor }, selected: { color: tintColor } }}
+      backgroundColor={backgroundColor}
+      indicatorColor={indicatorColor}
+      rippleColor={indicatorColor}
+      labelVisibilityMode="labeled"
+    >
       <NativeTabs.Trigger name="meals">
         <NativeTabs.Trigger.Label>Meals</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf="fork.knife" md="restaurant" />
