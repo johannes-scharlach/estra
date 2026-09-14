@@ -21,6 +21,7 @@ const variant = variants[APP_ENV];
 const config: ExpoConfig = {
   name: variant.name,
   slug: "estra",
+  owner: "johannes.scharlach",
   version: "0.1.0",
   orientation: "portrait",
   icon: "./assets/images/icon.png",
@@ -71,6 +72,9 @@ const config: ExpoConfig = {
   },
   extra: {
     appEnv: APP_ENV,
+    eas: {
+      projectId: "9d346f03-cba0-486d-b35c-7a4755567232",
+    },
   },
 };
 
