@@ -1,6 +1,25 @@
 import { describe, expect, it } from "vitest";
 
-import { parseSegments } from "./tags";
+import { parseSegments, readableMessage } from "./tags";
+
+describe("readableMessage", () => {
+  it("exports visible titles and bodies in order without internal tags", () => {
+    expect(
+      readableMessage(
+        'Try these. <ideas><idea title="Pasta">Use **tomatoes**.</idea><idea title="Soup">Simmer.</idea></ideas> <sketch title="Dinner">Cook it.</sketch>',
+      ),
+    ).toBe(
+      "Try these.\n\nPasta\n\nUse **tomatoes**.\n\nSoup\n\nSimmer.\n\nDinner\n\nCook it.",
+    );
+  });
+
+  it("does not export unfinished tags or empty placeholders", () => {
+    expect(
+      readableMessage('<ideas><idea title="Soup">Simmer.</idea><idea '),
+    ).toBe("Soup\n\nSimmer.");
+    expect(readableMessage("<sketch")).toBe("");
+  });
+});
 
 describe("parseSegments", () => {
   it("parses a complete ideas block into titled ideas with trimmed bodies", () => {
@@ -21,7 +40,9 @@ describe("parseSegments", () => {
 
   it("parses ideas from an unclosed block mid-stream", () => {
     expect(
-      parseSegments('<ideas><idea title="Pasta">One</idea><idea title="Soup">Two'),
+      parseSegments(
+        '<ideas><idea title="Pasta">One</idea><idea title="Soup">Two',
+      ),
     ).toEqual([
       {
         type: "ideas",
@@ -52,9 +73,9 @@ describe("parseSegments", () => {
   });
 
   it("parses a sketch with its title attribute", () => {
-    expect(parseSegments('<sketch title="Fried rice">Do this.</sketch>')).toEqual([
-      { type: "sketch", title: "Fried rice", body: "Do this." },
-    ]);
+    expect(
+      parseSegments('<sketch title="Fried rice">Do this.</sketch>'),
+    ).toEqual([{ type: "sketch", title: "Fried rice", body: "Do this." }]);
   });
 
   it("keeps text before, between, and after blocks, in order", () => {

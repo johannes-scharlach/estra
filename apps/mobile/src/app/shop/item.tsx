@@ -1,8 +1,11 @@
+import { MenuView, type MenuAction } from "@expo/ui/community/menu";
+import { SymbolView } from "expo-symbols";
 import { useQuery } from "@powersync/react";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, View } from "react-native";
+import { useResolveClassNames } from "uniwind";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,6 +14,7 @@ import {
   applySwap,
   removeItem,
   renameItem,
+  setItemCategory,
   setItemStatus,
 } from "@/db/items";
 import type { ListItem } from "@/db/schema";
@@ -22,6 +26,7 @@ type ItemRow = ListItem & {
   meal: string | null;
   variant_name: string | null;
   ingredient_lines: string | null;
+  category_name: string | null;
 };
 
 /** Native formSheet: detents, grabber, swipe-to-dismiss. Unmounts on close,
@@ -29,13 +34,20 @@ type ItemRow = ListItem & {
 export default function ShopItemSheet() {
   const { itemId } = useLocalSearchParams<{ itemId: string }>();
   const router = useRouter();
+  const mutedColor = useResolveClassNames("text-muted-foreground").color;
+
+  const { data: categories } = useQuery<{ id: string; name: string }>(
+    "SELECT id, name FROM categories ORDER BY sort_order",
+  );
 
   const { data: rows, isLoading } = useQuery<ItemRow>(
     `SELECT i.*, pm.slot_date AS slot_date, pm.meal AS meal,
-            v.name AS variant_name, v.ingredient_lines AS ingredient_lines
+            v.name AS variant_name, v.ingredient_lines AS ingredient_lines,
+            c.name AS category_name
        FROM list_items i
        LEFT JOIN planned_meals pm ON pm.id = i.planned_meal_id
        LEFT JOIN variants v ON v.id = i.variant_id
+       LEFT JOIN categories c ON c.id = i.category_id
       WHERE i.id = ? LIMIT 1`,
     [itemId ?? ""],
   );
@@ -145,6 +157,45 @@ export default function ShopItemSheet() {
           )}
         </View>
       ) : null}
+
+      <View className="mt-6 gap-2 px-6">
+        <Text variant="muted" className="text-xs uppercase tracking-widest">Category</Text>
+        <MenuView
+          onPressAction={({ nativeEvent: { event } }) => {
+            const nextCat = event === "uncategorised" ? null : event;
+            void setItemCategory(item.id, nextCat);
+            void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          }}
+          actions={[
+            {
+              id: "uncategorised",
+              title: "Uncategorised",
+              state: (!item.category_id ? "on" : "off") as MenuAction["state"],
+            },
+            ...categories.map((cat) => ({
+              id: cat.id,
+              title: cat.name,
+              state: (item.category_id === cat.id ? "on" : "off") as MenuAction["state"],
+            })),
+          ]}
+        >
+          <View
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel={`Category: ${item.category_name ?? "Uncategorised"}`}
+            className="flex-row items-center justify-between rounded-xl border border-border px-4 py-3"
+          >
+            <Text className="text-sm font-medium">
+              {item.category_name ?? "Uncategorised"}
+            </Text>
+            <SymbolView
+              name={{ ios: "chevron.up.chevron.down", android: "unfold_more" }}
+              tintColor={mutedColor}
+              size={16}
+            />
+          </View>
+        </MenuView>
+      </View>
 
       <View className="mt-6 gap-2 px-6 pb-8">
         <Text variant="muted" className="text-xs uppercase tracking-widest">Rename</Text>

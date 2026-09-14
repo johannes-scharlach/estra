@@ -19,6 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Text } from "@/components/ui/text";
 import { addItem, itemNameKey, setItemSpec } from "@/db/items";
 import type { ListItem } from "@/db/schema";
+import { categorizeItemAsync } from "@/features/shop/categorize";
 
 export default function AddItemSheet() {
   const { listId } = useLocalSearchParams<{ listId?: string }>();
@@ -79,6 +80,9 @@ export default function AddItemSheet() {
       await saveDetails();
       const item = await addItem(listId, name);
       if (!item) return;
+      if (!item.categoryId) {
+        void categorizeItemAsync(item.id, item.name);
+      }
       setLastAdded(item);
       setDetails(item.spec ?? "");
       setDraft((current) => (current === submittedDraft ? "" : current));

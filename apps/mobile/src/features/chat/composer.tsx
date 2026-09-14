@@ -7,11 +7,19 @@ import { useResolveClassNames } from "uniwind";
 import { Text } from "@/components/ui/text";
 import { cn } from "@/lib/utils";
 
-import { pickImageAttachments, type ImageAttachment } from "./image-attachment";
+import {
+  pickImageAttachments,
+  type ImageAttachment,
+  type ImageSource,
+} from "./image-attachment";
+import { ImageAttachmentMenu } from "./image-attachment-menu";
 import { ImageAttachmentStrip } from "./image-attachment-strip";
 
-const SEND_ICON = { ios: "arrow.up", android: "arrow_upward", web: "arrow_upward" } as const;
-const CAMERA_ICON = { ios: "camera", android: "photo_camera", web: "photo_camera" } as const;
+const SEND_ICON = {
+  ios: "arrow.up",
+  android: "arrow_upward",
+  web: "arrow_upward",
+} as const;
 
 /**
  * Text and image attachments. Keyboard dictation already covers voice. Suggested
@@ -35,7 +43,6 @@ export function Composer({
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
   const placeholderColor = useResolveClassNames("text-muted-foreground").color;
   const iconColor = useResolveClassNames("text-primary-foreground").color;
-  const mutedColor = useResolveClassNames("text-muted-foreground").color;
   const canSend = (text.trim().length > 0 || attachments.length > 0) && !busy;
 
   function submit() {
@@ -47,10 +54,11 @@ export function Composer({
     onSend(trimmed, attachments);
   }
 
-  async function addAttachments() {
+  async function addAttachments(source: ImageSource) {
+    if (busy) return;
     setAttachmentError(null);
     try {
-      const picked = await pickImageAttachments();
+      const picked = await pickImageAttachments(source);
       if (picked.length) setAttachments((current) => [...current, ...picked]);
     } catch {
       setAttachmentError("Could not add images. Try again.");
@@ -86,22 +94,22 @@ export function Composer({
         <View className="px-2 pt-2">
           <ImageAttachmentStrip
             attachments={attachments}
-            onRemove={(index) => setAttachments((current) => current.filter((_, i) => i !== index))}
+            onRemove={(index) =>
+              setAttachments((current) => current.filter((_, i) => i !== index))
+            }
           />
         </View>
       ) : null}
-      {attachmentError ? <Text className="px-4 pt-2 text-destructive" accessibilityRole="alert">{attachmentError}</Text> : null}
+      {attachmentError ? (
+        <Text className="px-4 pt-2 text-destructive" accessibilityRole="alert">
+          {attachmentError}
+        </Text>
+      ) : null}
       <View className="flex-row items-end gap-2 px-4 pt-2">
-        <Pressable
-          onPress={() => void addAttachments()}
+        <ImageAttachmentMenu
+          onSelect={(source) => void addAttachments(source)}
           disabled={busy}
-          hitSlop={8}
-          accessibilityLabel="Add images"
-          accessibilityRole="button"
-          className="mb-0.5 size-9 items-center justify-center rounded-full"
-        >
-          <SymbolView name={CAMERA_ICON} tintColor={mutedColor} size={22} />
-        </Pressable>
+        />
         <TextInput
           value={text}
           onChangeText={setText}
@@ -123,7 +131,12 @@ export function Composer({
             !canSend && "opacity-30",
           )}
         >
-          <SymbolView name={SEND_ICON} tintColor={iconColor} size={16} weight="bold" />
+          <SymbolView
+            name={SEND_ICON}
+            tintColor={iconColor}
+            size={16}
+            weight="bold"
+          />
         </Pressable>
       </View>
     </View>

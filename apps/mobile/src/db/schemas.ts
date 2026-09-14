@@ -3,14 +3,19 @@ import { z } from 'zod';
 export const CATEGORIES = [
   'produce',
   'bakery',
+  'deli',
   'dairy',
   'meat',
-  'frozen',
-  'pantry',
-  'drinks',
+  'breakfast',
+  'grains',
+  'spices',
   'snacks',
+  'frozen',
+  'beverages',
+  'care',
   'household',
-  'personal',
+  'pets',
+  'home',
   'other',
 ] as const;
 export type CategoryId = (typeof CATEGORIES)[number];

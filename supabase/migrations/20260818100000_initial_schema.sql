@@ -30,7 +30,9 @@ create table public.lists (
   name         text not null,
   -- Short shareable code. Redeemed via the join-list edge function, which
   -- needs service-role because the joiner cannot see the list yet.
-  invite_code  text not null unique default encode(gen_random_bytes(6), 'hex'),
+  -- Schema-qualified: search_path varies per role (CLI connections, the
+  -- PostgREST API roles), and defaults must resolve for all of them.
+  invite_code  text not null unique default encode(extensions.gen_random_bytes(6), 'hex'),
   created_by   uuid not null references auth.users (id) on delete set null default auth.uid(),
   created_at   timestamptz not null default now(),
   updated_at   timestamptz not null default now()

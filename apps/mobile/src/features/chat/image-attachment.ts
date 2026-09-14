@@ -1,12 +1,13 @@
 import * as Crypto from "expo-crypto";
 import * as ImagePicker from "expo-image-picker";
-import { ActionSheetIOS, Alert, Platform } from "react-native";
+import { Alert } from "react-native";
 
 import { supabase } from "@/lib/supabase";
 
 import type { Parts } from "./stream";
 
 export type ImageAttachment = { uri: string; mediaType: string };
+export type ImageSource = "camera" | "library";
 export type FilePart = Extract<Parts[number], { type: "file" }>;
 
 const BUCKET = "chat-images";
@@ -32,7 +33,11 @@ function toAttachments(result: ImagePicker.ImagePickerResult): ImageAttachment[]
   }));
 }
 
-async function fromCamera(): Promise<ImageAttachment[]> {
+export async function pickImageAttachments(source: ImageSource): Promise<ImageAttachment[]> {
+  if (source === "library") {
+    return toAttachments(await ImagePicker.launchImageLibraryAsync(LIBRARY_PICK));
+  }
+
   const { granted } = await ImagePicker.requestCameraPermissionsAsync();
   if (!granted) {
     Alert.alert(
@@ -42,38 +47,6 @@ async function fromCamera(): Promise<ImageAttachment[]> {
     return [];
   }
   return toAttachments(await ImagePicker.launchCameraAsync(CAMERA_PICK));
-}
-
-async function fromLibrary(): Promise<ImageAttachment[]> {
-  return toAttachments(await ImagePicker.launchImageLibraryAsync(LIBRARY_PICK));
-}
-
-/** "Put it on the table and take a picture." Camera first, library second. */
-export function pickImageAttachments(): Promise<ImageAttachment[]> {
-  if (Platform.OS === "ios") {
-    return new Promise((resolve, reject) => {
-      ActionSheetIOS.showActionSheetWithOptions(
-        { options: ["Take photo", "Choose from library", "Cancel"], cancelButtonIndex: 2 },
-        (i) => {
-          if (i === 0) void fromCamera().then(resolve, reject);
-          else if (i === 1) void fromLibrary().then(resolve, reject);
-          else resolve([]);
-        },
-      );
-    });
-  }
-  return new Promise((resolve, reject) => {
-    Alert.alert(
-      "Add a photo",
-      undefined,
-      [
-        { text: "Take photo", onPress: () => void fromCamera().then(resolve, reject) },
-        { text: "Choose from library", onPress: () => void fromLibrary().then(resolve, reject) },
-        { text: "Cancel", style: "cancel", onPress: () => resolve([]) },
-      ],
-      { cancelable: true, onDismiss: () => resolve([]) },
-    );
-  });
 }
 
 /**

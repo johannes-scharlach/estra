@@ -12,7 +12,7 @@ const raw = JSON.stringify([
         item_name: "Jarred peppers",
         qty_text: "150g",
         prep_note: "drained",
-        category_id: "pantry",
+        category_id: "spices",
       },
       { item_name: "Frozen peppers", qty_text: "200g", category_id: "frozen" },
     ],
@@ -27,7 +27,7 @@ describe("shopping alternatives", () => {
       name: "Jarred peppers",
       qtyText: "150g",
       prepNote: "drained",
-      categoryId: "pantry",
+      categoryId: "spices",
     });
     const afterSync = alternativesForItem(next.name, raw);
     expect(adjacentAlternative(next.name, afterSync, -1)).toEqual(options[0]);

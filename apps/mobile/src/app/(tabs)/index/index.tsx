@@ -13,7 +13,9 @@ import { EntrySelector } from "@/features/chat/entry-selector";
 import {
   pickImageAttachments,
   type ImageAttachment,
+  type ImageSource,
 } from "@/features/chat/image-attachment";
+import { ImageAttachmentMenu } from "@/features/chat/image-attachment-menu";
 import { ImageAttachmentStrip } from "@/features/chat/image-attachment-strip";
 import { queueMessage } from "@/features/chat/message-queue";
 import { SeededDeck } from "@/features/chat/seeded-deck";
@@ -22,11 +24,6 @@ const HISTORY_ICON = {
   ios: "clock.arrow.circlepath",
   android: "history",
   web: "history",
-} as const;
-const CAMERA_ICON = {
-  ios: "camera",
-  android: "photo_camera",
-  web: "photo_camera",
 } as const;
 const ADD_ICON = { ios: "plus.circle", android: "add_circle" } as const;
 const REMOVE_ICON = { ios: "xmark", android: "close", web: "close" } as const;
@@ -79,10 +76,10 @@ export default function Home() {
     setChips((c) => c.filter((_, i) => i !== index));
   }
 
-  async function addAttachments() {
+  async function addAttachments(source: ImageSource) {
     setAttachmentError(null);
     try {
-      const picked = await pickImageAttachments();
+      const picked = await pickImageAttachments(source);
       if (picked.length) setAttachments((current) => [...current, ...picked]);
     } catch {
       setAttachmentError("Could not add images. Try again.");
@@ -207,25 +204,15 @@ export default function Home() {
                       accessibilityRole="button"
                       className="absolute bottom-0 right-0 top-0 w-12 items-center justify-center active:opacity-60"
                     >
-                      <SymbolView
-                        name={ADD_ICON}
-                        tintColor={iconColor}
-                        size={22}
-                      />
+                      <SymbolView name={ADD_ICON} tintColor={iconColor} size={22} />
                     </Pressable>
                   ) : (
-                    <Pressable
-                      onPress={() => void addAttachments()}
-                      accessibilityLabel="Add images of what you have"
-                      accessibilityRole="button"
-                      className="absolute bottom-0 right-0 top-0 w-12 items-center justify-center active:opacity-60"
-                    >
-                      <SymbolView
-                        name={CAMERA_ICON}
-                        tintColor={mutedColor}
-                        size={22}
+                    <View className="absolute bottom-0 right-0 top-0 w-12 items-center justify-center">
+                      <ImageAttachmentMenu
+                        onSelect={(source) => void addAttachments(source)}
+                        accessibilityLabel="Add images of what you have"
                       />
-                    </Pressable>
+                    </View>
                   )}
                 </View>
 

@@ -8,9 +8,10 @@ import { Text } from "@/components/ui/text";
 import { cn } from "@/lib/utils";
 
 import { Markdown } from "./markdown";
+import { MessageMenu } from "./message-menu";
 import { imageParts } from "./image-attachment";
 import { messageText, runningTool, type Parts } from "./stream";
-import { parseSegments, type Idea } from "./tags";
+import { parseSegments, readableMessage, type Idea } from "./tags";
 
 const CHEVRON_ICON = { ios: "chevron.right", android: "chevron_right", web: "chevron_right" } as const;
 
@@ -29,8 +30,12 @@ export function UserMessage({ parts }: { parts: Parts }) {
         />
       ))}
       {text ? (
-        <View className="max-w-[80%] rounded-2xl rounded-br-md bg-primary px-4 py-2.5">
-          <Text className="text-base leading-6 text-primary-foreground">{text}</Text>
+        <View className="max-w-[80%]">
+          <MessageMenu text={text}>
+            <View className="rounded-2xl rounded-br-md bg-primary px-4 py-2.5">
+              <Text className="text-base leading-6 text-primary-foreground">{text}</Text>
+            </View>
+          </MessageMenu>
         </View>
       ) : null}
     </View>
@@ -94,7 +99,7 @@ function Ideas({ ideas, onPick }: { ideas: Idea[]; onPick: (idea: Idea) => void 
                   // view whose own tap recognizer swallows touches — without
                   // this the card only responds on its title.
                   <View pointerEvents="none">
-                    <Markdown text={idea.body} size="small" />
+                    <Markdown text={idea.body} size="small" selectable={false} />
                   </View>
                 ) : null}
               </View>
@@ -146,7 +151,7 @@ function Sketch({
       {title ? (
         <Text className="text-3xl font-semibold leading-tight tracking-tight">{title}</Text>
       ) : null}
-      {body ? <Markdown text={body} size="page" streaming={streaming} /> : null}
+      {body ? <Markdown text={body} size="page" streaming={streaming} selectable={false} /> : null}
       {onSavePlan && title ? (
         <Pressable
           onPress={() => {
@@ -183,31 +188,33 @@ export function AssistantMessage({
   const segments = useMemo(() => parseSegments(text), [text]);
   const tool = streaming ? runningTool(parts) : null;
   return (
-    <View>
-      {segments.map((seg, i) => {
-        const last = i === segments.length - 1;
-        switch (seg.type) {
-          case "markdown":
-            return <Markdown key={i} text={seg.text} streaming={streaming && last} />;
-          case "ideas":
-            return <Ideas key={i} ideas={seg.ideas} onPick={onIdea} />;
-          case "sketch":
-            return (
-              <Sketch
-                key={i}
-                title={seg.title}
-                body={seg.body}
-                streaming={streaming && last}
-                onSavePlan={streaming ? undefined : onSavePlan}
-              />
-            );
-        }
-      })}
-      {tool ? (
-        <Text variant="muted" className="mt-2 text-base">
-          {TOOL_LABEL[tool] ?? "Working…"}
-        </Text>
-      ) : null}
-    </View>
+    <MessageMenu text={streaming ? "" : readableMessage(text)}>
+      <View>
+        {segments.map((seg, i) => {
+          const last = i === segments.length - 1;
+          switch (seg.type) {
+            case "markdown":
+              return <Markdown key={i} text={seg.text} streaming={streaming && last} selectable={false} />;
+            case "ideas":
+              return <Ideas key={i} ideas={seg.ideas} onPick={onIdea} />;
+            case "sketch":
+              return (
+                <Sketch
+                  key={i}
+                  title={seg.title}
+                  body={seg.body}
+                  streaming={streaming && last}
+                  onSavePlan={streaming ? undefined : onSavePlan}
+                />
+              );
+          }
+        })}
+        {tool ? (
+          <Text variant="muted" className="mt-2 text-base">
+            {TOOL_LABEL[tool] ?? "Working…"}
+          </Text>
+        ) : null}
+      </View>
+    </MessageMenu>
   );
 }

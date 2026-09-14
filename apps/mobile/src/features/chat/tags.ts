@@ -79,6 +79,23 @@ export function parseSegments(text: string): Segment[] {
   return segments;
 }
 
+/** Visible message content for copying and sharing, without the model's tags. */
+export function readableMessage(text: string): string {
+  return parseSegments(text)
+    .flatMap((segment) => {
+      switch (segment.type) {
+        case "markdown":
+          return segment.text;
+        case "ideas":
+          return segment.ideas.map((idea) => [idea.title, idea.body].filter(Boolean).join("\n\n"));
+        case "sketch":
+          return [segment.title, segment.body].filter(Boolean).join("\n\n");
+      }
+    })
+    .filter(Boolean)
+    .join("\n\n");
+}
+
 /** The latest Sketch title in a message, if it has one. */
 export function sketchTitle(text: string): string | null {
   const m = /<sketch\s+title="([^"]+)"/.exec(text);

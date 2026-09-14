@@ -12,16 +12,22 @@ export const localeNames: Record<Locale, string> = { en: "English", de: "German"
 export const CATEGORIES = [
   "produce",
   "bakery",
+  "deli",
   "dairy",
   "meat",
-  "frozen",
-  "pantry",
-  "drinks",
+  "breakfast",
+  "grains",
+  "spices",
   "snacks",
+  "frozen",
+  "beverages",
+  "care",
   "household",
-  "personal",
+  "pets",
+  "home",
   "other",
 ] as const;
+export type CategoryId = (typeof CATEGORIES)[number];
 
 const SwapSchema = z.object({
   qty_text: z
@@ -71,13 +77,13 @@ const IngredientLineSchema = z.object({
     .enum(CATEGORIES)
     .optional()
     .describe(
-      "REQUIRED: aisle where you BUY the raw item before prepping (produce/bakery/dairy/meat/frozen/pantry/drinks/snacks/household/personal/other). Ignore prep_note when picking. Omit ONLY for non-purchasable like leftovers. Use most specific aisle, 'other' only as last resort.",
+      "REQUIRED: aisle where you BUY the raw item before prepping (produce/bakery/deli/dairy/meat/breakfast/grains/spices/snacks/frozen/beverages/care/household/pets/home/other). Ignore prep_note when picking. Omit ONLY for non-purchasable like leftovers. Use most specific aisle, 'other' only as last resort.",
     ),
   swaps: z
     .array(SwapSchema)
     .optional()
     .describe(
-      "1-3 obvious 1:1 swaps for this line, each with its own qty/prep/category — e.g. bulgur -> couscous/orzo, sardines -> tuna; fresh bell pepper (produce, thinly sliced) -> jarred roasted peppers (pantry, drained)",
+      "1-3 obvious 1:1 swaps for this line, each with its own qty/prep/category — e.g. bulgur -> couscous/orzo, sardines -> tuna; fresh bell pepper (produce, thinly sliced) -> jarred roasted peppers (spices, drained)",
     ),
 });
 

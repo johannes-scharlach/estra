@@ -1,18 +1,15 @@
 import * as Crypto from "expo-crypto";
 import { Stack, useRouter } from "expo-router";
-import { SymbolView } from "expo-symbols";
 import { useRef, useState } from "react";
 import {
   KeyboardAvoidingView,
   PanResponder,
   Platform,
-  Pressable,
   ScrollView,
   TextInput,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useResolveClassNames } from "uniwind";
 
 import { Button } from "@/components/ui/button";
 import { Text } from "@/components/ui/text";
@@ -20,7 +17,9 @@ import { mealPlanMessage } from "@/features/chat/compose";
 import {
   pickImageAttachments,
   type ImageAttachment,
+  type ImageSource,
 } from "@/features/chat/image-attachment";
+import { ImageAttachmentMenu } from "@/features/chat/image-attachment-menu";
 import { ImageAttachmentStrip } from "@/features/chat/image-attachment-strip";
 import { queueMessage } from "@/features/chat/message-queue";
 import { dateKey, MONTH_SHORT, WEEKDAY_LONG } from "@/features/meals/slots";
@@ -54,7 +53,6 @@ export default function PlanMeals() {
   const [pickingAttachments, setPickingAttachments] = useState(false);
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
   const starting = useRef(false);
-  const iconColor = useResolveClassNames("text-muted-foreground").color;
 
   const slots = days.flatMap((day, dayIndex) =>
     MEALS.filter((meal) => picked[keyOf(dayIndex, meal)]).map((meal) => ({
@@ -63,12 +61,12 @@ export default function PlanMeals() {
     })),
   );
 
-  async function addAttachments() {
+  async function addAttachments(source: ImageSource) {
     if (pickingAttachments) return;
     setPickingAttachments(true);
     setAttachmentError(null);
     try {
-      const picked = await pickImageAttachments();
+      const picked = await pickImageAttachments(source);
       if (picked.length) setAttachments((current) => [...current, ...picked]);
     } catch (error) {
       setAttachmentError(
@@ -340,30 +338,15 @@ export default function PlanMeals() {
                 }
                 size={80}
               />
-              <Pressable
-                onPress={() => void addAttachments()}
-                disabled={pickingAttachments}
-                accessibilityRole="button"
-                accessibilityState={{ disabled: pickingAttachments }}
-                className="min-h-12 flex-row items-center gap-2 self-start rounded-md px-2 active:bg-accent"
-              >
-                <SymbolView
-                  name={{
-                    ios: "camera",
-                    android: "photo_camera",
-                    web: "photo_camera",
-                  }}
-                  tintColor={iconColor}
-                  size={22}
-                />
-                <Text variant="muted">
-                  {pickingAttachments
+              <View className="self-start">
+                <ImageAttachmentMenu
+                  onSelect={(source) => void addAttachments(source)}
+                  disabled={pickingAttachments}
+                  label={pickingAttachments
                     ? "Opening images..."
-                    : attachments.length
-                      ? "Add more images"
-                      : "Add images"}
-                </Text>
-              </Pressable>
+                    : attachments.length ? "Add more images" : "Add images"}
+                />
+              </View>
               {attachmentError ? (
                 <Text className="text-destructive" accessibilityRole="alert">
                   {attachmentError}

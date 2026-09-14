@@ -1,19 +1,4 @@
--- Runs on `supabase db reset`. Categories are real reference data and ship
--- to production too; the user and demo list below are local only.
-
-insert into public.categories (id, name, sort_order) values
-  ('produce',    'Fruit & Vegetables', 10),
-  ('bakery',     'Bread & Bakery',     20),
-  ('dairy',      'Dairy & Eggs',       30),
-  ('meat',       'Meat & Fish',        40),
-  ('frozen',     'Frozen',             50),
-  ('pantry',     'Pantry',             60),
-  ('drinks',     'Drinks',             70),
-  ('snacks',     'Snacks & Sweets',    80),
-  ('household',  'Household',          90),
-  ('personal',   'Personal Care',     100),
-  ('other',      'Other',             999)
-on conflict (id) do nothing;
+-- Runs on `supabase db reset`. The user and demo list below are local only.
 
 -- --------------------------------------------------------------------------
 -- Local development only
@@ -106,6 +91,6 @@ values
   (public.uuid_for_item('33333333-3333-3333-3333-333333333333', 'Oat milk'),  '33333333-3333-3333-3333-333333333333', 'Oat milk',  'oat milk',  'dairy',    'active',    4, '11111111-1111-1111-1111-111111111111'),
   (public.uuid_for_item('33333333-3333-3333-3333-333333333333', 'Bananas'),   '33333333-3333-3333-3333-333333333333', 'Bananas',   'bananas',   'produce',  'active',    9, '11111111-1111-1111-1111-111111111111'),
   (public.uuid_for_item('33333333-3333-3333-3333-333333333333', 'Sourdough'), '33333333-3333-3333-3333-333333333333', 'Sourdough', 'sourdough', 'bakery',   'active',    2, '11111111-1111-1111-1111-111111111111'),
-  (public.uuid_for_item('33333333-3333-3333-3333-333333333333', 'Coffee'),    '33333333-3333-3333-3333-333333333333', 'Coffee',    'coffee',    'pantry',   'purchased', 6, '11111111-1111-1111-1111-111111111111'),
+  (public.uuid_for_item('33333333-3333-3333-3333-333333333333', 'Coffee'),    '33333333-3333-3333-3333-333333333333', 'Coffee',    'coffee',    'breakfast',   'purchased', 6, '11111111-1111-1111-1111-111111111111'),
   (public.uuid_for_item('33333333-3333-3333-3333-333333333333', 'Dish soap'), '33333333-3333-3333-3333-333333333333', 'Dish soap', 'dish soap', 'household','purchased', 1, '11111111-1111-1111-1111-111111111111')
 on conflict (list_id, name_key) where planned_meal_id is null do nothing;

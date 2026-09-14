@@ -21,10 +21,12 @@ export function Markdown({
   text,
   size = "body",
   streaming = false,
+  selectable = true,
 }: {
   text: string;
   size?: Size;
   streaming?: boolean;
+  selectable?: boolean;
 }) {
   const router = useRouter();
   const foreground = String(useResolveClassNames("text-foreground").color);
@@ -55,7 +57,7 @@ export function Markdown({
         else void Linking.openURL(url);
       }}
       allowTrailingMargin={false}
-      selectable
+      selectable={selectable}
     />
   );
 }
