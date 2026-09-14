@@ -18,7 +18,9 @@ apps/mobile/          Expo app (expo-router)
   src/lib/            env + Supabase client
 apps/api/             Hono server on Node, deployed to Fly.io
 supabase/             Postgres migrations, seed, edge functions (Deno)
-powersync/            service.yaml (self-host) + sync-config.yaml (shared)
+powersync/            sync-config.yaml (shared) · local-service.yaml
+                      (local Docker) · service.yaml + cli.yaml (PowerSync
+                      Cloud, via the `powersync` CLI)
 docker-compose.yml    MongoDB + PowerSync service for local dev
 docs/decisions/       ADRs — read before changing the architecture
 ```

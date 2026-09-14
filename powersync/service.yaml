@@ -1,36 +1,35 @@
-# yaml-language-server: $schema=https://unpkg.com/@powersync/service-schema@latest/json-schema/powersync-config.json
+# PowerSync Cloud instance config. The connection and client auth are set
+# in the PowerSync dashboard; this file mirrors what it holds (pulled with
+# `powersync pull instance`, password kept as a cloud-side secret). Only
+# sync-config.yaml is deployed from the repo — the CI workflow uses
+# `deploy sync-config`, so this file is documentation, not a deploy source.
 #
-# Self-hosted PowerSync service config. This file is only used by the local
-# Docker stack — on PowerSync Cloud the equivalent settings live in the
-# dashboard. The sync rules in sync-config.yaml are shared by both.
+# The sync rules in sync-config.yaml are shared with the local Docker
+# stack (local-service.yaml).
+_type: cloud
 
-telemetry:
-  disable_telemetry_sharing: false
+name: Production
+region: eu
 
 replication:
   connections:
+    # powersync_role: REPLICATION + BYPASSRLS + SELECT-only, created in
+    # supabase/migrations/20260818100100. Password issued out of band.
     - type: postgresql
-      uri: !env PS_DATA_SOURCE_URI
-      # The service reaches Postgres over Supabase's internal Docker
-      # network, so there is nothing in between to encrypt against.
-      # A hosted instance connecting over the internet must use verify-full.
-      sslmode: disable
-
-# PowerSync keeps its sync buckets in MongoDB, not in Postgres.
-storage:
-  type: mongodb
-  uri: !env PS_MONGO_URI
-
-port: !env PS_PORT
-
-sync_config:
-  path: sync-config.yaml
+      uri: postgresql://powersync_role@db.hipfjgdphtdzumzsltog.supabase.co:5432/postgres
+      password:
+        # Cloud-side secret reference; the value lives in the dashboard.
+        secret_ref: default_password
+      hostname: db.hipfjgdphtdzumzsltog.supabase.co
+      port: 5432
+      database: postgres
+      username: powersync_role
+      name: Default
+      tag: default
+      sslmode: verify-full
+      debug_api: false
 
 client_auth:
-  # Verifies the Supabase-issued JWT the app sends.
   supabase: true
-  # ES256 asymmetric signing: PowerSync fetches the public key itself, so
-  # there is no shared secret to keep in sync. `kong` is Supabase's local
-  # gateway container.
-  jwks_uri: http://kong:8000/auth/v1/.well-known/jwks.json
-  audience: ["authenticated"]
+  additional_audiences: []
+  allow_temporary_tokens: false

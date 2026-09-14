@@ -37,7 +37,10 @@ services:
     volumes:
       - ./powersync:/config
     environment:
-      POWERSYNC_CONFIG_PATH: /config/service.yaml
+      # local-service.yaml is the self-hosted stack's config; service.yaml
+      # in the same directory belongs to the PowerSync Cloud instance
+      # (used by the `powersync` CLI, e.g. the deploy-sync-config workflow).
+      POWERSYNC_CONFIG_PATH: /config/local-service.yaml
       NODE_OPTIONS: --max-old-space-size=1000
       # Dedicated replication role created in the powersync publication
       # migration; password issued locally by supabase/seed.sql.
