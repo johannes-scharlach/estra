@@ -16,14 +16,14 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
-      # Pinned: the CLI had a breaking redesign in 0.9.0.
-      - run: npx powersync@0.9.0 validate --directory powersync
+      # Pinned: the CLI had a breaking redesign in 0.9.0; bump deliberately.
+      - run: npx powersync@0.10.0 validate --directory powersync
         env:
           PS_ADMIN_TOKEN: ${{ secrets.POWERSYNC_ADMIN_TOKEN }}
-      - run: npx powersync@0.9.0 deploy sync-config --directory powersync
+      - run: npx powersync@0.10.0 deploy sync-config --directory powersync
         env:
           PS_ADMIN_TOKEN: ${{ secrets.POWERSYNC_ADMIN_TOKEN }}
