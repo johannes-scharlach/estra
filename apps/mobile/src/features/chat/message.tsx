@@ -48,8 +48,11 @@ export function UserMessage({ parts }: { parts: Parts }) {
 function Ideas({ ideas, onPick }: { ideas: Idea[]; onPick: (idea: Idea) => void }) {
   const chevron = useResolveClassNames("text-muted-foreground").color;
   const { width: windowWidth } = useWindowDimensions();
-  // Same card as the Home deck: leaves room to peek at the next one.
-  const cardWidth = Math.min(300, windowWidth - 76);
+  // First card sits at the px-5 inset; what follows is a 12pt gap and a
+  // 12pt sliver of the next card — enough to see there is more, not
+  // enough to read. The last card ends flush instead of trailing into
+  // empty row.
+  const cardWidth = windowWidth - 44;
   const gap = 12;
 
   const [page, setPage] = useState(0);

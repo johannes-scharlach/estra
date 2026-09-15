@@ -29,7 +29,7 @@ export function SeededDeck({ onPick, preview = false }: {
   preview?: boolean;
 }) {
   const { width } = useWindowDimensions();
-  const cardWidth = Math.min(300, width - 76);
+  const cardWidth = width - 44;
   const deck = bySeason(new Date().getMonth() + 1);
   function pick(meal: Seeded) {
     const ingredients = meal.ingredients.charAt(0).toLowerCase() + meal.ingredients.slice(1);
