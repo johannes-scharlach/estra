@@ -201,7 +201,7 @@ export default function ChatScreen() {
         <KeyboardAwareScrollView
           ref={scrollRef}
           className="flex-1"
-          contentContainerClassName="px-5 pb-4"
+          contentContainerClassName="pb-4"
           contentInsetAdjustmentBehavior="automatic"
           keyboardDismissMode="interactive"
           keyboardShouldPersistTaps="handled"
@@ -246,7 +246,7 @@ export default function ChatScreen() {
             {error ? (
               <Text
                 variant="small"
-                className="text-destructive"
+                className="mx-5 text-destructive"
                 onPress={() => {
                   if (busyRef.current) return;
                   void runTurn(error.turn);

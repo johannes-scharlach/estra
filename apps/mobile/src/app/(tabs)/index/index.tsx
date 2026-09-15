@@ -130,7 +130,7 @@ export default function Home() {
 
       <ScrollView
         className="flex-1"
-        contentContainerClassName="px-5 pb-8 pt-5"
+        contentContainerClassName="pb-8 pt-5"
         keyboardShouldPersistTaps="handled"
         contentInsetAdjustmentBehavior="automatic"
         automaticallyAdjustKeyboardInsets
@@ -138,7 +138,7 @@ export default function Home() {
         <Link href="/meals/plan" asChild>
           <Pressable
             accessibilityRole="link"
-            className="min-h-14 flex-row items-center gap-3 rounded-xl bg-accent px-4 py-2 active:opacity-60"
+            className="mx-5 min-h-14 flex-row items-center gap-3 rounded-xl bg-accent px-4 py-2 active:opacity-60"
           >
             <SymbolView name={CALENDAR_ICON} tintColor={iconColor} size={20} />
             <Text className="flex-1 font-medium">Plan the week</Text>
@@ -151,7 +151,7 @@ export default function Home() {
           </Pressable>
         </Link>
 
-        <View className="mt-6 gap-5">
+        <View className="mx-5 mt-6 gap-5">
           <Text className="text-2xl font-semibold tracking-tight">
             Spontaneous meal
           </Text>
@@ -269,7 +269,7 @@ export default function Home() {
           </Button>
         </View>
 
-        <View className="mt-7 gap-3">
+        <View className="mx-5 mt-7 gap-3">
           <View className="flex-row items-center justify-between gap-3">
             <Text className="text-lg font-semibold">Quick meal ideas</Text>
             <Link href="/chats/ideas" asChild>
@@ -282,9 +282,7 @@ export default function Home() {
               </Pressable>
             </Link>
           </View>
-          <View className="-mx-5">
-            <SeededDeck preview onPick={startChat} />
-          </View>
+          <SeededDeck preview onPick={startChat} />
         </View>
       </ScrollView>
     </View>

@@ -1,7 +1,14 @@
 import { Image } from "expo-image";
 import { SymbolView } from "expo-symbols";
 import { useMemo, useRef, useState } from "react";
-import { Pressable, ScrollView, useWindowDimensions, View, type NativeScrollEvent, type NativeSyntheticEvent } from "react-native";
+import {
+  Pressable,
+  ScrollView,
+  useWindowDimensions,
+  View,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+} from "react-native";
 import { useResolveClassNames } from "uniwind";
 
 import { Text } from "@/components/ui/text";
@@ -13,13 +20,17 @@ import { imageParts } from "./image-attachment";
 import { messageText, runningTool, type Parts } from "./stream";
 import { parseSegments, readableMessage, type Idea } from "./tags";
 
-const CHEVRON_ICON = { ios: "chevron.right", android: "chevron_right", web: "chevron_right" } as const;
+const CHEVRON_ICON = {
+  ios: "chevron.right",
+  android: "chevron_right",
+  web: "chevron_right",
+} as const;
 
 export function UserMessage({ parts }: { parts: Parts }) {
   const text = messageText(parts);
   const images = imageParts(parts);
   return (
-    <View className="items-end gap-2">
+    <View className="mx-5 items-end gap-2">
       {images.map((img) => (
         <Image
           key={img.url}
@@ -32,8 +43,10 @@ export function UserMessage({ parts }: { parts: Parts }) {
       {text ? (
         <View className="max-w-[80%]">
           <MessageMenu text={text}>
-            <View className="rounded-2xl rounded-br-md bg-primary px-4 py-2.5">
-              <Text className="text-base leading-6 text-primary-foreground">{text}</Text>
+            <View className="rounded-2xl rounded-br-none bg-primary px-4 py-2.5">
+              <Text className="text-base leading-6 text-primary-foreground">
+                {text}
+              </Text>
             </View>
           </MessageMenu>
         </View>
@@ -45,7 +58,13 @@ export function UserMessage({ parts }: { parts: Parts }) {
 /** Ideas do have an action — tap to hear more — so they are cards. Same
  *  deck as Home's quick ideas: full-bleed, peek at the next card, snap
  *  through them. The deck stays in the transcript after a pick. */
-function Ideas({ ideas, onPick }: { ideas: Idea[]; onPick: (idea: Idea) => void }) {
+function Ideas({
+  ideas,
+  onPick,
+}: {
+  ideas: Idea[];
+  onPick: (idea: Idea) => void;
+}) {
   const chevron = useResolveClassNames("text-muted-foreground").color;
   const { width: windowWidth } = useWindowDimensions();
   // First card sits at the px-5 inset; what follows is a 12pt gap and a
@@ -73,7 +92,7 @@ function Ideas({ ideas, onPick }: { ideas: Idea[]; onPick: (idea: Idea) => void 
   }
 
   return (
-    <View className="my-2 -mx-5 gap-2">
+    <View className="my-2 gap-2">
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -96,18 +115,29 @@ function Ideas({ ideas, onPick }: { ideas: Idea[]; onPick: (idea: Idea) => void 
               className="flex-row items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3.5 active:bg-accent"
             >
               <View className="flex-1 gap-1">
-                <Text className="text-base font-semibold leading-snug">{idea.title || "…"}</Text>
+                <Text className="text-base font-semibold leading-snug">
+                  {idea.title || "…"}
+                </Text>
                 {idea.body ? (
                   // pointerEvents none: the markdown view is a native text
                   // view whose own tap recognizer swallows touches — without
                   // this the card only responds on its title.
                   <View pointerEvents="none">
-                    <Markdown text={idea.body} size="small" selectable={false} />
+                    <Markdown
+                      text={idea.body}
+                      size="small"
+                      selectable={false}
+                    />
                   </View>
                 ) : null}
               </View>
               <View className="size-6 shrink-0 items-center justify-center rounded-full bg-muted">
-                <SymbolView name={CHEVRON_ICON} tintColor={chevron} size={13} weight="semibold" />
+                <SymbolView
+                  name={CHEVRON_ICON}
+                  tintColor={chevron}
+                  size={13}
+                  weight="semibold"
+                />
               </View>
             </Pressable>
           </View>
@@ -126,7 +156,11 @@ function Ideas({ ideas, onPick }: { ideas: Idea[]; onPick: (idea: Idea) => void 
               />
             ))}
           </View>
-          <Text variant="muted" className="text-xs" style={{ fontVariant: ["tabular-nums"] }}>
+          <Text
+            variant="muted"
+            className="text-xs"
+            style={{ fontVariant: ["tabular-nums"] }}
+          >
             {clamped + 1} of {ideas.length}
           </Text>
         </View>
@@ -150,11 +184,20 @@ function Sketch({
   onSavePlan?: (title: string) => void;
 }) {
   return (
-    <View className="my-3 gap-3">
+    <View className="mx-5 my-3 gap-3">
       {title ? (
-        <Text className="text-3xl font-semibold leading-tight tracking-tight">{title}</Text>
+        <Text className="text-3xl font-semibold leading-tight tracking-tight">
+          {title}
+        </Text>
       ) : null}
-      {body ? <Markdown text={body} size="page" streaming={streaming} selectable={false} /> : null}
+      {body ? (
+        <Markdown
+          text={body}
+          size="page"
+          streaming={streaming}
+          selectable={false}
+        />
+      ) : null}
       {onSavePlan && title ? (
         <Pressable
           onPress={() => {
@@ -197,7 +240,16 @@ export function AssistantMessage({
           const last = i === segments.length - 1;
           switch (seg.type) {
             case "markdown":
-              return <Markdown key={i} text={seg.text} streaming={streaming && last} selectable={false} />;
+              // mx-5 rather than a padded ancestor: the ideas deck is full-bleed.
+              return (
+                <View key={i} className="mx-5">
+                  <Markdown
+                    text={seg.text}
+                    streaming={streaming && last}
+                    selectable={false}
+                  />
+                </View>
+              );
             case "ideas":
               return <Ideas key={i} ideas={seg.ideas} onPick={onIdea} />;
             case "sketch":
@@ -213,7 +265,7 @@ export function AssistantMessage({
           }
         })}
         {tool ? (
-          <Text variant="muted" className="mt-2 text-base">
+          <Text variant="muted" className="mx-5 mt-2 text-base">
             {TOOL_LABEL[tool] ?? "Working…"}
           </Text>
         ) : null}

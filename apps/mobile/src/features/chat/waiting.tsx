@@ -32,7 +32,7 @@ export function Waiting() {
   }, []);
 
   return (
-    <View className="my-2 flex-row items-center gap-2.5">
+    <View className="mx-5 my-2 flex-row items-center gap-2.5">
       <ActivityIndicator size="small" color={muted} />
       <Animated.View key={i} entering={FadeIn.duration(300).reduceMotion(ReduceMotion.System)}>
         <Text variant="muted" className="text-base">
