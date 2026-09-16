@@ -1,4 +1,3 @@
-import { MenuView } from "@expo/ui/community/menu";
 import { SymbolView } from "expo-symbols";
 import { LinearGradient } from "expo-linear-gradient";
 import { Link } from "expo-router";
@@ -7,6 +6,7 @@ import { useResolveClassNames } from "uniwind";
 
 import { Button } from "@/components/ui/button";
 import { Text } from "@/components/ui/text";
+import { MealCardMenu } from "@/features/meals/meal-card-menu";
 import { tonalPair } from "@/features/variants/tonal";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 
@@ -32,10 +32,6 @@ const X_ICON = { ios: "xmark", android: "close" } as const;
 const CHECK_ICON = {
   ios: "checkmark",
   android: "check",
-} as const;
-const MENU_ICON = {
-  ios: "ellipsis",
-  android: "more_horiz",
 } as const;
 
 /**
@@ -117,62 +113,15 @@ export function MealSection({
                 </View>
               </Pressable>
             </Link>
-            <MenuView
-              key={recipe.id}
-              style={{ position: "absolute", right: 6, top: 6 }}
-              actions={[
-                {
-                  id: "portions",
-                  title: `${recipe.servings ?? 2} ${recipe.servings === 1 ? "portion" : "portions"}`,
-                  image: "person.2",
-                },
-                {
-                  id: "change",
-                  title: "Choose another meal",
-                  image: "arrow.triangle.2.circlepath",
-                },
-                {
-                  id: "move",
-                  title: "Move to…",
-                  image: "arrow.right",
-                },
-                {
-                  id: "remove-section",
-                  title: "",
-                  displayInline: true,
-                  subactions: [
-                    {
-                      id: "remove",
-                      title: "Remove from plan",
-                      image: "calendar.badge.minus",
-                      attributes: { destructive: true },
-                    },
-                  ],
-                },
-              ]}
-              onPressAction={({ nativeEvent: { event } }) => {
-                if (event === "portions") onEditPortions();
-                else if (event === "change") onChange();
-                else if (event === "move") onMove();
-                else if (event === "remove") onSkip();
-              }}
-            >
-              <View
-                accessible
-                accessibilityRole="button"
-                accessibilityLabel={`Actions for ${recipe.name}`}
-                style={{
-                  width: 48,
-                  height: 48,
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <View className="h-8 w-8 items-center justify-center rounded-full bg-background/80">
-                  <SymbolView name={MENU_ICON} tintColor={muted} size={16} />
-                </View>
-              </View>
-            </MenuView>
+            <MealCardMenu
+              recipeId={recipe.id}
+              recipeName={recipe.name}
+              servings={recipe.servings}
+              onEditPortions={onEditPortions}
+              onChange={onChange}
+              onMove={onMove}
+              onSkip={onSkip}
+            />
           </View>
         </View>
       ) : (

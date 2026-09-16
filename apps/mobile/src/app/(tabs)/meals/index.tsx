@@ -318,7 +318,18 @@ export default function Meals() {
         </View>
 
         <GestureDetector gesture={dayPan}>
-          <Animated.View style={[dragStyle, { flexDirection: "row", overflow: "hidden" }]}>
+          <Animated.View
+            style={[
+              dragStyle,
+              {
+                flexDirection: "row",
+                overflow: "hidden",
+                // explicit: a stretched row would be viewport-wide and the
+                // -width rest offset would push every page off-screen
+                width: width * 3,
+              },
+            ]}
+          >
             {dayPage(prevDate, "prev")}
             {dayPage(selDate, "current")}
             {dayPage(nextDate, "next")}

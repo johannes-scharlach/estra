@@ -282,7 +282,9 @@ export default function Home() {
               </Pressable>
             </Link>
           </View>
-          <SeededDeck preview onPick={startChat} />
+          <View className="-mx-5">
+            <SeededDeck preview onPick={startChat} />
+          </View>
         </View>
       </ScrollView>
     </View>

@@ -1,11 +1,8 @@
-import { MenuView, type MenuAction } from "@expo/ui/community/menu";
-import { SymbolView } from "expo-symbols";
+import * as Haptics from "expo-haptics";
 import { useQuery } from "@powersync/react";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import * as Haptics from "expo-haptics";
 import { useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, View } from "react-native";
-import { useResolveClassNames } from "uniwind";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +16,7 @@ import {
 } from "@/db/items";
 import type { ListItem } from "@/db/schema";
 import { alternativesForItem } from "@/features/shop/alternatives";
+import { CategoryMenu } from "@/features/shop/category-menu";
 
 /** Row shape: the list item plus its meal provenance, if any. */
 type ItemRow = ListItem & {
@@ -34,7 +32,6 @@ type ItemRow = ListItem & {
 export default function ShopItemSheet() {
   const { itemId } = useLocalSearchParams<{ itemId: string }>();
   const router = useRouter();
-  const mutedColor = useResolveClassNames("text-muted-foreground").color;
 
   const { data: categories } = useQuery<{ id: string; name: string }>(
     "SELECT id, name FROM categories ORDER BY sort_order",
@@ -160,41 +157,15 @@ export default function ShopItemSheet() {
 
       <View className="mt-6 gap-2 px-6">
         <Text variant="muted" className="text-xs uppercase tracking-widest">Category</Text>
-        <MenuView
-          onPressAction={({ nativeEvent: { event } }) => {
-            const nextCat = event === "uncategorised" ? null : event;
+        <CategoryMenu
+          categories={categories}
+          categoryId={item.category_id}
+          categoryName={item.category_name}
+          onSelect={(nextCat) => {
             void setItemCategory(item.id, nextCat);
             void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
           }}
-          actions={[
-            {
-              id: "uncategorised",
-              title: "Uncategorised",
-              state: (!item.category_id ? "on" : "off") as MenuAction["state"],
-            },
-            ...categories.map((cat) => ({
-              id: cat.id,
-              title: cat.name,
-              state: (item.category_id === cat.id ? "on" : "off") as MenuAction["state"],
-            })),
-          ]}
-        >
-          <View
-            accessible
-            accessibilityRole="button"
-            accessibilityLabel={`Category: ${item.category_name ?? "Uncategorised"}`}
-            className="flex-row items-center justify-between rounded-xl border border-border px-4 py-3"
-          >
-            <Text className="text-sm font-medium">
-              {item.category_name ?? "Uncategorised"}
-            </Text>
-            <SymbolView
-              name={{ ios: "chevron.up.chevron.down", android: "unfold_more" }}
-              tintColor={mutedColor}
-              size={16}
-            />
-          </View>
-        </MenuView>
+        />
       </View>
 
       <View className="mt-6 gap-2 px-6 pb-8">
