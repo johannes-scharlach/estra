@@ -1,4 +1,9 @@
 import { randomUUID } from "node:crypto";
+import {
+  householdSchema,
+  profileContext,
+  type Household,
+} from "@estra/profile";
 
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import {
@@ -155,11 +160,17 @@ chats.post("/:id/messages", async (c) => {
     );
 
   const body = await c.req
-    .json<{ listId?: unknown; message?: unknown; localTime?: unknown }>()
+    .json<{
+      listId?: unknown;
+      message?: unknown;
+      localTime?: unknown;
+      household?: unknown;
+    }>()
     .catch(() => ({
       listId: undefined,
       message: undefined,
       localTime: undefined,
+      household: undefined,
     }));
   if (typeof body.listId !== "string" || !UUID.test(body.listId)) {
     return c.json(
@@ -200,6 +211,38 @@ chats.post("/:id/messages", async (c) => {
       },
       403,
     );
+
+  let household: Household | null = null;
+  if (body.household != null) {
+    const parsed = householdSchema.safeParse(body.household);
+    if (!parsed.success)
+      return c.json(
+        {
+          error: {
+            code: "INVALID_REQUEST",
+            message: "Invalid household context",
+          },
+        },
+        400,
+      );
+    household = parsed.data;
+  } else {
+    // Older clients can omit the snapshot. Membership has already been checked.
+    const profile = await pool.query(
+      "SELECT * FROM household_profiles WHERE id = $1",
+      [listId],
+    );
+    if (profile.rows[0]) {
+      const people = await pool.query(
+        "SELECT * FROM household_people WHERE list_id = $1 ORDER BY created_at, id",
+        [listId],
+      );
+      household = householdSchema.parse({
+        profile: profile.rows[0],
+        people: people.rows,
+      });
+    }
+  }
 
   let history: MessageRow[];
   const client = await pool.connect();
@@ -262,6 +305,7 @@ chats.post("/:id/messages", async (c) => {
   const system = [
     ASSISTANT_SYSTEM_PROMPT,
     PLAN_PROMPT,
+    household ? profileContext(household, userId) : null,
     localTime
       ? `The user's current local time is ${localTime}. The timezone reflects their broad region — use it for seasonal produce and measurement defaults, not as an exact location.`
       : null,

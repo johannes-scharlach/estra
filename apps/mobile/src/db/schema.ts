@@ -1,4 +1,4 @@
-import { column, Schema, Table } from '@powersync/react-native';
+import { column, Schema, Table } from "@powersync/react-native";
 
 /**
  * The client-side mirror of the Postgres schema in supabase/migrations.
@@ -36,7 +36,35 @@ const list_members = new Table(
     user_id: column.text,
     joined_at: column.text,
   },
-  { indexes: { by_list: ['list_id'] } },
+  { indexes: { by_list: ["list_id"] } },
+);
+
+const household_profiles = new Table({
+  goals: column.text,
+  kitchen_equipment: column.text,
+  pantry: column.text,
+  fresh_ingredients: column.text,
+  meals_at_home: column.text,
+  main_supermarket: column.text,
+  other_shops: column.text,
+  created_at: column.text,
+  updated_at: column.text,
+});
+
+const household_people = new Table(
+  {
+    list_id: column.text,
+    user_id: column.text,
+    name: column.text,
+    age_group: column.text,
+    diet: column.text,
+    diet_other: column.text,
+    restrictions: column.text,
+    meal_times: column.text,
+    created_at: column.text,
+    updated_at: column.text,
+  },
+  { indexes: { by_list: ["list_id"] } },
 );
 
 const recipes = new Table({
@@ -75,7 +103,7 @@ const planned_meals = new Table(
     created_at: column.text,
     updated_at: column.text,
   },
-  { indexes: { by_list_date: ['list_id', 'slot_date'] } },
+  { indexes: { by_list_date: ["list_id", "slot_date"] } },
 );
 
 const list_items = new Table(
@@ -98,9 +126,9 @@ const list_items = new Table(
   },
   {
     indexes: {
-      by_list_status: ['list_id', 'status'],
-      by_recent: ['list_id', 'updated_at'],
-      by_planned_meal: ['planned_meal_id'],
+      by_list_status: ["list_id", "status"],
+      by_recent: ["list_id", "updated_at"],
+      by_planned_meal: ["planned_meal_id"],
     },
   },
 );
@@ -114,7 +142,7 @@ const chats = new Table(
     created_at: column.text,
     updated_at: column.text,
   },
-  { indexes: { by_list_recent: ['list_id', 'updated_at'] } },
+  { indexes: { by_list_recent: ["list_id", "updated_at"] } },
 );
 
 const chat_messages = new Table(
@@ -127,13 +155,15 @@ const chat_messages = new Table(
     parts: column.text,
     created_at: column.text,
   },
-  { indexes: { by_chat: ['chat_id', 'created_at'] } },
+  { indexes: { by_chat: ["chat_id", "created_at"] } },
 );
 
 export const AppSchema = new Schema({
   categories,
   lists,
   list_members,
+  household_profiles,
+  household_people,
   recipes,
   variants,
   planned_meals,
@@ -142,15 +172,15 @@ export const AppSchema = new Schema({
   chat_messages,
 });
 
-export type Database = (typeof AppSchema)['types'];
-export type Category = Database['categories'];
-export type List = Database['lists'];
-export type ListMember = Database['list_members'];
-export type ListItem = Database['list_items'];
-export type Recipe = Database['recipes'];
-export type Variant = Database['variants'];
-export type PlannedMeal = Database['planned_meals'];
-export type Chat = Database['chats'];
-export type ChatMessage = Database['chat_messages'];
+export type Database = (typeof AppSchema)["types"];
+export type Category = Database["categories"];
+export type List = Database["lists"];
+export type ListMember = Database["list_members"];
+export type ListItem = Database["list_items"];
+export type Recipe = Database["recipes"];
+export type Variant = Database["variants"];
+export type PlannedMeal = Database["planned_meals"];
+export type Chat = Database["chats"];
+export type ChatMessage = Database["chat_messages"];
 
-export type ItemStatus = 'active' | 'purchased';
+export type ItemStatus = "active" | "purchased";

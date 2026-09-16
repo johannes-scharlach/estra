@@ -35,6 +35,22 @@ streams:
           SELECT list_id FROM list_members WHERE user_id = auth.user_id()
         )
 
+  household_profiles:
+    auto_subscribe: true
+    priority: 2
+    query: |
+      SELECT household_profiles.* FROM household_profiles
+        INNER JOIN list_members ON list_members.list_id = household_profiles.id
+      WHERE list_members.user_id = auth.user_id()
+
+  household_people:
+    auto_subscribe: true
+    priority: 2
+    query: |
+      SELECT household_people.* FROM household_people
+        INNER JOIN list_members ON list_members.list_id = household_people.list_id
+      WHERE list_members.user_id = auth.user_id()
+
   # Every item on every list you belong to, including purchased ones —
   # those are the "recent" suggestions and the autocomplete source, so they
   # have to be on the device to work offline.

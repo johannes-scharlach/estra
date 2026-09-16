@@ -31,8 +31,10 @@ COPY apps/api/package.json apps/api/
 # Never installed — --frozen-lockfile checks the lockfile against every
 # workspace project, so the manifest has to be present.
 COPY apps/mobile/package.json apps/mobile/
+COPY packages/profile/package.json packages/profile/
 RUN pnpm install --frozen-lockfile --filter api...
 COPY apps/api apps/api
+COPY packages/profile/src packages/profile/src
 RUN pnpm --filter api build
 
 # --- image -----------------------------------------------------------------

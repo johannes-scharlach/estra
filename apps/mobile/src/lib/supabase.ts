@@ -1,7 +1,8 @@
-import { createClient, type SupportedStorage } from '@supabase/supabase-js';
-import * as SecureStore from 'expo-secure-store';
+import { createClient, type SupportedStorage } from "@supabase/supabase-js";
+import * as SecureStore from "expo-secure-store";
+import { AppState } from "react-native";
 
-import { env } from './env';
+import { env } from "./env";
 
 /**
  * Session tokens live in the Keychain / Android Keystore rather than
@@ -17,13 +18,23 @@ const secureStorage: SupportedStorage = {
   removeItem: (key) => SecureStore.deleteItemAsync(key),
 };
 
-export const supabase = createClient(env.supabaseUrl, env.supabasePublishableKey, {
-  auth: {
-    storage: secureStorage,
-    autoRefreshToken: true,
-    persistSession: true,
-    // React Native has no URL bar for the OAuth/magic-link callback to
-    // land in; expo-router's deep link handler feeds it to us instead.
-    detectSessionInUrl: false,
+export const supabase = createClient(
+  env.supabaseUrl,
+  env.supabasePublishableKey,
+  {
+    auth: {
+      storage: secureStorage,
+      autoRefreshToken: true,
+      persistSession: true,
+      // React Native has no URL bar for the OAuth/magic-link callback to
+      // land in; expo-router's deep link handler feeds it to us instead.
+      detectSessionInUrl: false,
+    },
   },
+);
+
+// Returning from the email app should also resume refresh of a stored session.
+AppState.addEventListener("change", (state) => {
+  if (state === "active") supabase.auth.startAutoRefresh();
+  else supabase.auth.stopAutoRefresh();
 });

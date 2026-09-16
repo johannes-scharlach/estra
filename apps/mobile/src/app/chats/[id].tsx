@@ -17,6 +17,7 @@ import {
 
 import { Text } from "@/components/ui/text";
 import type { Chat, ChatMessage, List } from "@/db/schema";
+import { waitForListMembership } from "@/db/list-readiness";
 import { attachUploadedImage, type ChatTurn } from "@/features/chat/chat-turn";
 import { Composer } from "@/features/chat/composer";
 import { AssistantMessage, UserMessage } from "@/features/chat/message";
@@ -61,6 +62,7 @@ export default function ChatScreen() {
   const { data: chats } = useQuery<Chat>("SELECT * FROM chats WHERE id = ?", [
     chatId,
   ]);
+  const conversationListId = chats[0]?.list_id ?? list?.id;
   const { data: rows } = useQuery<ChatMessage>(
     "SELECT * FROM chat_messages WHERE chat_id = ? ORDER BY created_at",
     [chatId],
@@ -102,7 +104,7 @@ export default function ChatScreen() {
    */
   const busyRef = useRef(false);
   async function runTurn(turn: ChatTurn) {
-    if (!list || busyRef.current) return;
+    if (!conversationListId || busyRef.current) return;
     busyRef.current = true;
     await Promise.resolve();
     setInFlight(null);
@@ -113,15 +115,19 @@ export default function ChatScreen() {
         ...p.filter((m) => m.id !== turn.message.id),
         turn.message,
       ]);
+      await waitForListMembership(conversationListId);
       while (turn.attachments.length) {
-        const file = await uploadImageAttachment(list.id, turn.attachments[0]!);
+        const file = await uploadImageAttachment(
+          conversationListId,
+          turn.attachments[0]!,
+        );
         turn = attachUploadedImage(turn, file);
         const uploaded = turn.message;
         setPending((p) => p.map((m) => (m.id === uploaded.id ? uploaded : m)));
       }
       for await (const reply of streamReply({
         chatId,
-        listId: list.id,
+        listId: conversationListId,
         message: turn.message,
       })) {
         setInFlight(reply);
@@ -154,7 +160,7 @@ export default function ChatScreen() {
   // effects, list identity changes) no-ops.
   useFocusEffect(
     useCallback(() => {
-      if (!list || busyRef.current) return;
+      if (!conversationListId || busyRef.current) return;
       const message = takeQueuedMessage();
       if (!message) return;
       void runTurn({
@@ -162,7 +168,7 @@ export default function ChatScreen() {
         attachments: message.attachments,
       });
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [list, busy]),
+    }, [conversationListId, busy]),
   );
 
   const shown = useMemo((): Shown[] => {

@@ -2,24 +2,37 @@ import {
   UpdateType,
   type AbstractPowerSyncDatabase,
   type PowerSyncBackendConnector,
-} from '@powersync/react-native';
+} from "@powersync/react-native";
 
-import { env } from '../lib/env';
-import { supabase } from '../lib/supabase';
+import { env } from "../lib/env";
+import { supabase } from "../lib/supabase";
 
-const VARIANT_JSON_COLUMNS = ['ingredient_lines', 'instructions'] as const;
+const JSON_COLUMNS: Record<string, readonly string[]> = {
+  variants: ["ingredient_lines", "instructions"],
+  household_profiles: [
+    "goals",
+    "kitchen_equipment",
+    "pantry",
+    "fresh_ingredients",
+  ],
+};
 
 /** Decode a raw SQLite row map for upload — string -> object for Postgres jsonb. */
-function decodeVariantForUpload(data: Record<string, unknown>): Record<string, unknown> {
+function decodeForUpload(
+  table: string,
+  data: Record<string, unknown>,
+): Record<string, unknown> {
   const out: Record<string, unknown> = { ...data };
-  for (const col of VARIANT_JSON_COLUMNS) {
+  for (const col of JSON_COLUMNS[table] ?? []) {
     const v = out[col];
-    if (typeof v === 'string') {
+    if (typeof v === "string") {
       try {
         out[col] = JSON.parse(v);
       } catch (e) {
-        const err = new Error(`Invalid JSON in ${col}: ${e instanceof Error ? e.message : String(e)}`) as Error & { code: string };
-        err.code = '22P02';
+        const err = new Error(
+          `Invalid JSON in ${col}: ${e instanceof Error ? e.message : String(e)}`,
+        ) as Error & { code: string };
+        err.code = "22P02";
         throw err;
       }
     }
@@ -72,24 +85,37 @@ export class SupabaseConnector implements PowerSyncBackendConnector {
         const result = await (async () => {
           switch (op.op) {
             case UpdateType.PUT: {
-              const data =
-                op.table === 'variants' && op.opData
-                  ? decodeVariantForUpload(op.opData as Record<string, unknown>)
-                  : op.opData;
-              return table.upsert({ ...data, id: op.id });
+              const data = op.opData
+                ? decodeForUpload(
+                    op.table,
+                    op.opData as Record<string, unknown>,
+                  )
+                : op.opData;
+              // These PUTs create identities. Retries must not overwrite a
+              // completed setup (or require UPDATE access to membership).
+              const createOnly = [
+                "lists",
+                "list_members",
+                "household_profiles",
+                "household_people",
+              ].includes(op.table);
+              return table.upsert(
+                { ...data, id: op.id },
+                { ignoreDuplicates: createOnly },
+              );
             }
             case UpdateType.PATCH: {
               // opData is undefined when a row was touched but no column
               // actually changed — nothing to send.
               if (!op.opData) return null;
-              const data =
-                op.table === 'variants'
-                  ? decodeVariantForUpload(op.opData as Record<string, unknown>)
-                  : op.opData;
-              return table.update(data).eq('id', op.id);
+              const data = decodeForUpload(
+                op.table,
+                op.opData as Record<string, unknown>,
+              );
+              return table.update(data).eq("id", op.id);
             }
             case UpdateType.DELETE:
-              return table.delete().eq('id', op.id);
+              return table.delete().eq("id", op.id);
             default:
               throw new Error(`Unhandled CRUD op: ${op.op}`);
           }
@@ -106,7 +132,7 @@ export class SupabaseConnector implements PowerSyncBackendConnector {
         // Discarding means the local DB now disagrees with the server. The
         // next sync overwrites the local row, so the user sees their change
         // silently revert — worth surfacing in the UI once there is one.
-        console.error('Discarding un-retryable write', code, error);
+        console.error("Discarding un-retryable write", code, error);
         await transaction.complete();
         return;
       }

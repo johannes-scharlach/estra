@@ -34,6 +34,105 @@ export type Database = {
   }
   public: {
     Tables: {
+      household_profiles: {
+        Row: {
+          id: string
+          goals: Json
+          kitchen_equipment: Json
+          pantry: Json
+          fresh_ingredients: Json
+          meals_at_home: string
+          main_supermarket: string
+          other_shops: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id: string
+          goals?: Json
+          kitchen_equipment?: Json
+          pantry?: Json
+          fresh_ingredients?: Json
+          meals_at_home?: string
+          main_supermarket?: string
+          other_shops?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          goals?: Json
+          kitchen_equipment?: Json
+          pantry?: Json
+          fresh_ingredients?: Json
+          meals_at_home?: string
+          main_supermarket?: string
+          other_shops?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [{
+          foreignKeyName: "household_profiles_id_fkey"
+          columns: ["id"]
+          isOneToOne: true
+          referencedRelation: "lists"
+          referencedColumns: ["id"]
+        }]
+      }
+      household_people: {
+        Row: {
+          id: string
+          list_id: string
+          user_id: string | null
+          name: string
+          age_group: string
+          diet: string
+          diet_other: string
+          restrictions: string
+          meal_times: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id: string
+          list_id: string
+          user_id?: string | null
+          name: string
+          age_group?: string
+          diet?: string
+          diet_other?: string
+          restrictions?: string
+          meal_times?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          list_id?: string
+          user_id?: string | null
+          name?: string
+          age_group?: string
+          diet?: string
+          diet_other?: string
+          restrictions?: string
+          meal_times?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [{
+          foreignKeyName: "household_people_list_id_fkey"
+          columns: ["list_id"]
+          isOneToOne: false
+          referencedRelation: "household_profiles"
+          referencedColumns: ["id"]
+        }, {
+          foreignKeyName: "household_people_list_id_user_id_fkey"
+          columns: ["list_id", "user_id"]
+          isOneToOne: true
+          referencedRelation: "list_members"
+          referencedColumns: ["list_id", "user_id"]
+        }]
+      }
       categories: {
         Row: {
           id: string
@@ -552,4 +651,3 @@ export const Constants = {
     Enums: {},
   },
 } as const
-
