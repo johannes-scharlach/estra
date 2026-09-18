@@ -25,6 +25,7 @@ export default function ProfileScreen() {
   const { listId } = useHouseholdAccess();
   const { household, error } = useHousehold(listId);
   const backgroundColor = useResolveClassNames("bg-background").backgroundColor;
+  const primaryColor = useResolveClassNames("bg-primary").backgroundColor;
   if (!household)
     return (
       <FormScreen>
@@ -43,7 +44,11 @@ export default function ProfileScreen() {
           ),
         }}
       />
-      <Host style={{ flex: 1, backgroundColor }} useViewportSizeMeasurement>
+      <Host
+        style={{ flex: 1, backgroundColor }}
+        seedColor={primaryColor}
+        useViewportSizeMeasurement
+      >
         <FieldGroup>
           <FieldGroup.Section title="People">
             {household.people.map((p) => (
@@ -58,7 +63,6 @@ export default function ProfileScreen() {
                 supportingText={[
                   p.age_group,
                   p.diet === "other" ? p.diet_other : dietOptions[p.diet],
-                  p.restrictions || "No restrictions supplied",
                   `Usually here: ${p.meal_times || "Not specified"}`,
                 ].join(" · ")}
               >
@@ -71,6 +75,14 @@ export default function ProfileScreen() {
             </ListItem>
           </FieldGroup.Section>
           <FieldGroup.Section title="Cooking">
+            <ListItem
+              supportingText={
+                household.profile.restrictions || "No restrictions supplied"
+              }
+              onPress={() => router.push("/profile/restrictions" as never)}
+            >
+              Household restrictions
+            </ListItem>
             <ListItem
               supportingText={
                 household.profile.meals_at_home || "Not specified"

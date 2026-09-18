@@ -13,6 +13,8 @@ import {
   Field,
   FormError,
   FormScreen,
+  MealRoutineEditor,
+  RestrictionsEditor,
   SelectionEditor,
 } from "@/features/profile/form";
 import { useHousehold } from "@/features/profile/use-household";
@@ -22,6 +24,7 @@ const titles: Record<string, string> = {
   kitchen_equipment: "Equipment",
   pantry: "Usual pantry",
   fresh_ingredients: "Fresh staples",
+  restrictions: "Household restrictions",
   meals_at_home: "Meals at home",
   shops: "Shopping routine",
 };
@@ -78,7 +81,9 @@ function SectionEditor({
               main_supermarket: draft.main_supermarket,
               other_shops: draft.other_shops,
             }
-          : { meals_at_home: draft.meals_at_home };
+          : section === "restrictions"
+            ? { restrictions: draft.restrictions }
+            : { meals_at_home: draft.meals_at_home };
       await saveProfileSection(listId, changes);
       router.back();
     } catch (e) {
@@ -102,12 +107,18 @@ function SectionEditor({
           onChange={(value) => setDraft((d) => ({ ...d, [selection]: value }))}
         />
       )}
+      {section === "restrictions" && (
+        <RestrictionsEditor
+          value={draft.restrictions}
+          onChange={(restrictions) =>
+            setDraft((d) => ({ ...d, restrictions }))
+          }
+        />
+      )}
       {section === "meals_at_home" && (
-        <Field
-          label="Which meals do you usually cook at home?"
-          multiline
+        <MealRoutineEditor
           value={draft.meals_at_home}
-          onChangeText={(meals_at_home) =>
+          onChange={(meals_at_home) =>
             setDraft((d) => ({ ...d, meals_at_home }))
           }
         />

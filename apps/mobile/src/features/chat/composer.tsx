@@ -83,7 +83,7 @@ export function Composer({
               onPress={() => {
                 onSend(s, []);
               }}
-              className="rounded-full border border-border bg-background px-3.5 py-1.5 active:bg-accent"
+              className="rounded-full border border-border bg-card px-3.5 py-1.5 active:bg-accent"
             >
               <Text className="text-sm">{s}</Text>
             </Pressable>
@@ -119,7 +119,7 @@ export function Composer({
           returnKeyType="send"
           submitBehavior="blurAndSubmit"
           onSubmitEditing={submit}
-          className="max-h-32 min-h-10 flex-1 rounded-[20px] border border-border bg-background px-4 py-2.5 text-base leading-5 text-foreground"
+          className="max-h-32 min-h-10 flex-1 rounded-[20px] border border-border bg-card px-4 py-2.5 text-base leading-5 text-foreground"
         />
         <Pressable
           onPress={submit}

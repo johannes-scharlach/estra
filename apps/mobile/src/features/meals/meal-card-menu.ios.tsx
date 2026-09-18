@@ -74,7 +74,7 @@ export function MealCardMenu({
           justifyContent: "center",
         }}
       >
-        <View className="h-8 w-8 items-center justify-center rounded-full bg-background/80">
+        <View className="h-8 w-8 items-center justify-center rounded-full bg-card/80">
           <SymbolView name={MENU_ICON} tintColor={muted} size={16} />
         </View>
       </View>

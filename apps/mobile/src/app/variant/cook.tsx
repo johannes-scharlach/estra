@@ -124,7 +124,7 @@ export default function CookMode() {
           onPress={() => router.back()}
           hitSlop={12}
           style={{ position: "absolute", top: insets.top + 12, right: 16 }}
-          className="size-10 items-center justify-center rounded-full bg-background/50"
+          className="size-10 items-center justify-center rounded-full bg-card/50"
         >
           <SymbolView name={CLOSE_ICON} tintColor={foreground} size={18} />
         </Pressable>

@@ -7,8 +7,8 @@ const sqlite = new DatabaseSync(":memory:");
 sqlite.exec(`
   CREATE TABLE lists (id TEXT PRIMARY KEY, name TEXT, invite_code TEXT, created_by TEXT, created_at TEXT, updated_at TEXT);
   CREATE TABLE list_members (id TEXT PRIMARY KEY, list_id TEXT, user_id TEXT, joined_at TEXT, UNIQUE(list_id, user_id));
-  CREATE TABLE household_profiles (id TEXT PRIMARY KEY, goals TEXT, kitchen_equipment TEXT, pantry TEXT, fresh_ingredients TEXT, meals_at_home TEXT, main_supermarket TEXT, other_shops TEXT, created_at TEXT, updated_at TEXT);
-  CREATE TABLE household_people (id TEXT PRIMARY KEY, list_id TEXT, user_id TEXT, name TEXT, age_group TEXT, diet TEXT, diet_other TEXT, restrictions TEXT, meal_times TEXT, created_at TEXT, updated_at TEXT, UNIQUE(list_id, user_id));
+  CREATE TABLE household_profiles (id TEXT PRIMARY KEY, goals TEXT, kitchen_equipment TEXT, pantry TEXT, fresh_ingredients TEXT, restrictions TEXT, meals_at_home TEXT, main_supermarket TEXT, other_shops TEXT, created_at TEXT, updated_at TEXT);
+  CREATE TABLE household_people (id TEXT PRIMARY KEY, list_id TEXT, user_id TEXT, name TEXT, age_group TEXT, diet TEXT, diet_other TEXT, meal_times TEXT, created_at TEXT, updated_at TEXT, UNIQUE(list_id, user_id));
 `);
 const tx = {
   async execute(sql: string, parameters: unknown[] = []) {
@@ -44,6 +44,7 @@ function setup() {
   );
   draft.user_id = userId;
   draft.people[0]!.name = "Sam";
+  draft.profile.restrictions = "Peanut allergy";
   return draft;
 }
 afterEach(() =>
@@ -71,6 +72,9 @@ it("replays completion without duplicates or overwriting subsequent edits", asyn
   expect(
     await tx.getOptional("SELECT meals_at_home FROM household_profiles"),
   ).toEqual({ meals_at_home: "Weekend lunches only" });
+  expect(
+    await tx.getOptional("SELECT restrictions FROM household_profiles"),
+  ).toEqual({ restrictions: "Peanut allergy" });
 });
 
 it("rolls back partial setup and can retry using the same verified identity", async () => {

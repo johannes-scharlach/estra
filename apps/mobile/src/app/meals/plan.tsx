@@ -299,7 +299,7 @@ export default function PlanMeals() {
                           <View
                             className={cn(
                               "h-9 items-center justify-center rounded-sm",
-                              on ? "bg-secondary shadow-sm" : "bg-muted/45",
+                              on ? "bg-secondary" : "bg-muted/45",
                             )}
                           >
                             {on ? (
@@ -317,7 +317,7 @@ export default function PlanMeals() {
 
           <Text variant="large">What do you have in mind? (optional)</Text>
 
-          <View className="rounded-xl border border-border bg-card shadow-sm shadow-black/5">
+          <View className="rounded-xl border border-border bg-card">
             <TextInput
               multiline
               value={notes}
@@ -342,9 +342,13 @@ export default function PlanMeals() {
                 <ImageAttachmentMenu
                   onSelect={(source) => void addAttachments(source)}
                   disabled={pickingAttachments}
-                  label={pickingAttachments
-                    ? "Opening images..."
-                    : attachments.length ? "Add more images" : "Add images"}
+                  label={
+                    pickingAttachments
+                      ? "Opening images..."
+                      : attachments.length
+                        ? "Add more images"
+                        : "Add images"
+                  }
                 />
               </View>
               {attachmentError ? (

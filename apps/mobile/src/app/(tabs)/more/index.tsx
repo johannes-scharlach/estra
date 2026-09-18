@@ -12,12 +12,17 @@ export default function More() {
   const { session } = useAuth();
   const status = useStatus();
   const backgroundColor = useResolveClassNames("bg-background").backgroundColor;
+  const primaryColor = useResolveClassNames("bg-primary").backgroundColor;
   const lastSynced = status.hasSynced
     ? (status.lastSyncedAt?.toLocaleTimeString() ?? "Just now")
     : "Never";
 
   return (
-    <Host style={{ flex: 1, backgroundColor }} useViewportSizeMeasurement>
+    <Host
+      style={{ flex: 1, backgroundColor }}
+      seedColor={primaryColor}
+      useViewportSizeMeasurement
+    >
       <MoreList>
         <ListItem onPress={() => router.push("/profile" as never)}>
           Household Profile

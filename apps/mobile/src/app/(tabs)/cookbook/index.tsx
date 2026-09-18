@@ -13,8 +13,6 @@ import type { Variant } from "@/db/schema";
 import { tonalPair } from "@/features/variants/tonal";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 
-const PLUS_ICON = { ios: "plus", android: "add", web: "add" } as const;
-
 function VariantRow({
   variant,
   dark,
@@ -89,12 +87,17 @@ export default function Cookbook() {
         options={{
           headerRight: () => (
             <Pressable
-              onPress={() => router.push("/cookbook/import" as never)}
+              onPress={() => router.push("/cookbook/import")}
+              hitSlop={12}
               accessibilityLabel="Import recipe"
               accessibilityRole="button"
-              className="size-12 items-center justify-center"
+              className="p-2 items-center justify-center"
             >
-              <SymbolView name={PLUS_ICON} tintColor={iconColor} size={24} />
+              <SymbolView
+                name={{ ios: "plus", android: "add" }}
+                tintColor={iconColor}
+                size={22}
+              />
             </Pressable>
           ),
         }}

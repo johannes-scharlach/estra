@@ -11,7 +11,7 @@ export async function insertPerson(
   now: string,
 ): Promise<void> {
   await tx.execute(
-    "INSERT INTO household_people (id, list_id, user_id, name, age_group, diet, diet_other, restrictions, meal_times, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    "INSERT INTO household_people (id, list_id, user_id, name, age_group, diet, diet_other, meal_times, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
     [
       person.id,
       listId,
@@ -20,7 +20,6 @@ export async function insertPerson(
       person.age_group,
       person.diet,
       person.diet_other,
-      person.restrictions,
       person.meal_times,
       now,
       now,

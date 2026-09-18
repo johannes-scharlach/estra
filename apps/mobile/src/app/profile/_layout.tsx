@@ -10,9 +10,15 @@ export default function ProfileLayout() {
         headerBackButtonDisplayMode: "minimal",
       }}
     >
-      <Stack.Screen name="index" options={{ title: "Household Profile" }} />
-      <Stack.Screen name="[section]" />
-      <Stack.Screen name="person" options={{ title: "Household person" }} />
+      <Stack.Screen
+        name="index"
+        options={{ title: "Household Profile", presentation: "formSheet" }}
+      />
+      <Stack.Screen name="[section]" options={{ presentation: "formSheet" }} />
+      <Stack.Screen
+        name="person"
+        options={{ title: "Household person", presentation: "formSheet" }}
+      />
     </Stack>
   );
 }

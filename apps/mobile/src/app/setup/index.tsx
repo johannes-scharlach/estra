@@ -1,25 +1,22 @@
 import { householdSchema } from "@estra/profile";
 import * as Crypto from "expo-crypto";
-import { useNavigation, useRouter } from "expo-router";
-import type { NavigationProp } from "expo-router/react-navigation";
+import { Image } from "expo-image";
+import { useRouter } from "expo-router";
 import { useState } from "react";
-import { View } from "react-native";
-import { Button } from "@/components/ui/button";
+import { Pressable, View } from "react-native";
 import { Text } from "@/components/ui/text";
 import { useAuth } from "@/db/provider";
 import { useHouseholdAccess } from "@/features/onboarding/access";
+import { onboardingArt } from "@/features/onboarding/art";
 import { CompleteSetup } from "@/features/onboarding/complete";
-import { createDraft, steps, type Step } from "@/features/onboarding/draft";
+import { createDraft } from "@/features/onboarding/draft";
+import { OnboardingScreen } from "@/features/onboarding/onboarding-screen";
 import { useOnboarding } from "@/features/onboarding/provider";
-import { FormError, FormScreen } from "@/features/profile/form";
+import { FormError } from "@/features/profile/form";
 import { supabase } from "@/lib/supabase";
 
 export default function Welcome() {
   const router = useRouter();
-  const navigation =
-    useNavigation<
-      NavigationProp<{ index: undefined; "[step]": { step: Step } }>
-    >();
   const { session, ready: authReady } = useAuth();
   const access = useHouseholdAccess();
   const { draft, ready, error, update, retry } = useOnboarding();
@@ -37,115 +34,133 @@ export default function Welcome() {
     ["email", "code"].includes(draft.step) &&
     householdSchema.safeParse({ profile: draft.profile, people: draft.people })
       .success;
+
   async function start() {
     setBusy(true);
     try {
-      const saved = await update((d) =>
-        mismatch ? createDraft(Crypto.randomUUID(), Crypto.randomUUID()) : d,
-      );
-      const resumeStep =
-        session && ["email", "code"].includes(saved.step)
-          ? "fresh"
-          : saved.step;
-      if (resumeStep === "name") router.push("/setup/name" as never);
-      else {
-        // Restore navigation history as well as answers: native Back/swipe
-        // must reach earlier questions after a process restart.
-        const previousSteps = steps.slice(0, steps.indexOf(resumeStep) + 1);
-        navigation.reset({
-          index: previousSteps.length,
-          routes: [
-            { name: "index" },
-            ...previousSteps.map((step) => ({
-              name: "[step]" as const,
-              params: { step },
-            })),
-          ],
-        });
-      }
+      await update((draft) => {
+        const next = mismatch
+          ? createDraft(Crypto.randomUUID(), Crypto.randomUUID())
+          : draft;
+        // A session bypasses the email gate. Persist the resumed step before
+        // changing routes so an interruption cannot later finalize early.
+        return session && ["email", "code"].includes(next.step)
+          ? { ...next, step: "fresh" }
+          : next;
+      });
+      router.push("/setup/questions" as never);
     } catch {
       /* storage error is shown below */
     } finally {
       setBusy(false);
     }
   }
+
+  if (!ready || !authReady) {
+    return (
+      <OnboardingScreen title="Opening your setup…">
+        <FormError message={error ?? access.error} />
+        <Text className="text-muted-foreground">Just a moment.</Text>
+        {error || access.error ? (
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => {
+              if (error) retry();
+              if (access.error) access.retry();
+            }}
+          >
+            <Text className="font-medium text-primary">Try again</Text>
+          </Pressable>
+        ) : null}
+      </OnboardingScreen>
+    );
+  }
+
+  if (session && (!access.ready || access.error)) {
+    return (
+      <OnboardingScreen title="Loading your household…">
+        <FormError message={access.error} />
+        <Pressable accessibilityRole="button" onPress={access.retry}>
+          <Text className="font-medium text-primary">Retry</Text>
+        </Pressable>
+      </OnboardingScreen>
+    );
+  }
+
+  if (canFinish) return <CompleteSetup />;
+
   return (
-    <FormScreen>
-      <View className="gap-4 pt-16 pb-8">
-        <Text className="text-4xl font-bold">Estra</Text>
-        <Text className="text-2xl font-semibold">
-          Cooking that fits your household.
+    <OnboardingScreen
+      action={{
+        label: busy
+          ? "Opening…"
+          : session
+            ? "Set up your household"
+            : "Get started",
+        disabled: busy,
+        onPress: () => void start(),
+      }}
+    >
+      <View className="gap-5 pb-3">
+        <Text className="text-[25px] font-semibold tracking-tight text-primary">
+          estra
         </Text>
-        <Text className="text-muted-foreground">
-          Tell us about your people, your kitchen, and the food you enjoy. We’ll
-          take it from there.
+        <View
+          className="overflow-hidden rounded-2xl border border-border"
+          style={{ borderCurve: "continuous" }}
+        >
+          <Image
+            source={onboardingArt.welcome.source}
+            accessibilityLabel={onboardingArt.welcome.accessibilityLabel}
+            contentFit="cover"
+            style={{
+              width: "100%",
+              aspectRatio: onboardingArt.welcome.aspectRatio,
+            }}
+          />
+        </View>
+        <Text
+          accessibilityRole="header"
+          className="text-[40px] font-bold leading-[44px] tracking-tight"
+        >
+          Make yourself{"\n"}at home.
+        </Text>
+        <Text className="text-[17px] leading-6 text-muted-foreground">
+          Plan your meals. Shop one List. Cook something good.
+        </Text>
+        <Text className="text-sm text-muted-foreground">
+          You can change your answers later.
         </Text>
       </View>
       <FormError message={error ?? access.error} />
-      {!ready || !authReady ? (
-        <>
-          <Text>Opening your setup…</Text>
-          {(error || access.error) && (
-            <Button
-              onPress={() => {
-                if (error) retry();
-                if (access.error) access.retry();
-              }}
-            >
-              <Text>Try again</Text>
-            </Button>
-          )}
-        </>
-      ) : session && (!access.ready || access.error) ? (
-        <>
-          <Text>Loading your household…</Text>
-          <Button onPress={access.retry}>
-            <Text>Retry</Text>
-          </Button>
-        </>
-      ) : canFinish ? (
-        <CompleteSetup />
+      {mismatch ? (
+        <Text className="text-muted-foreground">
+          This saved setup belongs to another account or household. Sign in to
+          resume it, or start a new setup.
+        </Text>
+      ) : null}
+      {draft && !mismatch ? (
+        <Text className="text-muted-foreground">
+          Your saved answers are ready to continue.
+        </Text>
+      ) : null}
+      {!session ? (
+        <Pressable
+          accessibilityRole="button"
+          className="self-start"
+          onPress={() => router.push("/setup/sign-in" as never)}
+        >
+          <Text className="font-medium text-primary">Sign in</Text>
+        </Pressable>
       ) : (
-        <>
-          {mismatch && (
-            <Text>
-              This saved setup belongs to another account or household. Sign in
-              to resume it, or start a new setup.
-            </Text>
-          )}
-          <Button
-            className="min-h-14"
-            disabled={busy}
-            onPress={() => void start()}
-          >
-            <Text>
-              {busy
-                ? "Opening…"
-                : session
-                  ? "Set up your household"
-                  : "Get started"}
-            </Text>
-          </Button>
-          {draft && !mismatch && (
-            <Text className="text-muted-foreground">
-              Your saved answers are ready to continue.
-            </Text>
-          )}
-          {!session && (
-            <Button
-              variant="ghost"
-              onPress={() => router.push("/setup/sign-in" as never)}
-            >
-              <Text>Sign in</Text>
-            </Button>
-          )}
-        </>
+        <Pressable
+          accessibilityRole="button"
+          className="self-start"
+          onPress={() => void supabase.auth.signOut()}
+        >
+          <Text className="font-medium text-primary">Sign out</Text>
+        </Pressable>
       )}
-      {session && (
-        <Button variant="ghost" onPress={() => void supabase.auth.signOut()}>
-          <Text>Sign out</Text>
-        </Button>
-      )}
-    </FormScreen>
+    </OnboardingScreen>
   );
 }

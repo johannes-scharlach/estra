@@ -247,11 +247,11 @@ otp_expiry = 3600
 
 [auth.email.template.confirmation]
 subject = "Your Estra verification code"
-content_path = "./templates/email-code.html"
+content_path = "./supabase/templates/email-code.html"
 
 [auth.email.template.magic_link]
 subject = "Your Estra sign-in code"
-content_path = "./templates/email-code.html"
+content_path = "./supabase/templates/email-code.html"
 
 # Uncomment to customize email template
 # [auth.email.template.invite]

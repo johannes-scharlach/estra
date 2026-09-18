@@ -29,13 +29,14 @@ export default function RootLayout() {
   const baseTheme = colorScheme === "dark" ? DarkTheme : DefaultTheme;
   const background = useResolveClassNames("bg-background").backgroundColor;
   const foreground = useResolveClassNames("text-foreground").color;
+  const primary = useResolveClassNames("bg-primary").backgroundColor;
   const border = useResolveClassNames("border-border").borderColor;
   const notification = useResolveClassNames("text-destructive").color;
   const theme = {
     ...baseTheme,
     colors: {
       ...baseTheme.colors,
-      primary: foreground ?? baseTheme.colors.primary,
+      primary: primary ?? baseTheme.colors.primary,
       background: background ?? baseTheme.colors.background,
       card: background ?? baseTheme.colors.card,
       text: foreground ?? baseTheme.colors.text,
@@ -58,7 +59,10 @@ export default function RootLayout() {
                   />
                   <Stack.Screen
                     name="profile"
-                    options={{ headerShown: false }}
+                    options={{
+                      headerShown: false,
+                      headerBackButtonDisplayMode: "minimal",
+                    }}
                   />
                   {/* No variant/_layout.tsx by design: [id] must sit above (tabs)
                 in this same stack to get the system back button + swipe-back.

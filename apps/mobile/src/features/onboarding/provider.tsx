@@ -22,6 +22,9 @@ type DraftState = {
     change: (draft: OnboardingDraft) => OnboardingDraft,
   ) => Promise<void>;
   clear: () => Promise<void>;
+  isPreparing: boolean;
+  beginPreparation: () => void;
+  endPreparation: () => void;
   retry: () => void;
 };
 const Context = createContext<DraftState | null>(null);
@@ -36,6 +39,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
+  const [isPreparing, setIsPreparing] = useState(false);
   useEffect(() => {
     let active = true;
     loadDraft()
@@ -93,6 +97,8 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
     },
     [],
   );
+  const beginPreparation = useCallback(() => setIsPreparing(true), []);
+  const endPreparation = useCallback(() => setIsPreparing(false), []);
   return (
     <Context.Provider
       value={{
@@ -102,6 +108,9 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
         update,
         commit,
         clear,
+        isPreparing,
+        beginPreparation,
+        endPreparation,
         retry: () => setAttempt((n) => n + 1),
       }}
     >

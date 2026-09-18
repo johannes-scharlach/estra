@@ -72,13 +72,12 @@ export async function savePerson(
     );
     if (existing) {
       await tx.execute(
-        "UPDATE household_people SET name = ?, age_group = ?, diet = ?, diet_other = ?, restrictions = ?, meal_times = ?, updated_at = ? WHERE id = ? AND list_id = ?",
+        "UPDATE household_people SET name = ?, age_group = ?, diet = ?, diet_other = ?, meal_times = ?, updated_at = ? WHERE id = ? AND list_id = ?",
         [
           p.name,
           p.age_group,
           p.diet,
           p.diet_other,
-          p.restrictions,
           p.meal_times,
           now,
           p.id,

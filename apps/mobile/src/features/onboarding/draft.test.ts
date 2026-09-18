@@ -10,6 +10,7 @@ describe("onboarding draft recovery", () => {
     draft.people[0]!.name = "Sam";
     draft.profile.meals_at_home =
       "Weekday dinners, weekend lunches and dinners";
+    draft.profile.restrictions = "Peanut allergy";
     const restored = restoreDraft(
       JSON.stringify({ ...draft, step: "removed-screen", code: "123456" }),
     );
@@ -19,6 +20,7 @@ describe("onboarding draft recovery", () => {
     expect(restored?.profile.meals_at_home).toBe(
       "Weekday dinners, weekend lunches and dinners",
     );
+    expect(restored?.profile.restrictions).toBe("Peanut allergy");
     expect(restored).not.toHaveProperty("code");
   });
   it("never rebinds interrupted setup to another account or household", () => {

@@ -91,7 +91,8 @@ export const profileSchema = z.object({
   kitchen_equipment: selectionSchema(equipmentOptions),
   pantry: selectionSchema(pantryOptions),
   fresh_ingredients: selectionSchema(freshOptions),
-  meals_at_home: z.string().default("Dinners."),
+  restrictions: z.string(),
+  meals_at_home: z.string().default("Dinner"),
   main_supermarket: z.string(),
   other_shops: z.string(),
 });
@@ -109,7 +110,6 @@ export const personSchema = z
       ],
     ),
     diet_other: z.string(),
-    restrictions: z.string(),
     meal_times: z.string(),
   })
   .refine((p) => p.diet !== "other" || p.diet_other.trim().length > 0, {
@@ -131,7 +131,6 @@ export function newPerson(id: string): HouseholdPerson {
     age_group: "Adult",
     diet: "flexitarian",
     diet_other: "",
-    restrictions: "",
     meal_times: "Always",
   };
 }
@@ -147,7 +146,8 @@ export function newProfile(): CookingProfile {
     kitchen_equipment: selected(equipmentOptions, ["oven", "stove"]),
     pantry: selected(pantryOptions),
     fresh_ingredients: selected(freshOptions),
-    meals_at_home: "Dinners.",
+    restrictions: "",
+    meals_at_home: "Dinner",
     main_supermarket: "",
     other_shops: "",
   };
@@ -181,6 +181,7 @@ export function profileContext(household: Household, userId: string): string {
         diet_meaning:
           p.diet === "other" ? p.diet_other : dietDescriptions[p.diet],
       })),
+      household_restrictions: profile.restrictions,
       goals: selectionLabels("goals", profile.goals),
       meals_at_home: profile.meals_at_home,
       equipment: selectionLabels(

@@ -1,4 +1,3 @@
-import { Host, Picker, Switch } from "@expo/ui";
 import {
   ageGroups,
   categoryExamples,
@@ -9,11 +8,20 @@ import {
   type Selection,
   type SelectionField,
 } from "@estra/profile";
-import { useState, type ReactNode } from "react";
-import { ScrollView, View, type TextInputProps } from "react-native";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  Platform,
+  Pressable,
+  ScrollView,
+  View,
+  type TextInput,
+  type TextInputProps,
+} from "react-native";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
-import { Button } from "@/components/ui/button";
+import { AddRow } from "@/components/add-row";
+import { ChoiceList } from "@/components/choice-list";
 import { Input } from "@/components/ui/input";
+import { MenuPicker } from "@/components/ui/menu-picker";
 import { Text } from "@/components/ui/text";
 
 export function FormScreen({ children }: { children: ReactNode }) {
@@ -29,13 +37,22 @@ export function FormScreen({ children }: { children: ReactNode }) {
     </KeyboardAvoidingView>
   );
 }
-export function Field({ label, ...props }: TextInputProps & { label: string }) {
+export function Field({
+  label,
+  multiline,
+  style,
+  ref,
+  ...props
+}: TextInputProps & { label: string } & React.RefAttributes<TextInput>) {
   return (
     <View className="gap-2">
       <Text className="font-medium">{label}</Text>
       <Input
+        ref={ref}
         accessibilityLabel={label}
-        className={props.multiline ? "min-h-24 py-3" : "min-h-12"}
+        className={multiline ? "min-h-28 px-4 py-4" : "min-h-14 px-4"}
+        multiline={multiline}
+        style={[multiline ? { textAlignVertical: "top" } : undefined, style]}
         {...props}
       />
     </View>
@@ -63,100 +80,252 @@ export function SelectionEditor({
   onChange: (value: Selection) => void;
 }) {
   const [custom, setCustom] = useState("");
+  const [addingCustom, setAddingCustom] = useState(false);
   function add() {
     if (!custom.trim()) return;
     onChange({ ...value, other: [...value.other, custom.trim()] });
     setCustom("");
+    setAddingCustom(false);
   }
   return (
-    <View className="gap-4">
-      {Object.entries(selectionOptions[field]).map(([key, label]) => (
-        <View key={key} className="gap-1">
-          <Host matchContents>
-            <Switch
-              label={label}
-              value={value[key] === true}
-              onValueChange={(checked) =>
-                onChange({ ...value, [key]: checked })
-              }
-            />
-          </Host>
-          {categoryExamples[key] && (
-            <Text className="text-sm text-muted-foreground">
-              {categoryExamples[key]}
-            </Text>
-          )}
-        </View>
-      ))}
-      {value.other.map((text, i) => (
-        <View key={`${i}:${text}`} className="flex-row items-center gap-2">
-          <Text selectable className="flex-1">
-            {text}
-          </Text>
-          <Button
-            variant="ghost"
-            accessibilityLabel={`Remove ${text}`}
-            onPress={() =>
-              onChange({
-                ...value,
-                other: value.other.filter((_, index) => i !== index),
-              })
+    <View className="gap-3">
+      <ChoiceList
+        choices={Object.entries(selectionOptions[field]).map(
+          ([key, title]) => ({
+            key,
+            title,
+            detail: categoryExamples[key],
+          }),
+        )}
+        selectedKeys={Object.keys(selectionOptions[field]).filter(
+          (key) => value[key] === true,
+        )}
+        onSelect={(key) => onChange({ ...value, [key]: value[key] !== true })}
+      >
+        {value.other.map((text, index) => (
+          <View
+            key={`${index}:${text}`}
+            className={
+              index
+                ? "min-h-14 flex-row items-center gap-4 border-t border-border px-4 py-3"
+                : "min-h-14 flex-row items-center gap-4 px-4 py-3"
             }
           >
-            <Text>Remove</Text>
-          </Button>
-        </View>
-      ))}
-      <Field
-        label="Add your own"
-        value={custom}
-        onChangeText={setCustom}
-        onSubmitEditing={add}
-        returnKeyType="done"
+            <Text selectable className="flex-1 font-medium">
+              {text}
+            </Text>
+            <Pressable
+              accessibilityLabel={`Remove ${text}`}
+              accessibilityRole="button"
+              className="min-h-11 justify-center"
+              onPress={() =>
+                onChange({
+                  ...value,
+                  other: value.other.filter(
+                    (_, itemIndex) => itemIndex !== index,
+                  ),
+                })
+              }
+            >
+              <Text className="font-medium text-primary">Remove</Text>
+            </Pressable>
+          </View>
+        ))}
+        {addingCustom ? (
+          <View
+            className={
+              value.other.length
+                ? "gap-3 border-t border-border p-4"
+                : "gap-3 p-4"
+            }
+          >
+            <Input
+              autoFocus
+              accessibilityLabel="Add your own"
+              className="min-h-12 px-3"
+              value={custom}
+              onChangeText={setCustom}
+              onSubmitEditing={add}
+              placeholder="Add your own"
+              returnKeyType="done"
+            />
+            <View className="flex-row items-center justify-end gap-5">
+              <Pressable
+                accessibilityRole="button"
+                className="min-h-11 justify-center"
+                onPress={() => {
+                  setAddingCustom(false);
+                  setCustom("");
+                }}
+              >
+                <Text className="font-medium text-primary">Cancel</Text>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                className="min-h-11 justify-center"
+                disabled={!custom.trim()}
+                onPress={add}
+              >
+                <Text
+                  className={
+                    custom.trim()
+                      ? "font-medium text-primary"
+                      : "font-medium text-primary opacity-40"
+                  }
+                >
+                  Add
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        ) : (
+          <AddRow
+            label={value.other.length ? "Add another" : "Add your own"}
+            bordered={!!value.other.length}
+            onPress={() => setAddingCustom(true)}
+          />
+        )}
+      </ChoiceList>
+    </View>
+  );
+}
+/** Label + compact select in one row; boxed on iOS, flat on Android — see
+ * MealRoutineEditor's original card-in-a-card writeup for why. */
+function PickerRow({
+  label,
+  choices,
+  selectedValue,
+  onValueChange,
+}: {
+  label: string;
+  choices: readonly string[];
+  selectedValue: string;
+  onValueChange: (value: string) => void;
+}) {
+  const row = (
+    <View className="min-h-16 flex-row items-center justify-between gap-4 px-4 py-3">
+      <Text className="flex-1 font-medium">{label}</Text>
+      <MenuPicker
+        label={label}
+        choices={choices}
+        selectedValue={selectedValue}
+        onValueChange={onValueChange}
       />
-      <Button variant="outline" onPress={add} disabled={!custom.trim()}>
-        <Text>Add</Text>
-      </Button>
+    </View>
+  );
+  if (Platform.OS === "android") return row;
+  return (
+    <View
+      className="overflow-hidden rounded-xl border border-border bg-card"
+      style={{ borderCurve: "continuous" }}
+    >
+      {row}
+    </View>
+  );
+}
+const mealRoutineChoices = [
+  "Dinner",
+  "Lunch and dinner",
+  "All meals",
+  "It varies",
+] as const;
+
+function isMealRoutine(
+  value: string,
+): value is (typeof mealRoutineChoices)[number] {
+  return mealRoutineChoices.includes(
+    value as (typeof mealRoutineChoices)[number],
+  );
+}
+
+export function MealRoutineEditor({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const isVarying = value === "It varies" || !isMealRoutine(value);
+  const selectedValue = isVarying ? "It varies" : value;
+  const detail = value === "It varies" ? "" : value;
+  const routineRef = useRef<TextInput>(null);
+  const wasVarying = useRef(isVarying);
+  useEffect(() => {
+    if (isVarying && !wasVarying.current) routineRef.current?.focus();
+    wasVarying.current = isVarying;
+  }, [isVarying]);
+  return (
+    <View className="gap-3">
+      <PickerRow
+        label="Meals at home"
+        choices={mealRoutineChoices}
+        selectedValue={selectedValue}
+        onValueChange={onChange}
+      />
+      {isVarying ? (
+        <Field
+          ref={routineRef}
+          label="Tell us about your routine"
+          multiline
+          value={detail}
+          onChangeText={(next) => onChange(next || "It varies")}
+          placeholder="Weekday dinners, lunches and dinners on weekends"
+        />
+      ) : null}
     </View>
   );
 }
 export function DietEditor({
   person,
   onChange,
-  advance,
   allowOtherDiet = false,
+  compact = false,
 }: {
   person: HouseholdPerson;
   onChange: (p: HouseholdPerson) => void;
-  advance?: (p: HouseholdPerson) => void;
   allowOtherDiet?: boolean;
+  compact?: boolean;
 }) {
+  const entries = Object.entries(dietOptions).filter(
+    ([key]) => allowOtherDiet || key !== "other",
+  );
   return (
     <View className="gap-3">
-      {Object.entries(dietOptions)
-        .filter(([key]) => allowOtherDiet || key !== "other")
-        .map(([key, label]) => (
-          <Button
-            key={key}
-            variant={person.diet === key ? "default" : "outline"}
-            className="h-auto min-h-14 flex-col items-start py-3"
-            accessibilityState={{ selected: person.diet === key }}
-            onPress={() => {
-              const next = {
-                ...person,
-                diet: key as HouseholdPerson["diet"],
-                diet_other: key === "other" ? person.diet_other : "",
-              };
-              if (advance && key !== "other") advance(next);
-              else onChange(next);
-            }}
-          >
-            <Text className="w-full font-semibold">{label}</Text>
-            <Text className="w-full text-sm">
-              {dietDescriptions[key as keyof typeof dietOptions]}
-            </Text>
-          </Button>
-        ))}
+      {compact ? (
+        <PickerRow
+          label="Diet"
+          choices={entries.map(([, title]) => title)}
+          selectedValue={dietOptions[person.diet]}
+          onValueChange={(title) => {
+            const key = entries.find(([, t]) => t === title)?.[0] as
+              | HouseholdPerson["diet"]
+              | undefined;
+            if (!key) return;
+            onChange({
+              ...person,
+              diet: key,
+              diet_other: key === "other" ? person.diet_other : "",
+            });
+          }}
+        />
+      ) : (
+        <ChoiceList
+          choices={entries.map(([key, title]) => ({
+            key,
+            title,
+            detail: dietDescriptions[key as keyof typeof dietOptions],
+          }))}
+          selectedKeys={[person.diet]}
+          selection="single"
+          onSelect={(key) =>
+            onChange({
+              ...person,
+              diet: key as HouseholdPerson["diet"],
+              diet_other: key === "other" ? person.diet_other : "",
+            })
+          }
+        />
+      )}
       {person.diet === "other" && (
         <Field
           label="Describe your diet"
@@ -171,51 +340,18 @@ export function DietEditor({
 export function RestrictionsEditor({
   value,
   onChange,
-  none,
 }: {
   value: string;
   onChange: (value: string) => void;
-  none?: () => void;
 }) {
-  const shortcuts = ["Gluten-free", "Dairy-free", "Nut allergy", "Low carb"];
-  // Only whole lines are shortcuts. Never remove matching words from a note.
-  function toggle(text: string) {
-    const lines = value.split("\n");
-    onChange(
-      lines.includes(text)
-        ? lines.filter((line) => line !== text).join("\n")
-        : [...(value ? lines : []), text].join("\n"),
-    );
-  }
   return (
-    <View className="gap-4">
-      <Field
-        label="Allergies, restrictions, and dislikes"
-        multiline
-        value={value}
-        onChangeText={onChange}
-      />
-      <View className="flex-row flex-wrap gap-2">
-        {shortcuts.map((text) => (
-          <Button
-            key={text}
-            variant={value.split("\n").includes(text) ? "default" : "outline"}
-            onPress={() => toggle(text)}
-          >
-            <Text>{text}</Text>
-          </Button>
-        ))}
-      </View>
-      <Button
-        variant="ghost"
-        onPress={() => {
-          onChange("");
-          none?.();
-        }}
-      >
-        <Text>None</Text>
-      </Button>
-    </View>
+    <Field
+      label="Allergies & ingredients"
+      multiline
+      value={value}
+      onChangeText={onChange}
+      placeholder="Anything we should avoid"
+    />
   );
 }
 export function PersonFields({
@@ -233,31 +369,27 @@ export function PersonFields({
         onChangeText={(name) => onChange({ ...person, name })}
         autoCapitalize="words"
       />
-      <Text className="font-medium">Age group</Text>
-      <Host matchContents>
-        <Picker
-          selectedValue={person.age_group}
-          onValueChange={(age_group) => onChange({ ...person, age_group })}
-        >
-          {ageGroups.map((age) => (
-            <Picker.Item key={age} value={age} label={age} />
-          ))}
-        </Picker>
-      </Host>
+      <PickerRow
+        label="Age group"
+        choices={ageGroups}
+        selectedValue={person.age_group}
+        onValueChange={(age_group) =>
+          onChange({
+            ...person,
+            age_group: age_group as HouseholdPerson["age_group"],
+          })
+        }
+      />
       <DietEditor
         person={person}
         onChange={onChange}
         allowOtherDiet={!!person.user_id || person.diet === "other"}
-      />
-      <RestrictionsEditor
-        value={person.restrictions}
-        onChange={(restrictions) => onChange({ ...person, restrictions })}
+        compact
       />
       <Field
         label="Which meals are they usually here for?"
         value={person.meal_times}
         onChangeText={(meal_times) => onChange({ ...person, meal_times })}
-        multiline
       />
     </>
   );

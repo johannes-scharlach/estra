@@ -1,4 +1,5 @@
 import { Stack } from "expo-router";
+import { Platform } from "react-native";
 import { useReducedMotion } from "react-native-reanimated";
 
 export default function SetupLayout() {
@@ -14,9 +15,28 @@ export default function SetupLayout() {
         name="index"
         options={{ title: "Welcome", headerShown: false }}
       />
-      <Stack.Screen name="[step]" />
-      <Stack.Screen name="person" options={{ title: "Household person" }} />
-      <Stack.Screen name="sign-in" options={{ title: "Sign in" }} />
+      <Stack.Screen
+        name="questions"
+        options={{
+          headerShown: false,
+          gestureEnabled: false,
+          animation: "fade",
+        }}
+      />
+      <Stack.Screen
+        name="person"
+        options={
+          Platform.OS === "ios"
+            ? {
+                headerShown: false,
+                presentation: "formSheet",
+                sheetAllowedDetents: "fitToContents",
+                sheetGrabberVisible: true,
+              }
+            : { headerShown: false }
+        }
+      />
+      <Stack.Screen name="sign-in" options={{ headerShown: false }} />
     </Stack>
   );
 }

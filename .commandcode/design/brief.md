@@ -7,9 +7,9 @@ shop aisle and at the stove. No marketing surfaces exist or are planned.
 
 ## Platform
 
-Expo (React Native) via expo-router. iOS first-class, Android and
-react-native-web supported. Portrait only. `userInterfaceStyle: "automatic"`
-— light and dark are both first-class, every screen works in both.
+Expo (React Native) via expo-router. iOS first-class, Android supported.
+`userInterfaceStyle: "automatic"` — light and dark are both first-class,
+every screen works in both.
 
 ## Users and context
 
@@ -40,8 +40,8 @@ Cooking — confident, appetizing, uncluttered. Not wellness-app calm
 (Headspace), not grandma kitsch. The app is heavily AI-driven; neutrality
 is what lets the AI read as capable rather than gimmicky.
 
-Copy rules: terse, sentence case, one verb per button ("Import & plan",
-"Skip this meal"). Empty states say what belongs here and how to fill it.
+Copy rules: terse, sentence case, good button text. Empty states say what
+belongs here and how to fill it.
 The terse-communication rule in root `AGENTS.md` is for the dev workflow,
 not product copy — but the instincts rhyme.
 
@@ -56,6 +56,37 @@ Refuse on sight:
 - Dev-tool brutalism (terminal mono everywhere, harsh borders, raw edges)
 
 ## Composition lanes
+
+### iOS: controls and content
+
+Every screen separates two layers by their role:
+
+- **UI layer:** navigation and persistent actions, including actions on
+  content. Tab bars, top toolbars, Back, and persistent screen actions sit
+  above the content and remain accessible as it scrolls.
+- **Content layer:** what people came to see and work with — shopping
+  items, meals, recipes, imagery, and cooking instructions. This is the
+  primary scrolling area and the canvas for brand identity. Item-specific
+  actions can sit alongside their content and scroll away with it.
+
+Use one vertical scrolling content area per screen. Do not put independently
+vertically scrolling regions inside it. Horizontal collections, carousels,
+and swipe paging within vertically scrolling content are allowed. Preserve
+the established paged cook-mode flow.
+
+Liquid Glass belongs to floating controls in the UI layer. Decorative use
+on content surfaces requires explicit user approval. Express identity through
+content layout, color, imagery, video where useful, and a few meaningful
+words. Use system fonts and SF Symbols for new iOS design; custom fonts or
+icons require explicit user approval.
+
+Work within the approved visual direction and screen patterns. Introducing
+a new visual convention requires user approval. Ordinary screens, settings,
+loading states, empty states, and errors share the same typography, spacing,
+color meanings, and voice. These rules are iOS-focused; do not assume iOS
+controls or appearance should be copied to Android.
+
+### Screen patterns
 
 Each screen has one dominant work pattern:
 
@@ -73,29 +104,56 @@ content is genuinely card-shaped; the app idiom is the grouped list
 (iOS-style rounded-2xl sections with hairline separators), not the card
 grid.
 
-## Visual foundation (as built)
+## Component choice and approval
+
+Use this order; do not skip a tier for aesthetic preference:
+
+1. Follow the [expo-native-ui skill](../../.agents/skills/expo-native-ui/SKILL.md)
+   wherever possible. As it directs, check the
+   [expo-ui skill](../../.agents/skills/expo-ui/SKILL.md) for native components
+   and use the [expo-router skill](../../.agents/skills/expo-router/SKILL.md)
+   for navigation.
+2. When the native approach cannot meet the need, use React Native Reusables
+   as the default fallback. State the concrete limitation that requires it.
+   An available native control must not be replaced just to restyle it.
+3. If neither can meet the need, propose a custom component. Explain both
+   limitations and the proposed behavior; obtain explicit user approval
+   before implementing it. The user judges whether the reason is sufficient.
+
+Existing choices are presumed user-approved and should generally be kept.
+Implementation history does not override these rules for new work. When in
+doubt — especially when reworking an area with an existing implementation
+that conflicts with this guidance — ask the user whether to retain it or
+replace it with platform defaults. Do not silently migrate it or treat it
+as permission to repeat the exception elsewhere. Approval already given in
+the current work need not be requested again.
+
+## Implementation reference (as built)
+
+These notes describe existing choices, not requirements that override the
+component order or design rules above.
 
 - **Styling:** uniwind (Tailwind CSS v4 for RN — not NativeWind) +
   react-native-reusables (shadcn/ui, new-york style, neutral base),
-  vendored in `apps/mobile/src/components/ui/`. New UI uses rnr
-  components + Tailwind classes, never `StyleSheet`. `src/components/
-  themed-*.tsx` is legacy, do not extend.
+  vendored in `apps/mobile/src/components/ui/`. Keep this styling approach
+  for the RNR fallback and existing content; it does not constrain native
+  components, which follow the relevant Expo skill's styling API.
 - **Tokens:** `apps/mobile/src/global.css`, `@layer theme`, oklch values,
   light + dark via `@variant`. This is the one place to restyle. After
   editing, regenerate `src/uniwind-types.d.ts` (command in
   `apps/mobile/AGENTS.md`).
-- **Color:** tinted-whisper system (saffron accent, warm-tinted neutrals,
-  both schemes) — see Color direction. Only other saturated colors:
-  `--color-destructive` and the per-recipe tonal gradients.
+- **Color:** current palette is defined in `apps/mobile/src/global.css`;
+  read it before making color choices. See Color direction.
 - **Radius:** 10px base (`--radius`), sm/md/lg/xl derived.
 - **Type:** `--font-display` = Spline Sans → Inter → system. Rounded
   stack (SF Pro Rounded) and mono/serif stacks defined. Text variants via
   cva in `src/components/ui/text.tsx` (h1–h4, lead, large, small, muted…).
   Screen titles: `text-4xl font-bold tracking-tight` collapsing to a
   small nav title on scroll.
-- **Icons:** `expo-symbols` (`SymbolView`) with ios/android/web name
-  maps — SF Symbols on iOS, Material Symbols on Android. lucide only when
-  no native symbol fits.
+- **Icons:** existing `expo-symbols` (`SymbolView`) with ios/android name
+  maps — SF Symbols on iOS, Material Symbols on Android — and a Lucide
+  fallback. This records the existing implementation, not an exception
+  allowing new non-system icons without approval.
 - **Tonal identity:** `tonalPair(id, dark)` in
   `src/features/variants/tonal.ts` — deterministic hue per recipe, quiet
   analogous two-stop gradient (pastel wash in light, deep muted in dark).
@@ -108,22 +166,26 @@ grid.
 
 ## Color direction
 
-Tinted whisper, applied. Brand hue is **saffron (oklch H 80)** — appetizing
-and editorial (the KptnCook/NYT Cooking lane), 50°+ clear of destructive
-red (H 27), and warm-tinted neutrals (H 75–85, chroma ≤ 0.015) harmonize
-with any per-recipe tonal gradient hue. The accent is expressed through
-`primary` (saffron fill, dark warm text — never white text on saffron) and
-`ring` (focus). Per-recipe tonal gradients remain the only strong color
-moments — the accent must never fight them. Destructive stays the existing
-oklch red. All foreground/background pairs verified ≥ WCAG AA (script
-checks run on every token change).
+`apps/mobile/src/global.css` is the source of truth for the current palette,
+including light and dark semantic tokens and chart colors. Do not maintain
+a competing palette specification here. Recipe tonal gradients are defined
+separately in `src/features/variants/tonal.ts`.
+
+Use color intentionally for hierarchy, actions, selection, and status. Put
+large brand-color surfaces in scrolling content rather than solid navigation
+bars. Preserve native semantic styling for platform controls according to
+the Expo skills; do not force CSS tokens onto every native surface. Palette
+changes require user approval. Verify foreground/background contrast when
+changing tokens or their use; do not assume every pairing is accessible.
 
 ## Motion
 
-Subtle and physical. `tw-animate-css` is available. Entrances are short
-and decelerated; exits faster than entrances. Haptics mark meaningful
-state changes (cook-mode page turn). Nothing bounces. Respect reduced
-motion.
+Subtle and physical. Follow the
+[expo-animation skill](../../.agents/skills/expo-animation/SKILL.md) for
+motion decisions and implementation. Motion serves feedback, continuity,
+or attention. Haptics mark meaningful state changes (cook-mode page turn).
+Nothing bounces. Respect reduced motion. New gesture or interaction patterns
+require user approval; familiar horizontal swiping and paging are allowed.
 
 ## Accessibility expectations
 
@@ -132,7 +194,8 @@ motion.
 - Cook mode must be readable at arm's length in a bright kitchen — large
   type, strong contrast on the tonal gradient in both schemes.
 - Never color alone for state (checked vs unchecked needs shape/icon too).
-- Survive 200% text zoom; no fixed-height text containers.
+- Support iOS Dynamic Type, including accessibility sizes; allow wrapping
+  and layout adaptation, with no fixed-height text containers.
 - Light-on-dark and dark-on-pastel tonal surfaces need verified contrast
   per generated hue, not just the neutral palette.
 
@@ -142,10 +205,9 @@ motion.
    Optimistic updates with rollback are the house pattern.
 2. **Thumbs and flour.** Design for one-handed shop use and no-touch
    kitchen glancing before desktop comfort.
-3. **Native first.** Platform idioms (SF Symbols, action sheets, large
-   titles) over custom invention. Closest-to-default option wins unless
-   this brief says otherwise.
-4. **One voice, rare color.** Neutral surface does the work; the single
-   accent and the recipe tonal gradients are the only color events.
+3. **Native first.** Follow the Expo skills, then RNR when native cannot
+   meet the need, then custom components only with user approval.
+4. **One voice, intentional color.** Follow the CSS palette and approved
+   visual direction consistently, with brand expression in the content layer.
 5. **Domain words only.** Recipe, Variant, List, Swap — the vocabulary in
    `CONTEXT.md` is the UI copy vocabulary.

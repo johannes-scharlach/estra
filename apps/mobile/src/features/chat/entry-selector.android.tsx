@@ -9,7 +9,7 @@ export function EntrySelector({ value, onChange }: EntrySelectorProps) {
   const seedColor = useResolveClassNames("text-primary").color;
   const activeContainerColor = useResolveClassNames("bg-accent").backgroundColor;
   const activeContentColor = useResolveClassNames("text-accent-foreground").color;
-  const inactiveContainerColor = useResolveClassNames("bg-background").backgroundColor;
+  const inactiveContainerColor = useResolveClassNames("bg-card").backgroundColor;
   const inactiveContentColor = useResolveClassNames("text-foreground").color;
   const borderColor = useResolveClassNames("border-border").borderColor;
   const colors = {

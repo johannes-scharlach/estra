@@ -62,13 +62,14 @@ export async function finalizeProfile(
     }
     const p = household.profile;
     await tx.execute(
-      "INSERT INTO household_profiles (id, goals, kitchen_equipment, pantry, fresh_ingredients, meals_at_home, main_supermarket, other_shops, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      "INSERT INTO household_profiles (id, goals, kitchen_equipment, pantry, fresh_ingredients, restrictions, meals_at_home, main_supermarket, other_shops, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
       [
         draft.list_id,
         JSON.stringify(p.goals),
         JSON.stringify(p.kitchen_equipment),
         JSON.stringify(p.pantry),
         JSON.stringify(p.fresh_ingredients),
+        p.restrictions,
         p.meals_at_home,
         p.main_supermarket,
         p.other_shops,

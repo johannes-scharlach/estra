@@ -1,0 +1,19 @@
+# Taste
+- Embraces native UI in the mobile app: prefers platform-native primitives (native headers/large titles, SF Symbols, native sheets/presentations, UISearchController-style search) over hand-rolled recreations or web-style (shadcn) components. Confidence: 0.9
+- After a review/audit, wants a complete written plan that addresses all findings before implementation begins ("write the complete plan to fix all you found"). Confidence: 0.6
+- Wants throwaway prototypes scoped to a single directory/variant, with no edits to shared themes, packages, routes, or dependencies. Confidence: 0.85
+- Expects a clear "native contract" that separates what the prototype owns from what the coordinator/platform owns. Confidence: 0.7
+- Prefers simpler, plainer language; pushes back when explanations are hard to follow. Confidence: 0.85
+- Cares about responsive feel; even ~100ms of tap latency is noticeable and worth addressing. Confidence: 0.8
+- Prefers immediate feedback on finger down, with abort-on-release-outside-target behavior. Confidence: 0.75
+- Prefers localizing state and computation to the lowest component that needs it to avoid unnecessary re-renders. Confidence: 0.8
+- Aspires to Apple Design Award quality; iOS platform aesthetic is the target. Confidence: 0.85
+- Prefers deleting UI elements that don't add value over keeping them. Confidence: 0.7
+- Dislikes visual noise such as hairlines/dividers that serve no clear purpose. Confidence: 0.7
+- Skeptical of card UI for purely presentational content; cards should imply an action. Confidence: 0.75
+- Wants model exploration output as Markdown, not tool calls or special cards. Confidence: 0.8
+- Values chat/vibe-first exploration over rigid structured forms. Confidence: 0.75
+- For parallel design variants, wants fresh independent exploration without inspecting or inheriting creative direction from existing variants; open design choices may be seeded randomly to avoid status-quo anchoring. Confidence: 0.9
+- Wants motion to be meaningful and platform-appropriate rather than decorative, using the project’s Expo animation guidance. Confidence: 0.8
+- Prefers implementation documentation/README to be written only after development is complete, so it explains the finished design reasoning and ownership boundaries. Confidence: 0.8
+- Keeps prototype-specific colors, fonts, and styles local, expressed as semantic tokens so later migration into the shared theme is mechanical. Confidence: 0.85

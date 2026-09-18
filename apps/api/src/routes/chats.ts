@@ -39,7 +39,7 @@ const google = createGoogleGenerativeAI({ apiKey: env.googleApiKey });
 const CHAT_MODEL =
   process.env.NODE_ENV === "production"
     ? "gemini-flash-latest"
-    : "gemini-flash-latest";
+    : "gemini-flash-lite-latest";
 const UTILITY_MODEL = "gemini-flash-lite-latest";
 
 /** A chat that ran for a week must not cost a week of tokens per turn. */

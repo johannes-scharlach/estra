@@ -139,7 +139,6 @@ export type Database = {
           list_id: string
           meal_times: string
           name: string
-          restrictions: string
           updated_at: string
           user_id: string | null
         }
@@ -152,7 +151,6 @@ export type Database = {
           list_id: string
           meal_times?: string
           name: string
-          restrictions?: string
           updated_at?: string
           user_id?: string | null
         }
@@ -165,7 +163,6 @@ export type Database = {
           list_id?: string
           meal_times?: string
           name?: string
-          restrictions?: string
           updated_at?: string
           user_id?: string | null
         }
@@ -197,6 +194,7 @@ export type Database = {
           meals_at_home: string
           other_shops: string
           pantry: Json
+          restrictions: string
           updated_at: string
         }
         Insert: {
@@ -209,6 +207,7 @@ export type Database = {
           meals_at_home?: string
           other_shops?: string
           pantry?: Json
+          restrictions?: string
           updated_at?: string
         }
         Update: {
@@ -221,6 +220,7 @@ export type Database = {
           meals_at_home?: string
           other_shops?: string
           pantry?: Json
+          restrictions?: string
           updated_at?: string
         }
         Relationships: [
@@ -656,4 +656,3 @@ export const Constants = {
     Enums: {},
   },
 } as const
-

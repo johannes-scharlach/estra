@@ -12,9 +12,9 @@ test("household context preserves restrictions and routines without inventing in
     ...newPerson("9c5b42f7-fbea-4df2-b8d3-d42d37ed9a1d"),
     name: "Sam",
     user_id: "a5b28b6b-8fba-432b-bfe3-b2e8afca06bc",
-    restrictions: "Severe peanut allergy",
     meal_times: "Weekday dinners",
   };
+  profile.restrictions = "Severe peanut allergy";
   const child = {
     ...newPerson("f748aee7-247b-4bf3-b89f-a42d0eaa9157"),
     name: "Sam",
@@ -29,7 +29,7 @@ test("household context preserves restrictions and routines without inventing in
   assert.equal(data.people.length, 2);
   assert.equal(data.people[0].is_current_user, true);
   assert.equal(data.people[1].is_current_user, false);
-  assert.equal(data.people[0].restrictions, "Severe peanut allergy");
+  assert.equal(data.household_restrictions, "Severe peanut allergy");
   assert.match(data.people[0].diet_meaning, /still eats meat and fish/);
   assert.deepEqual(data.equipment, []);
   assert.deepEqual(data.goals, ["Save time", "Cook with the children"]);

@@ -6,7 +6,7 @@ import { useAuth } from "@/db/provider";
 
 export default function TabsLayout() {
   const { session, ready } = useAuth();
-  const tintColor = useResolveClassNames("text-foreground").color;
+  const tintColor = useResolveClassNames("bg-primary").backgroundColor;
   const mutedColor = useResolveClassNames("text-muted-foreground").color;
   const backgroundColor = useResolveClassNames("bg-background").backgroundColor;
   const indicatorColor = useResolveClassNames("bg-accent").backgroundColor;
