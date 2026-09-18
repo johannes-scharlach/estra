@@ -4,6 +4,7 @@ import { useResolveClassNames } from "uniwind";
 
 import { Button } from "@/components/ui/button";
 import { Text } from "@/components/ui/text";
+import { plannedMealId } from "@/db/planned-meals";
 import type { List } from "@/db/schema";
 import { MealSection } from "@/features/meals/meal-section";
 import {
@@ -23,7 +24,12 @@ export type DisplayRecipe = {
   name: string;
   totalTime: string | null;
 };
-export type DisplayPlannedMeal = DisplayRecipe & { servings: number | null };
+export type DisplayPlannedMeal = DisplayRecipe & {
+  eaterIds: string[];
+  extraPortions: number;
+  /** Rendered once here so the card and its menu agree. */
+  eatersLabel: string;
+};
 
 type Props = {
   date: Date;
@@ -34,7 +40,7 @@ type Props = {
   contenders: Record<MealSlot, DisplayRecipe[]>;
   isOpen: (slot: MealSlot) => boolean;
   onPlan: (slot: MealSlot, recipe: DisplayRecipe) => void;
-  onEditPortions: (slot: MealSlot, recipe: DisplayPlannedMeal | null) => void;
+  onEditEaters: (slot: MealSlot, recipe: DisplayPlannedMeal | null) => void;
   onChange: (slot: MealSlot) => void;
   onSkip: (slot: MealSlot) => void;
   onMove: (slot: MealSlot, recipe: DisplayPlannedMeal | null) => void;
@@ -54,7 +60,7 @@ export function DayContent({
   contenders,
   isOpen,
   onPlan,
-  onEditPortions,
+  onEditEaters,
   onChange,
   onSkip,
   onMove,
@@ -130,10 +136,11 @@ export function DayContent({
             <MealSection
               key={slot}
               title={SLOT_LABEL[slot]}
+              plannedMealId={plannedMealId(list.id, dateStr, slot)}
               recipe={recipe}
               contenders={contenders[slot].slice(0, 20)}
               onPlan={(r) => onPlan(slot, r)}
-              onEditPortions={() => onEditPortions(slot, recipe)}
+              onEditEaters={() => onEditEaters(slot, recipe)}
               onChange={() => onChange(slot)}
               onSkip={() => onSkip(slot)}
               onMove={() => onMove(slot, recipe)}

@@ -140,3 +140,7 @@ export const RecipeSchema = z.object({
 });
 
 export type RecipeInput = z.infer<typeof RecipeSchema>;
+
+/** A recipe the assistant or the adjust route writes: provenance is ours. */
+export const CookRecipeSchema = RecipeSchema.omit({ from: true });
+export type CookRecipeInput = z.infer<typeof CookRecipeSchema>;

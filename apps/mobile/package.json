@@ -3,6 +3,7 @@
   "main": "expo-router/entry",
   "version": "0.1.0",
   "dependencies": {
+    "@estra/meals": "workspace:*",
     "@estra/profile": "workspace:*",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@azure/core-asynciterator-polyfill": "^1.0.2",

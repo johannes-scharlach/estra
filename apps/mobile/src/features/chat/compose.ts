@@ -1,3 +1,9 @@
+import {
+  formatExtraPortions,
+  joinNames,
+  whoIsEating,
+  type Eater,
+} from "@/features/meals/eaters";
 import { addDays, dateKey, SLOT_LABEL, WEEKDAY_LONG, type MealSlot } from "@/features/meals/slots";
 
 /**
@@ -55,11 +61,29 @@ export function dayName(key: string, today: Date = new Date()): string {
   return daysOut > 6 ? `${weekday} ${d.getDate()}` : weekday;
 }
 
-/** Plan sheet confirm: the full ask, verbatim from the form's choices. */
+/** Plan sheet confirm: the full ask, verbatim from the form's choices. The
+ *  assistant sizes the recipe it writes for exactly these eaters and extra,
+ *  so the names must be the ones it knows from the household. */
 export function saveAndPlanMessage(
-  opts: { day: string; meal: MealSlot; servings: number },
+  opts: {
+    day: string;
+    meal: MealSlot;
+    people: Eater[];
+    eaterIds: string[];
+    extraPortions: number;
+  },
   today: Date = new Date(),
 ): string {
   const slot = SLOT_LABEL[opts.meal].toLowerCase();
-  return `Save this and plan it for ${dayName(opts.day, today)} ${slot}, ${opts.servings} servings.`;
+  const { eating, everyone } = whoIsEating(opts.people, opts.eaterIds);
+  const who = everyone
+    ? "everyone"
+    : eating.length
+      ? joinNames(eating.map((p) => (p.self ? "me" : p.name)))
+      : "nobody from the household";
+  const extra =
+    opts.extraPortions > 0
+      ? `, plus ${formatExtraPortions(opts.extraPortions)} extra ${opts.extraPortions === 1 ? "portion" : "portions"}`
+      : "";
+  return `Save this and plan it for ${dayName(opts.day, today)} ${slot}. Eating: ${who}${extra}.`;
 }

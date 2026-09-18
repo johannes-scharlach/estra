@@ -56,7 +56,9 @@ const PLAN_PROMPT = `## The plan
 
 Helping draft a meal plan is a conversation, not permission to save recipes or fill calendar slots. Start from the user's selected dates, meals, notes and any photo; offer a starting point they can shape. Keep draft ideas in the conversation and only save or schedule meals when the user asks you to. Never treat your own suggestions as the user's choices.
 
-The household keeps a plan: a calendar with a lunch, dinner and treat slot per day, and a shopping list that derives itself from what is planned. Read it with readPlan before answering anything about the week. When the user asks to plan a dish, the recipe has to be in the cookbook first — save it with addToCookbook if it is not, then planMeal; both in one go, never asking them to say it twice. A move or a skipped night is one sentence from the user, never a form: unplanMeal and planMeal do the bookkeeping, and you say what moved. When a meal is planned, mention in a few words what will land on the shopping list, so they can strike what they already have — and never ask them to track quantities or keep an inventory. If you are unsure whether something is still around, ask the way one home cook asks another: "is the chard all used up?"`;
+The household keeps a plan: a calendar with a lunch, dinner and treat slot per day, and a shopping list that derives itself from what is planned. Read it with readPlan before answering anything about the week. When the user asks to plan a dish, the recipe has to be in the cookbook first — save it with addToCookbook if it is not, then planMeal; both in one go, never asking them to say it twice. A move or a skipped night is one sentence from the user, never a form: unplanMeal and planMeal do the bookkeeping, and you say what moved. When a meal is planned, mention in a few words what will land on the shopping list, so they can strike what they already have — and never ask them to track quantities or keep an inventory. If you are unsure whether something is still around, ask the way one home cook asks another: "is the chard all used up?"
+
+A planned meal is who from the household is eating plus extra portions. One extra portion is one adult helping that belongs to nobody: guests, leftovers, or just more food. When the user says who is eating ("me" is the current user) and how much extra, size the recipe you save for exactly those people and that extra, say so in its yield, and pass the same eaterIds and extraPortions to planMeal. When they do not say, everyone in the household eats and there is no extra.`;
 
 /** Suggested replies ride on the assistant message as a data part. */
 export type AssistantUIMessage = UIMessage<never, { suggestions: string[] }>;
@@ -164,13 +166,11 @@ chats.post("/:id/messages", async (c) => {
       listId?: unknown;
       message?: unknown;
       localTime?: unknown;
-      household?: unknown;
     }>()
     .catch(() => ({
       listId: undefined,
       message: undefined,
       localTime: undefined,
-      household: undefined,
     }));
   if (typeof body.listId !== "string" || !UUID.test(body.listId)) {
     return c.json(
@@ -212,36 +212,23 @@ chats.post("/:id/messages", async (c) => {
       403,
     );
 
+  // Read fresh every turn so edits made in the app reach the next message.
+  // A local edit still uploading when the message is sent is seen one turn
+  // late; that beats carrying a second copy of the household in the request.
   let household: Household | null = null;
-  if (body.household != null) {
-    const parsed = householdSchema.safeParse(body.household);
-    if (!parsed.success)
-      return c.json(
-        {
-          error: {
-            code: "INVALID_REQUEST",
-            message: "Invalid household context",
-          },
-        },
-        400,
-      );
-    household = parsed.data;
-  } else {
-    // Older clients can omit the snapshot. Membership has already been checked.
-    const profile = await pool.query(
-      "SELECT * FROM household_profiles WHERE id = $1",
+  const profile = await pool.query(
+    "SELECT * FROM household_profiles WHERE id = $1",
+    [listId],
+  );
+  if (profile.rows[0]) {
+    const people = await pool.query(
+      "SELECT * FROM household_people WHERE list_id = $1 ORDER BY created_at, id",
       [listId],
     );
-    if (profile.rows[0]) {
-      const people = await pool.query(
-        "SELECT * FROM household_people WHERE list_id = $1 ORDER BY created_at, id",
-        [listId],
-      );
-      household = householdSchema.parse({
-        profile: profile.rows[0],
-        people: people.rows,
-      });
-    }
+    household = householdSchema.parse({
+      profile: profile.rows[0],
+      people: people.rows,
+    });
   }
 
   let history: MessageRow[];

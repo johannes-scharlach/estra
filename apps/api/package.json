@@ -12,6 +12,7 @@
     "lint": "eslint ."
   },
   "dependencies": {
+    "@estra/meals": "workspace:*",
     "@estra/profile": "workspace:*",
     "@ai-sdk/google": "^4.0.47",
     "@hono/node-server": "^2.1.1",

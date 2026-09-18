@@ -9,6 +9,9 @@ import { supabase } from "../lib/supabase";
 
 const JSON_COLUMNS: Record<string, readonly string[]> = {
   variants: ["ingredient_lines", "instructions"],
+  // jsonb array on the server; a raw string would arrive as a JSON string
+  // scalar and fail the jsonb_typeof(eater_ids) = 'array' check (ADR 12).
+  planned_meals: ["eater_ids"],
   household_profiles: [
     "goals",
     "kitchen_equipment",

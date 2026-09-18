@@ -7,6 +7,7 @@ import { requireUser, type AppBindings } from "./auth.js";
 import { chats } from "./routes/chats.js";
 import { items } from "./routes/items.js";
 import { AppError } from "./errors.js";
+import { plannedMeals } from "./routes/planned-meals.js";
 import { recipes } from "./routes/recipes.js";
 
 export const app = new Hono<AppBindings>();
@@ -32,6 +33,7 @@ app.use("/v1/*", requireUser);
 app.route("/v1/chats", chats);
 app.route("/v1/items", items);
 app.route("/v1/recipes", recipes);
+app.route("/v1/planned-meals", plannedMeals);
 
 app.notFound((c) =>
   c.json({ error: { code: "NOT_FOUND", message: "Not found" } }, 404),

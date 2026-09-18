@@ -25,20 +25,6 @@ export function decodeHousehold(
   }
   return householdSchema.parse({ profile, people });
 }
-export async function loadHousehold(listId: string): Promise<Household | null> {
-  return powersync.readTransaction(async (tx) => {
-    const row = await tx.getOptional<Record<string, unknown>>(
-      "SELECT * FROM household_profiles WHERE id = ?",
-      [listId],
-    );
-    if (!row) return null;
-    const people = await tx.getAll(
-      "SELECT * FROM household_people WHERE list_id = ? ORDER BY created_at, id",
-      [listId],
-    );
-    return decodeHousehold(row, people);
-  });
-}
 export async function saveProfileSection(
   listId: string,
   changes: Partial<CookingProfile>,

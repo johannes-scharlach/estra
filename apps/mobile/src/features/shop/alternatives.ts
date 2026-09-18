@@ -1,3 +1,4 @@
+import { itemNameKey as nameKey, lineForItem, type IngredientLine } from "@estra/meals";
 import { z } from "zod";
 
 import { IngredientLineSchema } from "../../db/schemas";
@@ -10,8 +11,6 @@ export type Alternative = {
 };
 
 const linesSchema = z.array(IngredientLineSchema);
-const nameKey = (name: string) =>
-  name.trim().toLowerCase().replace(/\s+/g, " ");
 
 /** Original first, then recipe alternatives. Ambiguous lines cannot safely cycle. */
 export function alternativesForItem(
@@ -26,15 +25,15 @@ export function alternativesForItem(
   }
   const parsed = linesSchema.safeParse(json);
   if (!parsed.success) return [];
-  const matches = parsed.data
-    .map((line) => [line, ...(line.swaps ?? [])])
-    .filter((options) =>
-      options.some((option) => nameKey(option.item_name) === nameKey(name)),
-    );
-  const match = matches[0];
-  if (matches.length !== 1 || !match) return [];
+  const match = lineForItem(name, parsed.data);
+  if (!match) return [];
+  return alternativesForLine(match.line);
+}
+
+/** The line's own ingredient first, then its swaps, without duplicates. */
+export function alternativesForLine(line: IngredientLine): Alternative[] {
   const seen = new Set<string>();
-  return match
+  return [line, ...(line.swaps ?? [])]
     .filter((option) => {
       const key = nameKey(option.item_name);
       if (seen.has(key)) return false;

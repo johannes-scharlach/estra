@@ -14,11 +14,13 @@ type Recipe = { id: string; name: string; totalTime: string | null };
 
 type Props = {
   title: string;
+  /** Deterministic slot id; the recipe page uses it to know which meal it is about. */
+  plannedMealId: string;
   /** Planned recipe, or null when the slot is still open. */
-  recipe: (Recipe & { servings: number | null }) | null;
+  recipe: (Recipe & { eatersLabel: string }) | null;
   contenders: Recipe[];
   onPlan: (recipe: Recipe) => void;
-  onEditPortions: () => void;
+  onEditEaters: () => void;
   onChange: () => void;
   onSkip: () => void;
   onMove: () => void;
@@ -41,10 +43,11 @@ const CHECK_ICON = {
  */
 export function MealSection({
   title,
+  plannedMealId,
   recipe,
   contenders,
   onPlan,
-  onEditPortions,
+  onEditEaters,
   onChange,
   onSkip,
   onMove,
@@ -82,7 +85,10 @@ export function MealSection({
         <View className="px-6">
           <View className="overflow-hidden rounded-xl border border-border bg-card">
             <Link
-              href={{ pathname: "/variant/[id]", params: { id: recipe.id } }}
+              href={{
+                pathname: "/variant/[id]",
+                params: { id: recipe.id, plannedMealId },
+              }}
               asChild
             >
               <Pressable>
@@ -100,12 +106,12 @@ export function MealSection({
                         {recipe.totalTime}
                       </Text>
                     ) : null}
-                    {recipe.servings != null ? (
-                      <Text className="ml-auto rounded-full bg-background/50 mix-blend-hard-light px-2.5 py-1 text-xs font-medium">
-                        {recipe.servings}{" "}
-                        {recipe.servings === 1 ? "serving" : "servings"}
-                      </Text>
-                    ) : null}
+                    <Text
+                      numberOfLines={1}
+                      className="ml-auto max-w-[60%] rounded-full bg-background/50 mix-blend-hard-light px-2.5 py-1 text-xs font-medium"
+                    >
+                      {recipe.eatersLabel}
+                    </Text>
                   </View>
                 </View>
                 <View className="p-4">
@@ -116,8 +122,8 @@ export function MealSection({
             <MealCardMenu
               recipeId={recipe.id}
               recipeName={recipe.name}
-              servings={recipe.servings}
-              onEditPortions={onEditPortions}
+              eatersLabel={recipe.eatersLabel}
+              onEditEaters={onEditEaters}
               onChange={onChange}
               onMove={onMove}
               onSkip={onSkip}

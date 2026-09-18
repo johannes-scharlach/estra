@@ -1,8 +1,18 @@
 import { Pressable, ScrollView, View, useWindowDimensions } from "react-native";
+import Animated, {
+  Easing,
+  interpolateColor,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from "react-native-reanimated";
+import { useResolveClassNames } from "uniwind";
 
 import { Text } from "@/components/ui/text";
 
 import ideas from "./seeded-ideas.json";
+
+const EASE_OUT = Easing.bezier(0.23, 1, 0.32, 1);
 
 type Seeded = (typeof ideas)[number] & {
   months?: number[];
@@ -37,22 +47,13 @@ export function SeededDeck({ onPick, preview = false }: {
   }
 
   const cards = (preview ? deck.slice(0, 6) : deck).map((meal) => (
-    <Pressable
+    <SeededCard
       key={meal.title}
-      onPress={() => pick(meal)}
-      accessibilityRole="button"
-      accessibilityLabel={`Explore ${meal.title}`}
-      style={preview ? { width: cardWidth } : undefined}
-      className="gap-1 rounded-2xl border border-border bg-card px-4 py-3 active:bg-accent"
-    >
-      <Text className="text-base font-semibold leading-snug">
-        {preview ? meal.previewTitle ?? meal.title : meal.title}
-      </Text>
-      <Text className="text-sm leading-5 text-foreground/80">{preview ? meal.time : meal.vibe}</Text>
-      <Text variant="muted" numberOfLines={preview ? 2 : 1}>
-        {preview ? meal.previewIngredients ?? meal.ingredients : meal.ingredients}
-      </Text>
-    </Pressable>
+      meal={meal}
+      preview={preview}
+      cardWidth={cardWidth}
+      onPick={pick}
+    />
   ));
 
   return preview ? (
@@ -69,5 +70,48 @@ export function SeededDeck({ onPick, preview = false }: {
     </ScrollView>
   ) : (
     <View className="gap-2 pb-4 pt-2">{cards}</View>
+  );
+}
+
+/** Press feedback is a smoothed bg-card -> bg-accent crossfade, not an instant swap. */
+function SeededCard({
+  meal,
+  preview,
+  cardWidth,
+  onPick,
+}: {
+  meal: Seeded;
+  preview: boolean;
+  cardWidth: number;
+  onPick: (meal: Seeded) => void;
+}) {
+  const pressed = useSharedValue(0);
+  const cardBg = useResolveClassNames("bg-card").backgroundColor as string;
+  const accentBg = useResolveClassNames("bg-accent").backgroundColor as string;
+  const style = useAnimatedStyle(() => ({
+    backgroundColor: interpolateColor(pressed.get(), [0, 1], [cardBg, accentBg]),
+  }));
+
+  return (
+    <Pressable
+      onPress={() => onPick(meal)}
+      onPressIn={() => pressed.set(withTiming(1, { duration: 120, easing: EASE_OUT }))}
+      onPressOut={() => pressed.set(withTiming(0, { duration: 120, easing: EASE_OUT }))}
+      accessibilityRole="button"
+      accessibilityLabel={`Explore ${meal.title}`}
+      style={preview ? { width: cardWidth } : undefined}
+    >
+      <Animated.View className="gap-1 rounded-2xl border border-border px-4 py-3" style={style}>
+        <Text className="text-base font-semibold leading-snug">
+          {preview ? meal.previewTitle ?? meal.title : meal.title}
+        </Text>
+        <Text className="text-sm leading-5 text-foreground/80">
+          {preview ? meal.time : meal.vibe}
+        </Text>
+        <Text variant="muted" numberOfLines={preview ? 2 : 1}>
+          {preview ? meal.previewIngredients ?? meal.ingredients : meal.ingredients}
+        </Text>
+      </Animated.View>
+    </Pressable>
   );
 }

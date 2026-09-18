@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { dishMessage, entryMessage, mealPlanMessage, saveAndPlanMessage } from "./compose";
+import { toEaters } from "@/features/meals/eaters";
 import { SLOT_LABEL, addDays, dateKey } from "@/features/meals/slots";
 
 // Monday 2026-09-07, so Friday the 11th is four days out.
@@ -78,18 +79,37 @@ describe("mealPlanMessage", () => {
 });
 
 describe("saveAndPlanMessage", () => {
-  it("says the chosen day, meal, and servings", () => {
+  const people = toEaters(
+    [
+      { id: "a", name: "Johannes", user_id: "u1" },
+      { id: "b", name: "Anna", user_id: null },
+      { id: "c", name: "Ben", user_id: null },
+    ],
+    "u1",
+  );
+  const friday = dateKey(new Date(2026, 8, 11));
+
+  it("says everyone when the whole household is ticked and no extra", () => {
     expect(
-      saveAndPlanMessage({ day: dateKey(new Date(2026, 8, 11)), meal: "dinner", servings: 2 }, TODAY),
-    ).toBe("Save this and plan it for Friday dinner, 2 servings.");
+      saveAndPlanMessage({ day: friday, meal: "dinner", people, eaterIds: ["a", "b", "c"], extraPortions: 0 }, TODAY),
+    ).toBe("Save this and plan it for Friday dinner. Eating: everyone.");
+  });
+
+  it("names the ticked people in the user's voice, with fractional extra", () => {
+    expect(
+      saveAndPlanMessage({ day: friday, meal: "dinner", people, eaterIds: ["a", "c"], extraPortions: 1.5 }, TODAY),
+    ).toBe("Save this and plan it for Friday dinner. Eating: me and Ben, plus 1.5 extra portions.");
+    expect(
+      saveAndPlanMessage({ day: friday, meal: "dinner", people, eaterIds: ["b"], extraPortions: 1 }, TODAY),
+    ).toBe("Save this and plan it for Friday dinner. Eating: Anna, plus 1 extra portion.");
   });
 
   it("names today and tomorrow as the strip labels them", () => {
     expect(
-      saveAndPlanMessage({ day: dateKey(TODAY), meal: "dinner", servings: 2 }, TODAY),
-    ).toBe("Save this and plan it for today dinner, 2 servings.");
+      saveAndPlanMessage({ day: dateKey(TODAY), meal: "dinner", people, eaterIds: ["a", "b", "c"], extraPortions: 0 }, TODAY),
+    ).toBe("Save this and plan it for today dinner. Eating: everyone.");
     expect(
-      saveAndPlanMessage({ day: dateKey(addDays(TODAY, 1)), meal: "lunch", servings: 1 }, TODAY),
-    ).toBe(`Save this and plan it for tomorrow ${SLOT_LABEL.lunch.toLowerCase()}, 1 servings.`);
+      saveAndPlanMessage({ day: dateKey(addDays(TODAY, 1)), meal: "lunch", people, eaterIds: ["a", "b", "c"], extraPortions: 0 }, TODAY),
+    ).toBe(`Save this and plan it for tomorrow ${SLOT_LABEL.lunch.toLowerCase()}. Eating: everyone.`);
   });
 });

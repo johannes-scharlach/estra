@@ -3,7 +3,6 @@ import { fetch as expoFetch } from "expo/fetch";
 
 import { env } from "@/lib/env";
 import { supabase } from "@/lib/supabase";
-import { loadHousehold } from "@/db/profiles";
 
 /** Mirrors the server's message type: suggested replies ride as a data part. */
 export type AssistantUIMessage = UIMessage<never, { suggestions: string[] }>;
@@ -26,10 +25,8 @@ export async function* streamReply(opts: {
   const token = data.session?.access_token;
   if (!token) throw new Error("Not signed in");
 
-  // Read at send time, including edits in an existing Conversation. Carry the
-  // local snapshot so an edit racing the upload is still part of this turn.
-  const household = await loadHousehold(opts.listId);
-
+  // The server reads the household from Postgres on every turn; the
+  // request carries only the message.
   const transport = new DefaultChatTransport<AssistantUIMessage>({
     api: `${env.apiUrl}/v1/chats/${opts.chatId}/messages`,
     fetch: expoFetch as unknown as typeof globalThis.fetch,
@@ -41,7 +38,6 @@ export async function* streamReply(opts: {
         listId: opts.listId,
         message: messages[messages.length - 1],
         localTime: `${new Date().toString()} (${Intl.DateTimeFormat().resolvedOptions().timeZone})`,
-        household,
       },
     }),
   });

@@ -1,11 +1,21 @@
+import { mealDelta } from "@estra/meals";
 import { useQuery } from "@powersync/react";
+import * as Crypto from "expo-crypto";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
 import { LinearGradient } from "expo-linear-gradient";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ColorValue } from "react-native";
-import { Linking, Pressable, Share, StyleSheet, View } from "react-native";
+import {
+  ActivityIndicator,
+  Alert,
+  Linking,
+  Pressable,
+  Share,
+  StyleSheet,
+  View,
+} from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, {
@@ -13,6 +23,7 @@ import Animated, {
   runOnJS,
   useAnimatedScrollHandler,
   useAnimatedStyle,
+  useReducedMotion,
   useSharedValue,
   withSequence,
   withTiming,
@@ -23,9 +34,23 @@ import { EnrichedMarkdownText } from "react-native-enriched-markdown";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Text } from "@/components/ui/text";
-import type { Variant, Recipe } from "@/db/schema";
-import type { IngredientLine } from "@/db/schemas";
+import { applySwap } from "@/db/items";
+import { useAuth } from "@/db/provider";
+import type { ListItem, PlannedMeal, Variant, Recipe } from "@/db/schema";
 import { parseVariant } from "@/db/variants";
+import { adjustPlannedMeal } from "@/features/meals/adjust-recipe";
+import { eatersLabel, parseEaterIds, toEaters } from "@/features/meals/eaters";
+import { importFailure } from "@/features/meals/import-failure";
+import { dateKey } from "@/features/meals/slots";
+import {
+  mealLabel,
+  shoppedLabel,
+  variantMeals,
+} from "@/features/meals/variant-meals";
+import {
+  adjacentAlternative,
+  alternativesForLine,
+} from "@/features/shop/alternatives";
 import { tonalPair } from "@/features/variants/tonal";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 
@@ -61,27 +86,46 @@ const COOK_ICON = {
   android: "restaurant",
   web: "restaurant",
 } as const;
+const BOUGHT_ICON = {
+  ios: "checkmark.circle.fill",
+  android: "check_circle",
+  web: "check_circle",
+} as const;
+const CHEVRON_ICON = {
+  ios: "chevron.right",
+  android: "chevron_right",
+  web: "chevron_right",
+} as const;
 
 type SwapDirection = "next" | "prev";
 
+/** One ingredient row as it should read right now: the recipe line, or the
+ *  swap that replaced it, plus what the shopping list says about it. */
+type RowModel = {
+  qtyText: string | null;
+  name: string;
+  prepNote: string | null;
+  swapped: boolean;
+  bought: boolean;
+  /** Removed from the shopping list. */
+  missing: boolean;
+  canSwap: boolean;
+};
+
 function IngredientRow({
-  line,
+  row,
   idx,
-  activeIdx,
   onSwap,
   mutedColor,
+  primaryColor,
 }: {
-  line: IngredientLine;
+  row: RowModel;
   idx: number;
-  activeIdx: number | undefined;
   onSwap: (idx: number, direction: SwapDirection) => void;
   mutedColor: ColorValue | undefined;
+  primaryColor: ColorValue | undefined;
 }) {
   const translateX = useSharedValue(0);
-  const swaps = line.swaps ?? [];
-  const display =
-    activeIdx !== undefined && swaps[activeIdx] ? swaps[activeIdx] : line;
-  const isSwapped = activeIdx !== undefined;
 
   const animateSwap = useCallback(
     (direction: SwapDirection) => {
@@ -130,24 +174,49 @@ function IngredientRow({
   const body = (
     <>
       <View className="flex-1 flex-row flex-wrap items-baseline gap-x-1 gap-y-0.5 pr-3">
-        {display.qty_text ? (
-          <Text className="font-semibold">{display.qty_text}</Text>
-        ) : null}
-        <Text className={isSwapped ? "text-primary" : "text-foreground"}>
-          {display.item_name}
-        </Text>
-        {display.prep_note ? (
-          <Text variant="muted" className="text-sm">
-            — {display.prep_note}
+        {row.qtyText ? (
+          <Text
+            className={
+              row.missing
+                ? "font-semibold text-muted-foreground"
+                : "font-semibold"
+            }
+          >
+            {row.qtyText}
           </Text>
         ) : null}
-        {isSwapped ? (
+        <Text
+          className={
+            row.swapped
+              ? "text-primary"
+              : row.missing
+                ? "text-muted-foreground"
+                : "text-foreground"
+          }
+        >
+          {row.name}
+        </Text>
+        {row.prepNote ? (
+          <Text variant="muted" className="text-sm">
+            — {row.prepNote}
+          </Text>
+        ) : null}
+        {row.swapped ? (
           <Text variant="muted" className="text-xs">
             swapped
           </Text>
         ) : null}
+        {row.missing ? (
+          <Text variant="muted" className="text-xs">
+            not on the list
+          </Text>
+        ) : null}
       </View>
-      {swaps.length ? (
+      {row.bought ? (
+        <View className="p-2">
+          <SymbolView name={BOUGHT_ICON} tintColor={primaryColor} size={18} />
+        </View>
+      ) : row.canSwap ? (
         <Pressable
           onPress={() => triggerSwap("next")}
           hitSlop={12}
@@ -161,7 +230,7 @@ function IngredientRow({
 
   // Rows without swaps get no gesture — a full-bleed pan at the left edge
   // would fight the iOS back swipe for nothing.
-  if (!swaps.length) {
+  if (!row.canSwap) {
     return (
       <View className="flex-row items-center justify-between px-6 py-3">
         {body}
@@ -182,10 +251,14 @@ function IngredientRow({
 }
 
 export default function VariantPage() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, plannedMealId } = useLocalSearchParams<{
+    id: string;
+    plannedMealId?: string;
+  }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const scheme = useColorScheme();
+  const { session } = useAuth();
   const foreground = useResolveClassNames("text-foreground").color;
   const mutedColor = useResolveClassNames("text-muted-foreground").color;
   const primaryColor = useResolveClassNames("text-primary").color;
@@ -195,6 +268,7 @@ export default function VariantPage() {
   const secondaryForegroundColor = useResolveClassNames(
     "text-secondary-foreground",
   ).color;
+  const reducedMotion = useReducedMotion();
 
   const scrollY = useSharedValue(0);
   const scrollHandler = useAnimatedScrollHandler((event) => {
@@ -218,15 +292,37 @@ export default function VariantPage() {
   });
 
   const heroAnimatedStyle = useAnimatedStyle(() => {
+    if (reducedMotion) return {};
+
     const scale = interpolate(scrollY.value, [-200, 0], [1.4, 1], {
       extrapolateLeft: "extend",
       extrapolateRight: "clamp",
     });
-    const translateY = interpolate(scrollY.value, [0, HERO_HEIGHT], [0, -40], {
-      extrapolateLeft: "clamp",
-      extrapolateRight: "clamp",
-    });
-    return { transform: [{ scale }, { translateY }] as const };
+    // Counter some of the ScrollView's upward movement so the hero recedes
+    // behind the faster-moving content sheet instead of outrunning it.
+    const translateY = interpolate(
+      scrollY.value,
+      [0, HERO_HEIGHT],
+      [0, HERO_HEIGHT * 0.24],
+      {
+        extrapolateLeft: "clamp",
+        extrapolateRight: "clamp",
+      },
+    );
+    return { transform: [{ translateY }, { scale }] as const };
+  });
+
+  const heroContentAnimatedStyle = useAnimatedStyle(() => {
+    const opacity = interpolate(
+      scrollY.value,
+      [0, HERO_HEIGHT * 0.55],
+      [1, 0],
+      {
+        extrapolateLeft: "clamp",
+        extrapolateRight: "clamp",
+      },
+    );
+    return { opacity };
   });
 
   useEffect(() => {
@@ -249,6 +345,41 @@ export default function VariantPage() {
   );
   const recipe = recipes[0];
 
+  // Every meal on this recipe: this version's, and its siblings' (spec 0004).
+  const { data: meals } = useQuery<PlannedMeal>(
+    "SELECT * FROM planned_meals WHERE variant_id = ? OR recipe_id = ?",
+    [id ?? "", recipeId],
+  );
+  const {
+    selected: meal,
+    sibling,
+    lastPast,
+  } = useMemo(
+    () =>
+      variantMeals(meals, {
+        variantId: id ?? "",
+        plannedMealId,
+        today: dateKey(new Date()),
+      }),
+    [meals, id, plannedMealId],
+  );
+  const { data: items } = useQuery<ListItem>(
+    "SELECT * FROM list_items WHERE planned_meal_id = ?",
+    [meal?.id ?? ""],
+  );
+  const { data: peopleRows } = useQuery<{
+    id: string;
+    name: string;
+    user_id: string | null;
+  }>(
+    "SELECT id, name, user_id FROM household_people WHERE list_id = ? ORDER BY created_at, id",
+    [meal?.list_id ?? ""],
+  );
+  const people = useMemo(
+    () => toEaters(peopleRows, session?.user.id),
+    [peopleRows, session],
+  );
+
   // Damaged synced JSON must not crash the screen — show the error state.
   const parsed = useMemo(() => {
     if (!variant) return null;
@@ -265,14 +396,72 @@ export default function VariantPage() {
   );
   const instructions = useMemo(() => parsed?.instructions ?? [], [parsed]);
 
+  // Not planned: swaps are a preview and live here only.
   const [activeSwaps, setActiveSwaps] = useState<Record<number, number>>({});
+  // Planned: the shopping list says what each line is right now.
+  const delta = useMemo(
+    () => mealDelta(ingredientLines, meal ? items : []),
+    [ingredientLines, items, meal],
+  );
+
+  const rows = useMemo(
+    (): RowModel[] =>
+      ingredientLines.map((line, idx) => {
+        if (!meal) {
+          const activeIdx = activeSwaps[idx];
+          const swap =
+            activeIdx !== undefined ? line.swaps?.[activeIdx] : undefined;
+          const display = swap ?? line;
+          return {
+            qtyText: display.qty_text,
+            name: display.item_name,
+            prepNote: display.prep_note ?? null,
+            swapped: !!swap,
+            bought: false,
+            missing: false,
+            canSwap: (line.swaps?.length ?? 0) > 0,
+          };
+        }
+        const state = delta.lines[idx];
+        const display = state?.swap ?? line;
+        const bought = state?.item?.status === "purchased";
+        return {
+          qtyText: display.qty_text,
+          name: display.item_name,
+          prepNote: display.prep_note ?? null,
+          swapped: !!state?.swap,
+          bought,
+          missing: !state?.item,
+          canSwap:
+            !!state?.item && !bought && alternativesForLine(line).length > 1,
+        };
+      }),
+    [ingredientLines, meal, activeSwaps, delta],
+  );
 
   const handleSwap = useCallback(
     (idx: number, direction: SwapDirection) => {
       const line = ingredientLines[idx];
-      const swaps = line?.swaps ?? [];
-      if (!swaps.length) return;
+      if (!line) return;
 
+      if (meal) {
+        const item = delta.lines[idx]?.item;
+        if (!item || item.status === "purchased") return;
+        const next = adjacentAlternative(
+          item.name ?? "",
+          alternativesForLine(line),
+          direction === "next" ? 1 : -1,
+        );
+        if (!next) return;
+        // Same write as the shop page: the list is the record of swaps.
+        applySwap(item.id, next).catch(() =>
+          Alert.alert("Couldn't swap item", "Please try again."),
+        );
+        return;
+      }
+
+      const swaps = line.swaps ?? [];
+      if (!swaps.length) return;
       setActiveSwaps((prev) => {
         const cur = prev[idx] ?? -1;
         let next: number;
@@ -290,7 +479,45 @@ export default function VariantPage() {
         return { ...prev, [idx]: next };
       });
     },
-    [ingredientLines],
+    [ingredientLines, meal, delta],
+  );
+
+  // Adjusting: one operation id per series of attempts, so a retry after a
+  // timeout finds the finished result instead of writing a second version.
+  const [adjust, setAdjust] = useState<
+    | { status: "idle" }
+    | { status: "running"; operationId: string }
+    | {
+        status: "error";
+        operationId: string;
+        message: string;
+        retryable: boolean;
+      }
+  >({ status: "idle" });
+  const runAdjust = useCallback(
+    async (operationId: string) => {
+      if (!meal) return;
+      setAdjust({ status: "running", operationId });
+      try {
+        const result = await adjustPlannedMeal({
+          plannedMealId: meal.id,
+          operationId,
+        });
+        router.replace({
+          pathname: "/variant/[id]",
+          params: { id: result.variantId, plannedMealId: meal.id },
+        });
+      } catch (error) {
+        const failure = importFailure(error);
+        setAdjust({
+          status: "error",
+          operationId,
+          message: failure.message,
+          retryable: failure.retryable,
+        });
+      }
+    },
+    [meal, router],
   );
 
   const onShare = useCallback(async () => {
@@ -360,6 +587,25 @@ export default function VariantPage() {
     }
   })();
 
+  const openPlan = () =>
+    router.push({ pathname: "/variant/plan", params: { id: variant.id } });
+  const openCook = () =>
+    router.push({ pathname: "/variant/cook", params: { id: variant.id } });
+  const openEaters = () => {
+    if (!meal?.list_id || !meal.slot_date || !meal.meal) return;
+    router.push({
+      pathname: "/meals/eaters",
+      params: {
+        listId: meal.list_id,
+        date: meal.slot_date,
+        slot: meal.meal,
+        variantId: variant.id,
+        eaterIds: JSON.stringify(parseEaterIds(meal.eater_ids)),
+        extraPortions: String(meal.extra_portions ?? 0),
+      },
+    });
+  };
+
   return (
     <View className="flex-1 bg-background">
       <Stack.Screen
@@ -413,9 +659,12 @@ export default function VariantPage() {
             end={{ x: 0.85, y: 1 }}
             style={{ flex: 1 }}
           >
-            <View
+            <Animated.View
               className="flex-1 items-center justify-center gap-3 px-8"
-              style={{ paddingTop: insets.top + 56 }}
+              style={[
+                { paddingTop: insets.top + 56 },
+                heroContentAnimatedStyle,
+              ]}
             >
               {eyebrow ? (
                 <Text className="text-xs font-medium uppercase tracking-[0.2em] text-foreground/60">
@@ -425,7 +674,7 @@ export default function VariantPage() {
               <Text className="text-center text-4xl font-bold tracking-tight">
                 {variant.name}
               </Text>
-            </View>
+            </Animated.View>
           </LinearGradient>
         </Animated.View>
 
@@ -464,6 +713,107 @@ export default function VariantPage() {
             </View>
           ) : null}
 
+          {/* The meal's facts next to the recipe's. Nothing is computed for
+              the user; both are visible and the human judges (spec 0004). */}
+          {meal ? (
+            <View className="gap-3 rounded-2xl border border-border/60 p-4">
+              <Pressable
+                onPress={openEaters}
+                accessibilityRole="button"
+                accessibilityLabel="Who is eating"
+                className="flex-row items-center gap-3"
+              >
+                <View className="flex-1 gap-0.5">
+                  <Text
+                    variant="muted"
+                    className="text-[11px] uppercase tracking-widest"
+                  >
+                    On the plan
+                  </Text>
+                  <Text className="font-semibold">{mealLabel(meal)}</Text>
+                  <Text variant="muted">
+                    {eatersLabel({
+                      people,
+                      eaterIds: parseEaterIds(meal.eater_ids),
+                      extraPortions: meal.extra_portions ?? 0,
+                    })}
+                    {" · "}
+                    {shoppedLabel(items)}
+                  </Text>
+                </View>
+                <SymbolView
+                  name={CHEVRON_ICON}
+                  tintColor={mutedColor}
+                  size={14}
+                />
+              </Pressable>
+              {adjust.status === "error" ? (
+                <Text className="text-sm text-destructive">
+                  {adjust.message}
+                </Text>
+              ) : null}
+              <View className="flex-row items-center justify-between gap-2">
+                <Button variant="ghost" size="sm" onPress={openPlan}>
+                  <Text>Plan again</Text>
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  disabled={
+                    adjust.status === "running" ||
+                    (adjust.status === "error" && !adjust.retryable)
+                  }
+                  onPress={() =>
+                    void runAdjust(
+                      adjust.status === "error"
+                        ? adjust.operationId
+                        : Crypto.randomUUID(),
+                    )
+                  }
+                >
+                  {adjust.status === "running" ? (
+                    <ActivityIndicator />
+                  ) : (
+                    <Text className="text-secondary-foreground">
+                      {adjust.status === "error" ? "Retry" : "Adjust recipe"}
+                    </Text>
+                  )}
+                </Button>
+              </View>
+            </View>
+          ) : null}
+
+          {sibling?.variant_id ? (
+            <Pressable
+              onPress={() =>
+                router.push({
+                  pathname: "/variant/[id]",
+                  params: {
+                    id: sibling.variant_id!,
+                    plannedMealId: sibling.id,
+                  },
+                })
+              }
+              accessibilityRole="link"
+              className="flex-row items-center justify-center gap-1"
+            >
+              <Text variant="muted" className="text-sm">
+                Another version is planned for {mealLabel(sibling)}
+              </Text>
+              <SymbolView
+                name={CHEVRON_ICON}
+                tintColor={mutedColor}
+                size={12}
+              />
+            </Pressable>
+          ) : null}
+
+          {!meal && !sibling && lastPast ? (
+            <Text variant="muted" className="text-center text-sm">
+              Last planned {mealLabel(lastPast)}
+            </Text>
+          ) : null}
+
           {recipe?.from_name || recipe?.from_url ? (
             <View className="items-center">
               <Text
@@ -498,17 +848,34 @@ export default function VariantPage() {
                 <Text variant="muted">{ingredientLines.length} items</Text>
               </View>
               <View className="-mx-6 divide-y divide-border/60 border-y border-border/60">
-                {ingredientLines.map((line, idx) => (
+                {rows.map((row, idx) => (
                   <IngredientRow
                     key={idx}
-                    line={line}
+                    row={row}
                     idx={idx}
-                    activeIdx={activeSwaps[idx]}
                     onSwap={handleSwap}
                     mutedColor={mutedColor}
+                    primaryColor={primaryColor}
                   />
                 ))}
               </View>
+              {meal && delta.extra.length > 0 ? (
+                <View className="gap-1 pt-4">
+                  <Text
+                    variant="muted"
+                    className="text-[11px] uppercase tracking-widest"
+                  >
+                    Also on the list
+                  </Text>
+                  {delta.extra.map((item) => (
+                    <Text key={item.id} variant="muted">
+                      {item.name}
+                      {item.spec ? ` — ${item.spec}` : ""}
+                      {item.status === "purchased" ? " · bought" : ""}
+                    </Text>
+                  ))}
+                </View>
+              ) : null}
             </View>
           ) : null}
 
@@ -516,16 +883,7 @@ export default function VariantPage() {
             <View className="gap-6">
               <View className="flex-row items-center justify-between">
                 <Text variant="h3">Steps</Text>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onPress={() =>
-                    router.push({
-                      pathname: "/variant/cook",
-                      params: { id: variant.id },
-                    })
-                  }
-                >
+                <Button variant="secondary" size="sm" onPress={openCook}>
                   <SymbolView
                     name={COOK_ICON}
                     tintColor={secondaryForegroundColor}
@@ -570,29 +928,40 @@ export default function VariantPage() {
         </View>
       </Animated.ScrollView>
 
+      {/* The next real action: cook a planned meal, otherwise plan it. */}
       <View
         pointerEvents="box-none"
         style={{ position: "absolute", right: 16, bottom: 16 + insets.bottom }}
       >
-        <Button
-          size="lg"
-          className="rounded-full shadow-lg"
-          onPress={() =>
-            router.push({
-              pathname: "/variant/plan",
-              params: { id: variant.id },
-            })
-          }
-        >
-          <SymbolView
-            name={ADD_PLAN_ICON}
-            tintColor={primaryForegroundColor}
-            size={20}
-          />
-          <Text className="font-semibold text-primary-foreground">
-            Add to plan
-          </Text>
-        </Button>
+        {meal ? (
+          <Button
+            size="lg"
+            className="rounded-full shadow-lg"
+            onPress={openCook}
+          >
+            <SymbolView
+              name={COOK_ICON}
+              tintColor={primaryForegroundColor}
+              size={20}
+            />
+            <Text className="font-semibold text-primary-foreground">Cook</Text>
+          </Button>
+        ) : (
+          <Button
+            size="lg"
+            className="rounded-full shadow-lg"
+            onPress={openPlan}
+          >
+            <SymbolView
+              name={ADD_PLAN_ICON}
+              tintColor={primaryForegroundColor}
+              size={20}
+            />
+            <Text className="font-semibold text-primary-foreground">
+              Add to plan
+            </Text>
+          </Button>
+        )}
       </View>
     </View>
   );

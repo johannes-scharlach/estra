@@ -7,19 +7,20 @@ import {
   type NativeStackNavigationProp,
 } from "expo-router";
 import * as Haptics from "expo-haptics";
-import { SymbolView } from "expo-symbols";
 import { useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, View } from "react-native";
-import { useResolveClassNames } from "uniwind";
 
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Text } from "@/components/ui/text";
 import type { List, Variant } from "@/db/schema";
 import { setPlannedMeal } from "@/db/planned-meals";
+import { useAuth } from "@/db/provider";
 import { saveAndPlanMessage } from "@/features/chat/compose";
 import { queueMessage } from "@/features/chat/message-queue";
 import { DayStrip } from "@/features/meals/day-strip";
+import { toEaters } from "@/features/meals/eaters";
+import { EXTRA_PORTIONS_ERROR, EatersPicker } from "@/features/meals/eaters-picker";
 import {
   dateKey,
   SLOT_LABEL,
@@ -28,8 +29,7 @@ import {
   type MealSlot,
 } from "@/features/meals/slots";
 
-const MINUS_ICON = { ios: "minus", android: "remove", web: "remove" } as const;
-const PLUS_ICON = { ios: "plus", android: "add", web: "add" } as const;
+type PersonRow = { id: string; name: string; user_id: string | null };
 
 /** Native formSheet: detents, grabber, swipe-to-dismiss. Unmounts on close,
  *  so picker state is always fresh.
@@ -37,13 +37,14 @@ const PLUS_ICON = { ios: "plus", android: "add", web: "add" } as const;
  *  Two modes: with a variant id it plans that recipe; with `dish` instead
  *  (from a chat Sketch's Save & plan) it is a pending form — nothing runs
  *  behind the sheet, and confirming sends one chat message stating exactly
- *  what was agreed; the assistant does the save + plan (two tool calls). */
+ *  what was agreed; the assistant does the save + plan (two tool calls),
+ *  sizing the recipe it writes for the eaters and extra chosen here. */
 export default function PlanVariantSheet() {
   const { id, dish } = useLocalSearchParams<{ id?: string; dish?: string }>();
   const router = useRouter();
   const navigation =
     useNavigation<NativeStackNavigationProp<Record<string, never>>>();
-  const mutedColor = useResolveClassNames("text-muted-foreground").color;
+  const { session } = useAuth();
 
   const pending = !id;
   const { data: variants } = useQuery<Variant>(
@@ -60,31 +61,53 @@ export default function PlanVariantSheet() {
     dateKey(new Date()),
   );
   const [selectedMeal, setSelectedMeal] = useState<MealSlot>("dinner");
-  const [servings, setServings] = useState(2);
+  // null until the user touches the list: everyone, even as people load.
+  const [pickedEaterIds, setPickedEaterIds] = useState<string[] | null>(null);
+  const [extraPortions, setExtraPortions] = useState<number | null>(0);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const strip = useMemo(() => stripDates(0), []);
   const effectiveListId = selectedListId ?? lists[0]?.id ?? null;
 
+  const { data: peopleRows } = useQuery<PersonRow>(
+    "SELECT id, name, user_id FROM household_people WHERE list_id = ? ORDER BY created_at, id",
+    [effectiveListId ?? ""],
+  );
+  const people = useMemo(
+    () => toEaters(peopleRows, session?.user.id),
+    [peopleRows, session],
+  );
+  const eaterIds = pickedEaterIds ?? people.map((p) => p.id);
+
   // react-native-screens #3634: a ScrollView mounted while the formSheet
   // presents gets its native frame mangled (fitToContents measuring pass).
-  // Mount the strip only after the sheet transition settles.
-  const [stripReady, setStripReady] = useState(false);
+  // Mount the strip and slider only after the sheet transition settles.
+  const [ready, setReady] = useState(false);
   useEffect(
     () =>
       navigation.addListener("transitionEnd", (e) => {
-        if (!e.data.closing) setStripReady(true);
+        if (!e.data.closing) setReady(true);
       }),
     [navigation],
   );
 
   async function onAdd() {
+    if (extraPortions === null) {
+      setError(EXTRA_PORTIONS_ERROR);
+      return;
+    }
     if (pending) {
       // The commit: one honest message back on the chat screen.
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       queueMessage({
         messageId: Crypto.randomUUID(),
-        text: saveAndPlanMessage({ day: selectedDate, meal: selectedMeal, servings }),
+        text: saveAndPlanMessage({
+          day: selectedDate,
+          meal: selectedMeal,
+          people,
+          eaterIds,
+          extraPortions,
+        }),
         attachments: [],
       });
       router.back();
@@ -100,7 +123,8 @@ export default function PlanVariantSheet() {
         meal: selectedMeal,
         recipeId: variant.recipe_id,
         variantId: variant.id,
-        servings,
+        eaterIds,
+        extraPortions,
       });
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.back();
@@ -136,7 +160,10 @@ export default function PlanVariantSheet() {
             {lists.map((l) => (
               <Pressable
                 key={l.id}
-                onPress={() => setSelectedListId(l.id)}
+                onPress={() => {
+                  setSelectedListId(l.id);
+                  setPickedEaterIds(null);
+                }}
                 className={`rounded-full border px-4 py-2 ${effectiveListId === l.id ? "border-primary bg-primary" : "border-border bg-card"}`}
               >
                 <Text
@@ -154,7 +181,7 @@ export default function PlanVariantSheet() {
         </View>
       ) : null}
 
-      {stripReady ? (
+      {ready ? (
         <DayStrip
           className="mt-6"
           dates={strip.dates}
@@ -189,30 +216,26 @@ export default function PlanVariantSheet() {
         </View>
       </View>
 
-      <View className="mt-6 flex-row items-center justify-between px-6">
-        <Text variant="muted" className="text-xs uppercase tracking-widest">
-          Servings
+      <EatersPicker
+        people={people}
+        eaterIds={eaterIds}
+        extraPortions={extraPortions ?? 0}
+        onEaterIdsChange={(ids) => {
+          setPickedEaterIds(ids);
+          setError(null);
+        }}
+        onExtraPortionsChange={(value) => {
+          setExtraPortions(value);
+          setError(null);
+        }}
+        sliderReady={ready}
+      />
+
+      {pending ? null : (
+        <Text variant="muted" className="mt-4 px-6 text-sm">
+          Amounts follow the recipe as written.
         </Text>
-        <View className="flex-row items-center gap-3">
-          <Pressable
-            onPress={() => setServings((s) => Math.max(1, s - 1))}
-            hitSlop={8}
-            className="size-9 items-center justify-center rounded-full border border-border bg-card"
-          >
-            <SymbolView name={MINUS_ICON} tintColor={mutedColor} size={16} />
-          </Pressable>
-          <Text className="w-6 text-center text-base font-semibold">
-            {servings}
-          </Text>
-          <Pressable
-            onPress={() => setServings((s) => Math.min(12, s + 1))}
-            hitSlop={8}
-            className="size-9 items-center justify-center rounded-full border border-border bg-card"
-          >
-            <SymbolView name={PLUS_ICON} tintColor={mutedColor} size={16} />
-          </Pressable>
-        </View>
-      </View>
+      )}
 
       {error ? (
         <Text variant="small" className="mt-6 px-6 text-destructive">

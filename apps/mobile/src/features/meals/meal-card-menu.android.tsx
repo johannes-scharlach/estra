@@ -15,7 +15,7 @@ const MENU_ICON = {
   ios: "ellipsis",
   android: "more_horiz",
 } as const;
-const PORTIONS_ICON = { ios: "person.2", android: "group" } as const;
+const EATERS_ICON = { ios: "person.2", android: "group" } as const;
 const CHANGE_ICON = {
   ios: "arrow.triangle.2.circlepath",
   android: "autorenew",
@@ -29,8 +29,8 @@ const REMOVE_ICON = {
 /** Android: … button opening the shared overlay where the finger is. */
 export function MealCardMenu({
   recipeName,
-  servings,
-  onEditPortions,
+  eatersLabel,
+  onEditEaters,
   onChange,
   onMove,
   onSkip,
@@ -68,10 +68,10 @@ export function MealCardMenu({
         onDismiss={() => setAnchor(null)}
         actions={[
           {
-            id: "portions",
-            title: `${servings ?? 2} ${servings === 1 ? "portion" : "portions"}`,
-            icon: PORTIONS_ICON,
-            onSelect: onEditPortions,
+            id: "eaters",
+            title: eatersLabel,
+            icon: EATERS_ICON,
+            onSelect: onEditEaters,
           },
           {
             id: "change",

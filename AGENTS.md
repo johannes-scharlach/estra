@@ -24,6 +24,9 @@ changes, `docs/schema-changes.md` before touching the schema or sync rules.
 
 - `supabase/` is Deno and outside the pnpm workspace on purpose. Shared
   edge-function code goes in `supabase/functions/_shared/`, never `packages/`.
+- Pure rules both `apps/api` and `apps/mobile` need go in `packages/` as one
+  `src/index.ts` (`@estra/meals`, ADR 13). Persistence code stays twinned.
+  The API Dockerfile copies each package explicitly.
 - op-sqlite build flags (SQLCipher, FTS5) go in the root `package.json`
   (modules hoist there), not `apps/mobile/package.json`.
 - Streaming and long-running work goes in `apps/api`; request/response work

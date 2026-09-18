@@ -1,6 +1,13 @@
 import { useQuery } from "@powersync/react";
 import { router } from "expo-router";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   ActivityIndicator,
   Modal,
@@ -14,17 +21,16 @@ import Animated from "react-native-reanimated";
 
 import { Button } from "@/components/ui/button";
 import { Text } from "@/components/ui/text";
+import { useAuth } from "@/db/provider";
 import type { List, PlannedMeal, Variant as DbVariant } from "@/db/schema";
-import {
-  clearPlannedMeal,
-  setPlannedMeal,
-} from "@/db/planned-meals";
+import { clearPlannedMeal, setPlannedMeal } from "@/db/planned-meals";
 import {
   DayContent,
   type DisplayPlannedMeal,
   type DisplayRecipe,
 } from "@/features/meals/day-content";
 import { DayStrip } from "@/features/meals/day-strip";
+import { eatersLabel, parseEaterIds, toEaters } from "@/features/meals/eaters";
 import {
   addDays,
   dateKey,
@@ -40,9 +46,9 @@ export default function Meals() {
   const [selected, setSelected] = useState(() => dateKey(new Date()));
   const [openSlots, setOpenSlots] = useState<Set<string>>(() => new Set());
   // optimistic pending — avoids flicker through hidden state while PowerSync query catches up
-  const [pending, setPending] = useState<Record<string, DisplayPlannedMeal | null>>(
-    {},
-  );
+  const [pending, setPending] = useState<
+    Record<string, DisplayPlannedMeal | null>
+  >({});
   const importJobs = useImportJobs();
   const [cookbookSlot, setCookbookSlot] = useState<{
     slot: MealSlot;
@@ -63,6 +69,19 @@ export default function Meals() {
   );
   const { data: variants } = useQuery<DbVariant>(
     "SELECT * FROM variants ORDER BY created_at DESC",
+  );
+  const { session } = useAuth();
+  const { data: peopleRows } = useQuery<{
+    id: string;
+    name: string;
+    user_id: string | null;
+  }>(
+    "SELECT id, name, user_id FROM household_people WHERE list_id = ? ORDER BY created_at, id",
+    [list?.id ?? ""],
+  );
+  const people = useMemo(
+    () => toEaters(peopleRows, session?.user.id),
+    [peopleRows, session],
   );
 
   const variantById = useMemo(
@@ -96,7 +115,10 @@ export default function Meals() {
   // the latest selection, and nodes are keyed by date — the landed page is
   // already on screen, the reset just re-centers the row in the same frame.
   const commitArmed = useRef(false);
-  const pageRef = useRef({ nextKey: null as string | null, prevKey: null as string | null });
+  const pageRef = useRef({
+    nextKey: null as string | null,
+    prevKey: null as string | null,
+  });
   useEffect(() => {
     pageRef.current = {
       nextKey: nextDate ? dateKey(nextDate) : null,
@@ -133,11 +155,15 @@ export default function Meals() {
     const row = planned.find((p) => p.slot_date === date && p.meal === slot);
     if (!row || !row.variant_id) return null;
     const v = variantById.get(row.variant_id);
+    const eaterIds = parseEaterIds(row.eater_ids);
+    const extraPortions = row.extra_portions ?? 0;
     return {
       id: row.variant_id,
       name: v?.name ?? "…",
       totalTime: v?.total_time ?? null,
-      servings: row.servings,
+      eaterIds,
+      extraPortions,
+      eatersLabel: eatersLabel({ people, eaterIds, extraPortions }),
     };
   }
 
@@ -146,10 +172,7 @@ export default function Meals() {
     for (const [k, p] of Object.entries(pending)) {
       const [date, slot] = k.split(":") as [string, MealSlot];
       const row = planned.find((r) => r.slot_date === date && r.meal === slot);
-      if (
-        (p === null && !row?.variant_id) ||
-        (p && row?.variant_id === p.id && row.servings === p.servings)
-      ) {
+      if ((p === null && !row?.variant_id) || (p && row?.variant_id === p.id)) {
         // eslint-disable-next-line react-hooks/set-state-in-effect -- clearing optimistic pending once PowerSync catches up
         setPending((prev) => {
           const next = { ...prev };
@@ -173,8 +196,17 @@ export default function Meals() {
   async function onPlan(date: string, slot: MealSlot, recipe: DisplayRecipe) {
     if (!list) return;
     const k = `${date}:${slot}`;
-    const servings = 2;
-    setPending((prev) => ({ ...prev, [k]: { ...recipe, servings } }));
+    // Same default the write applies: everyone in the household, no extra.
+    const eaterIds = people.map((p) => p.id);
+    setPending((prev) => ({
+      ...prev,
+      [k]: {
+        ...recipe,
+        eaterIds,
+        extraPortions: 0,
+        eatersLabel: eatersLabel({ people, eaterIds, extraPortions: 0 }),
+      },
+    }));
     setOpen(date, slot, false);
     try {
       // DisplayRecipe id is now variant id (ADR 8)
@@ -185,7 +217,6 @@ export default function Meals() {
         meal: slot,
         recipeId: v?.recipe_id ?? recipe.id,
         variantId: recipe.id,
-        servings,
       });
     } catch {
       // rollback optimistic on failure
@@ -238,21 +269,30 @@ export default function Meals() {
     router.push({ pathname: "/meals/import", params: { slot, date } });
   }
 
-  function editPortions(date: string, slot: MealSlot, recipe: DisplayPlannedMeal | null) {
-    if (!list) return;
+  function editEaters(
+    date: string,
+    slot: MealSlot,
+    recipe: DisplayPlannedMeal | null,
+  ) {
+    if (!list || !recipe) return;
     router.push({
-      pathname: "/meals/portions",
+      pathname: "/meals/eaters",
       params: {
         listId: list.id,
         date,
         slot,
-        variantId: recipe?.id,
-        portions: recipe?.servings ?? 2,
+        variantId: recipe.id,
+        eaterIds: JSON.stringify(recipe.eaterIds),
+        extraPortions: String(recipe.extraPortions),
       },
     });
   }
 
-  function moveMeal(date: string, slot: MealSlot, recipe: DisplayPlannedMeal | null) {
+  function moveMeal(
+    date: string,
+    slot: MealSlot,
+    recipe: DisplayPlannedMeal | null,
+  ) {
     if (!list) return;
     router.push({
       pathname: "/meals/move",
@@ -279,7 +319,7 @@ export default function Meals() {
           contenders={contendersBySlot}
           isOpen={(slot) => openSlots.has(`${key}:${slot}`)}
           onPlan={(slot, r) => void onPlan(key, slot, r)}
-          onEditPortions={(slot, r) => editPortions(key, slot, r)}
+          onEditEaters={(slot, r) => editEaters(key, slot, r)}
           onChange={(slot) => void changeMeal(key, slot)}
           onSkip={(slot) => void skipMeal(key, slot)}
           onMove={(slot, r) => moveMeal(key, slot, r)}
@@ -306,7 +346,7 @@ export default function Meals() {
       <ScrollView
         className="flex-1 bg-background"
         contentInsetAdjustmentBehavior="automatic"
-        contentContainerClassName="pb-10"
+        contentContainerClassName="flex-grow"
       >
         <View className="mt-4">
           <DayStrip
@@ -322,8 +362,10 @@ export default function Meals() {
             style={[
               dragStyle,
               {
+                flexGrow: 1,
                 flexDirection: "row",
                 overflow: "hidden",
+                paddingBottom: 40,
                 // explicit: a stretched row would be viewport-wide and the
                 // -width rest offset would push every page off-screen
                 width: width * 3,
@@ -389,7 +431,8 @@ export default function Meals() {
                 <Button
                   variant="outline"
                   onPress={() => {
-                    if (cookbookSlot) openImport(cookbookSlot.date, cookbookSlot.slot);
+                    if (cookbookSlot)
+                      openImport(cookbookSlot.date, cookbookSlot.slot);
                     setCookbookSlot(null);
                   }}
                 >

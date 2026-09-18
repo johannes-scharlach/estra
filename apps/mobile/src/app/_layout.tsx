@@ -86,7 +86,7 @@ export default function RootLayout() {
                     }}
                   />
                   <Stack.Screen
-                    name="meals/portions"
+                    name="meals/eaters"
                     options={{
                       presentation: "formSheet",
                       sheetAllowedDetents: "fitToContents",

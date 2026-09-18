@@ -372,8 +372,9 @@ export type Database = {
           id: string
           list_id: string
           meal: string
+          eater_ids: Json
+          extra_portions: number
           recipe_id: string
-          servings: number
           slot_date: string
           updated_at: string
           variant_id: string
@@ -383,8 +384,9 @@ export type Database = {
           id?: string
           list_id: string
           meal?: string
+          eater_ids?: Json
+          extra_portions?: number
           recipe_id: string
-          servings?: number
           slot_date: string
           updated_at?: string
           variant_id: string
@@ -394,8 +396,9 @@ export type Database = {
           id?: string
           list_id?: string
           meal?: string
+          eater_ids?: Json
+          extra_portions?: number
           recipe_id?: string
-          servings?: number
           slot_date?: string
           updated_at?: string
           variant_id?: string

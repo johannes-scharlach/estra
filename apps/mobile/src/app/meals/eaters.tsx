@@ -1,0 +1,118 @@
+import { useQuery } from "@powersync/react";
+import {
+  useLocalSearchParams,
+  useNavigation,
+  useRouter,
+  type NativeStackNavigationProp,
+} from "expo-router";
+import * as Haptics from "expo-haptics";
+import { useEffect, useMemo, useState } from "react";
+import { ActivityIndicator, View } from "react-native";
+
+import { Button } from "@/components/ui/button";
+import { Text } from "@/components/ui/text";
+import { updatePlannedMealEaters } from "@/db/planned-meals";
+import { useAuth } from "@/db/provider";
+import { parseEaterIds, parseExtraPortions, toEaters } from "@/features/meals/eaters";
+import { EXTRA_PORTIONS_ERROR, EatersPicker } from "@/features/meals/eaters-picker";
+import type { MealSlot } from "@/features/meals/slots";
+
+type PersonRow = { id: string; name: string; user_id: string | null };
+
+/** Edits who is eating a planned meal and the extra. The recipe and its
+ *  shopping items are not touched; the sheet says so. */
+export default function EatersSheet() {
+  const params = useLocalSearchParams<{
+    listId: string;
+    date: string;
+    slot: MealSlot;
+    variantId: string;
+    eaterIds: string;
+    extraPortions: string;
+  }>();
+  const { listId, date, slot, variantId } = params;
+  const router = useRouter();
+  const navigation =
+    useNavigation<NativeStackNavigationProp<Record<string, never>>>();
+  const { session } = useAuth();
+  const { data: rows } = useQuery<PersonRow>(
+    "SELECT id, name, user_id FROM household_people WHERE list_id = ? ORDER BY created_at, id",
+    [listId ?? ""],
+  );
+  const people = useMemo(() => toEaters(rows, session?.user.id), [rows, session]);
+
+  const [eaterIds, setEaterIds] = useState(() => parseEaterIds(params.eaterIds));
+  const initialExtra = parseExtraPortions(params.extraPortions ?? "") ?? 0;
+  const [extraPortions, setExtraPortions] = useState<number | null>(initialExtra);
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [sliderReady, setSliderReady] = useState(false);
+
+  useEffect(
+    () =>
+      navigation.addListener("transitionEnd", (event) => {
+        if (!event.data.closing) setSliderReady(true);
+      }),
+    [navigation],
+  );
+
+  async function save() {
+    if (extraPortions === null) {
+      setError(EXTRA_PORTIONS_ERROR);
+      return;
+    }
+    if (!listId || !date || !slot || !variantId || saving) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await updatePlannedMealEaters(listId, date, slot, variantId, eaterIds, extraPortions);
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      router.back();
+    } catch (caught) {
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      setError(caught instanceof Error ? caught.message : "Could not update the meal.");
+      setSaving(false);
+    }
+  }
+
+  return (
+    <>
+      <View className="gap-1 px-6 pt-4">
+        <Text className="text-lg font-semibold">Who&apos;s eating</Text>
+        <Text variant="muted" className="text-sm">
+          Amounts follow the recipe as written.
+        </Text>
+      </View>
+
+      <EatersPicker
+        people={people}
+        eaterIds={eaterIds}
+        extraPortions={extraPortions ?? initialExtra}
+        onEaterIdsChange={(ids) => {
+          setEaterIds(ids);
+          setError(null);
+        }}
+        onExtraPortionsChange={(value) => {
+          setExtraPortions(value);
+          setError(null);
+        }}
+        sliderReady={sliderReady}
+      />
+
+      {error ? (
+        <Text selectable className="mt-4 px-6 text-destructive">
+          {error}
+        </Text>
+      ) : null}
+
+      <View className="mt-6 gap-2 px-6 pb-6">
+        <Button size="lg" disabled={saving} onPress={() => void save()}>
+          {saving ? <ActivityIndicator /> : <Text>Apply</Text>}
+        </Button>
+        <Button variant="ghost" disabled={saving} onPress={() => router.back()}>
+          <Text>Cancel</Text>
+        </Button>
+      </View>
+    </>
+  );
+}

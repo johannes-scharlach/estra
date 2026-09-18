@@ -1,14 +1,12 @@
+import { itemNameKey } from "@estra/meals";
+
 import { estraUuidV5 } from "@/lib/estra-uuid";
 
 import { powersync } from './system';
 
-/**
- * The dedupe key. 'Oat Milk  ' and 'oat milk' are the same thing on a
- * shopping list, so they collapse to one row.
- */
-export function itemNameKey(name: string): string {
-  return name.trim().toLowerCase().replace(/\s+/g, ' ');
-}
+// The dedupe key lives in @estra/meals so the API projects the same
+// name_key; re-exported here because every item write in the app uses it.
+export { itemNameKey };
 
 /**
  * Ids for list_items are derived from (list_id, name_key) rather than

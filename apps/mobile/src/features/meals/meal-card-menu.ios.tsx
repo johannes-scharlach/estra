@@ -14,8 +14,8 @@ const MENU_ICON = {
 export function MealCardMenu({
   recipeId,
   recipeName,
-  servings,
-  onEditPortions,
+  eatersLabel,
+  onEditEaters,
   onChange,
   onMove,
   onSkip,
@@ -28,8 +28,8 @@ export function MealCardMenu({
       style={{ position: "absolute", right: 6, top: 6 }}
       actions={[
         {
-          id: "portions",
-          title: `${servings ?? 2} ${servings === 1 ? "portion" : "portions"}`,
+          id: "eaters",
+          title: eatersLabel,
           image: "person.2",
         },
         {
@@ -57,7 +57,7 @@ export function MealCardMenu({
         },
       ]}
       onPressAction={({ nativeEvent: { event } }) => {
-        if (event === "portions") onEditPortions();
+        if (event === "eaters") onEditEaters();
         else if (event === "change") onChange();
         else if (event === "move") onMove();
         else if (event === "remove") onSkip();

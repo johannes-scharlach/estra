@@ -1,6 +1,6 @@
 import * as Crypto from 'expo-crypto';
 import { estraUuidV5 } from "@/lib/estra-uuid";
-import { isValidPortions } from '@/features/meals/portions';
+import { isValidExtraPortions } from '@/features/meals/eaters';
 import type { MealSlot } from '@/features/meals/slots';
 
 import { powersync } from './system';
@@ -37,11 +37,26 @@ async function syncListItemsForMeal(tx: any, listId: string, plannedMealIdValue:
   }
 }
 
+/** Everyone in the household, the default for a meal nobody has narrowed. */
+async function householdEaterIds(tx: any, listId: string): Promise<string[]> {
+  const rows = (await tx.getAll(
+    `SELECT id FROM household_people WHERE list_id = ? ORDER BY created_at, id`,
+    [listId],
+  )) as { id: string }[];
+  return rows.map((r) => r.id);
+}
+
+function assertValidExtra(extraPortions: number) {
+  if (!isValidExtraPortions(extraPortions))
+    throw new Error('Extra portions must be zero or more with at most two decimal places');
+}
+
 /**
  * Plan a recipe into a slot. One row per slot (list_id + slot_date + meal).
  * Deterministic id so offline concurrent writes to same slot converge.
  * Picks the latest variant for the recipe (ADR 8: random ids, technique variants are distinct).
  * Also projects the variant's ingredient_lines into list_items (meal-derived rows, random ids, ADR 7).
+ * Eaters default to the whole household and extra to none (ADR 12).
  */
 export async function setPlannedMeal(opts: {
   listId: string;
@@ -49,13 +64,14 @@ export async function setPlannedMeal(opts: {
   meal: string;
   recipeId: string;
   variantId?: string;
-  servings?: number;
+  eaterIds?: string[];
+  extraPortions?: number;
 }) {
   const { listId, slotDate, meal, recipeId } = opts;
   const id = plannedMealId(listId, slotDate, meal);
   const now = new Date().toISOString();
-  const servings = opts.servings ?? 2;
-  if (!isValidPortions(servings)) throw new Error('Portions must be positive with at most two decimal places');
+  const extraPortions = opts.extraPortions ?? 0;
+  assertValidExtra(extraPortions);
 
   await powersync.writeTransaction(async (tx) => {
     let vId = opts.variantId;
@@ -64,20 +80,21 @@ export async function setPlannedMeal(opts: {
       if (!v) throw new Error(`no variant for recipe ${recipeId}`);
       vId = v.id;
     }
+    const eaterIds = JSON.stringify(opts.eaterIds ?? (await householdEaterIds(tx, listId)));
     const existing = (await tx.getOptional(`SELECT id FROM planned_meals WHERE id = ?`, [id])) as
       | { id: string }
       | null
       | undefined;
     if (existing) {
       await tx.execute(
-        `UPDATE planned_meals SET recipe_id = ?, variant_id = ?, servings = ?, updated_at = ? WHERE id = ?`,
-        [recipeId, vId, servings, now, id],
+        `UPDATE planned_meals SET recipe_id = ?, variant_id = ?, eater_ids = ?, extra_portions = ?, updated_at = ? WHERE id = ?`,
+        [recipeId, vId, eaterIds, extraPortions, now, id],
       );
     } else {
       await tx.execute(
-        `INSERT INTO planned_meals (id, list_id, recipe_id, variant_id, slot_date, meal, servings, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [id, listId, recipeId, vId, slotDate, meal, servings, now, now],
+        `INSERT INTO planned_meals (id, list_id, recipe_id, variant_id, slot_date, meal, eater_ids, extra_portions, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [id, listId, recipeId, vId, slotDate, meal, eaterIds, extraPortions, now, now],
       );
     }
     await syncListItemsForMeal(tx, listId, id, vId);
@@ -92,14 +109,16 @@ export async function clearPlannedMeal(listId: string, slotDate: string, meal: s
   });
 }
 
-export async function updatePlannedMealServings(
+/** Who is eating and how much extra. Never touches the recipe or its items. */
+export async function updatePlannedMealEaters(
   listId: string,
   slotDate: string,
   meal: MealSlot,
   variantId: string,
-  servings: number,
+  eaterIds: string[],
+  extraPortions: number,
 ): Promise<void> {
-  if (!isValidPortions(servings)) throw new Error('Portions must be positive with at most two decimal places');
+  assertValidExtra(extraPortions);
   const id = plannedMealId(listId, slotDate, meal);
   await powersync.writeTransaction(async (tx) => {
     const existing = await tx.getOptional(
@@ -108,11 +127,13 @@ export async function updatePlannedMealServings(
     );
     if (!existing) throw new Error('Planned meal not found');
     await tx.execute(
-      `UPDATE planned_meals SET servings = ?, updated_at = ? WHERE id = ?`,
-      [servings, new Date().toISOString(), id],
+      `UPDATE planned_meals SET eater_ids = ?, extra_portions = ?, updated_at = ? WHERE id = ?`,
+      [JSON.stringify(eaterIds), extraPortions, new Date().toISOString(), id],
     );
   });
 }
+
+type Slot = { recipe_id: string; variant_id: string; eater_ids: string; extra_portions: number };
 
 export async function movePlannedMeal(
   listId: string,
@@ -123,28 +144,30 @@ export async function movePlannedMeal(
   const toId = plannedMealId(listId, to.date, to.slot);
 
   await powersync.writeTransaction(async (tx) => {
-    const source = (await tx.getOptional(`SELECT recipe_id, variant_id, servings FROM planned_meals WHERE id = ?`, [
-      fromId,
-    ])) as { recipe_id: string; variant_id: string; servings: number } | null | undefined;
+    const source = (await tx.getOptional(
+      `SELECT recipe_id, variant_id, eater_ids, extra_portions FROM planned_meals WHERE id = ?`,
+      [fromId],
+    )) as Slot | null | undefined;
     if (!source) throw new Error('Planned meal not found');
     if (source.variant_id !== from.variantId) throw new Error('Planned meal changed');
     if (fromId === toId) return;
 
-    const target = (await tx.getOptional(`SELECT recipe_id, variant_id, servings FROM planned_meals WHERE id = ?`, [
-      toId,
-    ])) as { recipe_id: string; variant_id: string; servings: number } | null | undefined;
+    const target = (await tx.getOptional(
+      `SELECT recipe_id, variant_id, eater_ids, extra_portions FROM planned_meals WHERE id = ?`,
+      [toId],
+    )) as Slot | null | undefined;
 
     const now = new Date().toISOString();
 
     if (target) {
       // Keep slot ids, swap contents, then refresh both item projections.
       await tx.execute(
-        `UPDATE planned_meals SET recipe_id = ?, variant_id = ?, servings = ?, updated_at = ? WHERE id = ?`,
-        [source.recipe_id, source.variant_id, source.servings, now, toId],
+        `UPDATE planned_meals SET recipe_id = ?, variant_id = ?, eater_ids = ?, extra_portions = ?, updated_at = ? WHERE id = ?`,
+        [source.recipe_id, source.variant_id, source.eater_ids, source.extra_portions, now, toId],
       );
       await tx.execute(
-        `UPDATE planned_meals SET recipe_id = ?, variant_id = ?, servings = ?, updated_at = ? WHERE id = ?`,
-        [target.recipe_id, target.variant_id, target.servings, now, fromId],
+        `UPDATE planned_meals SET recipe_id = ?, variant_id = ?, eater_ids = ?, extra_portions = ?, updated_at = ? WHERE id = ?`,
+        [target.recipe_id, target.variant_id, target.eater_ids, target.extra_portions, now, fromId],
       );
       await syncListItemsForMeal(tx, listId, toId, source.variant_id);
       await syncListItemsForMeal(tx, listId, fromId, target.variant_id);
@@ -152,9 +175,9 @@ export async function movePlannedMeal(
       // The new slot needs its deterministic id and a fresh item projection.
       await tx.execute(`DELETE FROM planned_meals WHERE id = ?`, [fromId]);
       await tx.execute(
-        `INSERT INTO planned_meals (id, list_id, recipe_id, variant_id, slot_date, meal, servings, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [toId, listId, source.recipe_id, source.variant_id, to.date, to.slot, source.servings, now, now],
+        `INSERT INTO planned_meals (id, list_id, recipe_id, variant_id, slot_date, meal, eater_ids, extra_portions, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [toId, listId, source.recipe_id, source.variant_id, to.date, to.slot, source.eater_ids, source.extra_portions, now, now],
       );
       // Local SQLite does not cascade the Postgres foreign key.
       await tx.execute(`DELETE FROM list_items WHERE planned_meal_id = ?`, [fromId]);

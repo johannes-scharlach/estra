@@ -4,8 +4,8 @@ export { MealCardMenu } from "./meal-card-menu.android";
 export type MealCardMenuProps = {
   recipeId: string;
   recipeName: string;
-  servings: number | null;
-  onEditPortions: () => void;
+  eatersLabel: string;
+  onEditEaters: () => void;
   onChange: () => void;
   onMove: () => void;
   onSkip: () => void;

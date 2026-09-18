@@ -32,9 +32,11 @@ COPY apps/api/package.json apps/api/
 # workspace project, so the manifest has to be present.
 COPY apps/mobile/package.json apps/mobile/
 COPY packages/profile/package.json packages/profile/
+COPY packages/meals/package.json packages/meals/
 RUN pnpm install --frozen-lockfile --filter api...
 COPY apps/api apps/api
 COPY packages/profile/src packages/profile/src
+COPY packages/meals/src packages/meals/src
 RUN pnpm --filter api build
 
 # --- image -----------------------------------------------------------------

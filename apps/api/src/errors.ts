@@ -26,8 +26,31 @@ export class ListAccessError extends AppError {
     super("LIST_ACCESS_DENIED", "You no longer have access to this list.", 403);
   }
 }
+export class UnknownHouseholdPersonError extends AppError {
+  constructor() {
+    super(
+      "UNKNOWN_HOUSEHOLD_PERSON",
+      "Someone named as eating is not in this household.",
+      422,
+    );
+  }
+}
 export class VariantNotFoundError extends AppError {
   constructor() {
     super("VARIANT_NOT_FOUND", "This recipe is no longer available.", 404);
+  }
+}
+export class PlannedMealNotFoundError extends AppError {
+  constructor() {
+    super("PLANNED_MEAL_NOT_FOUND", "This meal is no longer on the plan.", 404);
+  }
+}
+export class PlannedMealChangedError extends AppError {
+  constructor() {
+    super(
+      "PLANNED_MEAL_CHANGED",
+      "This meal changed while adjusting. Open it again and retry.",
+      409,
+    );
   }
 }

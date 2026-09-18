@@ -99,7 +99,9 @@ const planned_meals = new Table(
     variant_id: column.text,
     slot_date: column.text,
     meal: column.text,
-    servings: column.real,
+    // JSON array of household_people ids; text locally like variants.ingredient_lines.
+    eater_ids: column.text,
+    extra_portions: column.real,
     created_at: column.text,
     updated_at: column.text,
   },

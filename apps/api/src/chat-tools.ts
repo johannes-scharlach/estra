@@ -4,17 +4,15 @@ import { tool } from "ai";
 import { z } from "zod";
 
 import { pool, inTransaction } from "./db.js";
+import { UnknownHouseholdPersonError } from "./errors.js";
 import {
   clearPlannedMeal,
   MEAL_SLOTS,
   readPlan,
   setPlannedMeal,
 } from "./plan.js";
-import { RecipeSchema } from "./recipe-schema.js";
+import { CookRecipeSchema } from "./recipe-schema.js";
 import { createRecipe, insertVariant, variantUrl } from "./variants.js";
-
-// The assistant writes recipes from the conversation; provenance is the chat.
-const CookRecipeSchema = RecipeSchema.omit({ from: true });
 
 /**
  * Tools act, never present (ADR 9). Saving lands on the same tables as a URL
@@ -35,24 +33,44 @@ export function buildChatTools(userId: string, listId: string) {
 
     planMeal: tool({
       description:
-        "Put a saved recipe on the calendar. Its ingredients land on the shopping list automatically; the result says which. Replaces whatever was in that slot. Save first if the recipe is not in the cookbook yet.",
+        "Put a saved recipe on the calendar. Its ingredients land on the shopping list automatically; the result says which. Replaces whatever was in that slot. Save first if the recipe is not in the cookbook yet. Pass the eaters and extra you sized the recipe for.",
       inputSchema: z.object({
         variantId: z.uuid(),
         date: z.iso.date().describe("YYYY-MM-DD in the user's local time"),
         meal: z.enum(MEAL_SLOTS),
-        servings: z.number().positive().multipleOf(0.01).optional(),
+        eaterIds: z
+          .array(z.uuid())
+          .optional()
+          .describe(
+            "Household people eating this meal, by id from the household context. Omit when everyone eats.",
+          ),
+        extraPortions: z
+          .number()
+          .min(0)
+          .multipleOf(0.01)
+          .optional()
+          .describe(
+            "Extra food beyond the eaters, in adult helpings; may be fractional. Omit for none.",
+          ),
       }),
-      execute: async ({ variantId, date, meal, servings }) =>
-        inTransaction((client) =>
-          setPlannedMeal(client, {
-            listId,
-            slotDate: date,
-            meal,
-            variantId,
-            servings,
-            ifOccupied: "replace",
-          }),
-        ),
+      execute: async ({ variantId, date, meal, eaterIds, extraPortions }) => {
+        try {
+          return await inTransaction((client) =>
+            setPlannedMeal(client, {
+              listId,
+              slotDate: date,
+              meal,
+              variantId,
+              eaterIds,
+              extraPortions,
+              ifOccupied: "replace",
+            }),
+          );
+        } catch (e) {
+          if (e instanceof UnknownHouseholdPersonError) return { error: e.message };
+          throw e;
+        }
+      },
     }),
 
     unplanMeal: tool({
