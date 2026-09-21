@@ -24,6 +24,11 @@ import { AppStack } from "@/features/onboarding/app-stack";
 import { OnboardingProvider } from "@/features/onboarding/provider";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 
+// A deep link into a pushed screen (a shared recipe, a meal notification)
+// still gets the tabs beneath it, so the system Back button and swipe-back
+// work instead of stranding the user on a rootless screen.
+export const unstable_settings = { anchor: "(tabs)" };
+
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   const baseTheme = colorScheme === "dark" ? DarkTheme : DefaultTheme;
@@ -67,6 +72,17 @@ export default function RootLayout() {
                   {/* No variant/_layout.tsx by design: [id] must sit above (tabs)
                 in this same stack to get the system back button + swipe-back.
                 Push-time chrome for its sub-screens is declared here. */}
+                  <Stack.Screen
+                    name="variant/[id]"
+                    options={{
+                      // Set here so the first pushed frame already has the
+                      // transparent header; the screen adds the rest.
+                      headerTransparent: true,
+                      headerShadowVisible: false,
+                      headerBackButtonDisplayMode: "minimal",
+                      headerTitleAlign: "center",
+                    }}
+                  />
                   <Stack.Screen
                     name="variant/plan"
                     options={{

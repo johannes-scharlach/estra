@@ -122,7 +122,7 @@ export function adjustPrompt({ meal, variant, items, eaters }: AdjustContext): s
   return [
     "You are adjusting a saved recipe to the meal it is planned for. Return the complete recipe in the same JSON shape.",
     "",
-    `Keep the language (locale "${variant.locale}"), the dish name, the voice, the structure and the order of steps, and every detail you are not told to change. Keep contentMarkdown consistent with the changes.`,
+    `Keep the language (locale "${variant.locale}"), the voice, the structure and the order of steps, and every detail you are not told to change. Keep the dish name unless a swap replaces an ingredient the name mentions; then rename the dish to match. The name, description, step names, step text and contentMarkdown must all agree with the ingredient lines you return: nothing may still name an ingredient that was swapped out.`,
     "",
     `Eating: ${who.length ? who.join("; ") : "the household"}${extraPortions}.`,
     `The recipe as written says it serves: "${variant.recipe_yield ?? "unknown"}". Scale every amount for exactly these eaters and extra. A child eats less than an adult; a teenager about as much.`,
@@ -130,7 +130,7 @@ export function adjustPrompt({ meal, variant, items, eaters }: AdjustContext): s
     "",
     ...(swaps.length
       ? [
-          "The shopping list swapped these ingredients. Make each the line's item_name with its own qty_text and prep_note, list the original as one of that line's swaps, and rewrite any step text that names the original:",
+          "The shopping list swapped these ingredients. Make each the line's item_name with its own qty_text and prep_note, list the original as one of that line's swaps, and rewrite any step name or step text that names the original:",
           ...swaps,
           "",
         ]

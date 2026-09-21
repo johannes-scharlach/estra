@@ -95,7 +95,9 @@ export const RecipeSchema = z.object({
   description: z
     .string()
     .min(1)
-    .describe("one-paragraph appetizer for the dish"),
+    .describe(
+      'one or two plain sentences a friend would say: what the dish is, how it eats, when it fits — e.g. "Garlicky chickpeas and greens on toast. A 20-minute dinner that leans on the pantry." No stacked adjectives, no "vibrant"/"delightful", no selling.',
+    ),
   locale: z.enum(locales).describe("content language, en or de"),
   totalTime: z
     .string()

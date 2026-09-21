@@ -4,6 +4,7 @@ node_modules/
 
 # Local design review captures
 docs/.screenshots/
+apps/mobile/docs/.screenshots/
 
 # Expo
 .expo/

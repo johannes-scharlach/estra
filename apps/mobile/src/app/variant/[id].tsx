@@ -1,10 +1,11 @@
-import { mealDelta } from "@estra/meals";
+import { itemNameKey, mealDelta, type IngredientLine } from "@estra/meals";
 import { useQuery } from "@powersync/react";
 import * as Crypto from "expo-crypto";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
 import { LinearGradient } from "expo-linear-gradient";
+import { MenuView } from "@expo/ui/community/menu";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ColorValue } from "react-native";
 import {
@@ -29,12 +30,11 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { useResolveClassNames } from "uniwind";
-import { EnrichedMarkdownText } from "react-native-enriched-markdown";
 
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Text } from "@/components/ui/text";
-import { applySwap } from "@/db/items";
+import { applySwap, setItemStatus } from "@/db/items";
 import { useAuth } from "@/db/provider";
 import type { ListItem, PlannedMeal, Variant, Recipe } from "@/db/schema";
 import { parseVariant } from "@/db/variants";
@@ -50,47 +50,97 @@ import {
 import {
   adjacentAlternative,
   alternativesForLine,
+  type Alternative,
 } from "@/features/shop/alternatives";
+import { PrimaryAction } from "@/features/variants/primary-action";
+import { ACTION_HEIGHT } from "@/features/variants/primary-action-shared";
 import { tonalPair } from "@/features/variants/tonal";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 
-const HERO_HEIGHT = 420;
+const HERO_HEIGHT = 320;
+/** The floating action pill: its height plus its gap to the safe area. */
+const ACTION_GAP = 12;
 
 const SHARE_ICON = {
   ios: "square.and.arrow.up",
   android: "share",
   web: "share",
 } as const;
-const TIME_ICON = {
-  ios: "clock",
-  android: "schedule",
-  web: "schedule",
+const MENU_ICON = {
+  ios: "ellipsis.circle",
+  android: "more_horiz",
+  web: "more_horiz",
 } as const;
-const SERVES_ICON = {
-  ios: "person.2",
-  android: "group",
-  web: "group",
-} as const;
-const ADD_PLAN_ICON = {
-  ios: "calendar.badge.plus",
-  android: "calendar_add_on",
-  web: "calendar_add_on",
-} as const;
-const SWAP_ICON = {
-  ios: "arrow.left.arrow.right",
-  android: "swap_horiz",
-  web: "swap_horiz",
-} as const;
-const COOK_ICON = {
-  ios: "fork.knife",
-  android: "restaurant",
-  web: "restaurant",
-} as const;
+// The list's state of each line, as a leading checklist column: the same
+// shapes the shop page uses, so bought / to buy / dropped read at a glance.
 const BOUGHT_ICON = {
   ios: "checkmark.circle.fill",
   android: "check_circle",
   web: "check_circle",
 } as const;
+const TO_BUY_ICON = {
+  ios: "circle",
+  android: "radio_button_unchecked",
+  web: "radio_button_unchecked",
+} as const;
+const MISSING_ICON = {
+  ios: "minus.circle",
+  android: "do_not_disturb_on",
+  web: "do_not_disturb_on",
+} as const;
+
+/** What the shopping list says about a line; null when the recipe is not
+ *  planned and there is no list to consult. */
+type ListState = "bought" | "toBuy" | "missing" | null;
+
+/** The tick is the shop page's control, not a decoration: tapping it marks
+ *  the item bought or not, so the pantry check ("do I have this?") happens
+ *  here with the recipe in view. A dropped line has nothing to toggle. */
+function ListStateIcon({
+  state,
+  onToggle,
+  mutedColor,
+  primaryColor,
+}: {
+  state: ListState;
+  onToggle?: () => void;
+  mutedColor: ColorValue | undefined;
+  primaryColor: ColorValue | undefined;
+}) {
+  if (!state) return null;
+  const name =
+    state === "bought"
+      ? BOUGHT_ICON
+      : state === "toBuy"
+        ? TO_BUY_ICON
+        : MISSING_ICON;
+  const icon = (
+    <SymbolView
+      name={name}
+      tintColor={state === "bought" ? primaryColor : mutedColor}
+      size={20}
+    />
+  );
+  if (state === "missing" || !onToggle) {
+    return (
+      <View className="w-9 pt-3" accessibilityLabel="Not on the list">
+        {icon}
+      </View>
+    );
+  }
+  return (
+    <Pressable
+      onPress={onToggle}
+      hitSlop={{ top: 8, bottom: 8, left: 24, right: 8 }}
+      accessibilityRole="checkbox"
+      accessibilityState={{ checked: state === "bought" }}
+      accessibilityLabel={state === "bought" ? "Bought" : "Still to buy"}
+      className="w-9 pt-3 active:opacity-60"
+    >
+      {icon}
+    </Pressable>
+  );
+}
 const CHEVRON_ICON = {
   ios: "chevron.right",
   android: "chevron_right",
@@ -99,32 +149,62 @@ const CHEVRON_ICON = {
 
 type SwapDirection = "next" | "prev";
 
+/** "3-5 tins" → "3–5 tins": a range takes an en dash, not a hyphen. */
+function dashRanges(text: string): string {
+  return text.replace(/(\d)\s*-\s*(\d)/g, "$1–$2");
+}
+
+/** The line's alternatives other than the one currently shown. */
+function othersThan(name: string, line: IngredientLine): Alternative[] {
+  const key = itemNameKey(name);
+  return alternativesForLine(line).filter((a) => itemNameKey(a.name) !== key);
+}
+
+/** The first sentence of a blurb, for the clamped view; null if that is
+ *  the whole blurb already. */
+function firstSentence(text: string): string | null {
+  const match = text.match(/^[^.!?]+[.!?]/);
+  if (!match || match[0].trim().length >= text.trim().length) return null;
+  return match[0];
+}
+
 /** One ingredient row as it should read right now: the recipe line, or the
  *  swap that replaced it, plus what the shopping list says about it. */
 type RowModel = {
   qtyText: string | null;
   name: string;
   prepNote: string | null;
-  swapped: boolean;
-  bought: boolean;
-  /** Removed from the shopping list. */
-  missing: boolean;
-  canSwap: boolean;
+  /** The recipe's own line when a swap replaced it. */
+  swappedFrom: string | null;
+  list: ListState;
+  /** The list item behind this line, when planned and still on the list. */
+  itemId: string | null;
+  /** What else the recipe allows here, other than what the row shows.
+   *  Empty once the item is bought: the list is settled then. */
+  alternatives: Alternative[];
 };
 
 function IngredientRow({
   row,
   idx,
+  last,
   onSwap,
+  onPick,
+  onToggle,
   mutedColor,
   primaryColor,
 }: {
   row: RowModel;
   idx: number;
+  last: boolean;
   onSwap: (idx: number, direction: SwapDirection) => void;
+  onPick: (idx: number, alternative: Alternative) => void;
+  onToggle: (itemId: string, bought: boolean) => void;
   mutedColor: ColorValue | undefined;
   primaryColor: ColorValue | undefined;
 }) {
+  const missing = row.list === "missing";
+  const canSwap = row.alternatives.length > 0;
   const translateX = useSharedValue(0);
 
   const animateSwap = useCallback(
@@ -173,80 +253,150 @@ function IngredientRow({
 
   const body = (
     <>
-      <View className="flex-1 flex-row flex-wrap items-baseline gap-x-1 gap-y-0.5 pr-3">
-        {row.qtyText ? (
+      <ListStateIcon
+        state={row.list}
+        onToggle={
+          row.itemId
+            ? () => onToggle(row.itemId!, row.list === "bought")
+            : undefined
+        }
+        mutedColor={mutedColor}
+        primaryColor={primaryColor}
+      />
+      {/* The hairline belongs to the text column, inset past the tick as
+          system grouped lists inset past their leading glyph. */}
+      <View
+        className={`flex-1 gap-0.5 py-2.5 ${last ? "" : "border-b border-border/70"}`}
+      >
+        <View className="flex-row flex-wrap items-baseline gap-x-1.5">
+          {row.qtyText ? (
+            <Text
+              className={
+                missing
+                  ? "font-semibold text-muted-foreground"
+                  : "font-semibold"
+              }
+            >
+              {dashRanges(row.qtyText)}
+            </Text>
+          ) : null}
           <Text
             className={
-              row.missing
-                ? "font-semibold text-muted-foreground"
-                : "font-semibold"
+              row.swappedFrom
+                ? "text-primary"
+                : missing
+                  ? "text-muted-foreground"
+                  : "text-foreground"
             }
           >
-            {row.qtyText}
+            {row.name}
           </Text>
-        ) : null}
-        <Text
-          className={
-            row.swapped
-              ? "text-primary"
-              : row.missing
-                ? "text-muted-foreground"
-                : "text-foreground"
-          }
-        >
-          {row.name}
-        </Text>
-        {row.prepNote ? (
-          <Text variant="muted" className="text-sm">
-            — {row.prepNote}
-          </Text>
-        ) : null}
-        {row.swapped ? (
-          <Text variant="muted" className="text-xs">
-            swapped
-          </Text>
-        ) : null}
-        {row.missing ? (
-          <Text variant="muted" className="text-xs">
-            not on the list
-          </Text>
+          {row.swappedFrom ? (
+            <Text variant="muted" className="text-sm">
+              instead of {row.swappedFrom}
+            </Text>
+          ) : null}
+          {missing ? (
+            <Text variant="muted" className="text-sm">
+              not on the list
+            </Text>
+          ) : null}
+        </View>
+        {row.prepNote ? <Text variant="muted">{row.prepNote}</Text> : null}
+        {/* The recipe's alternatives are content, not a hidden control:
+            "or risini" says what else works, and tapping it swaps. */}
+        {canSwap ? (
+          <View className="flex-row flex-wrap items-baseline gap-x-1">
+            <Text variant="muted">or</Text>
+            {row.alternatives.map((alternative, i) => (
+              <Pressable
+                key={alternative.name}
+                onPress={() => onPick(idx, alternative)}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel={`Use ${alternative.name} instead`}
+              >
+                <Text className="text-sm font-medium text-primary">
+                  {alternative.name}
+                  {i < row.alternatives.length - 1 ? "," : ""}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
         ) : null}
       </View>
-      {row.bought ? (
-        <View className="p-2">
-          <SymbolView name={BOUGHT_ICON} tintColor={primaryColor} size={18} />
-        </View>
-      ) : row.canSwap ? (
-        <Pressable
-          onPress={() => triggerSwap("next")}
-          hitSlop={12}
-          className="p-2"
-        >
-          <SymbolView name={SWAP_ICON} tintColor={mutedColor} size={18} />
-        </Pressable>
-      ) : null}
     </>
   );
 
+  const rowClass = "flex-row items-start";
+
   // Rows without swaps get no gesture — a full-bleed pan at the left edge
   // would fight the iOS back swipe for nothing.
-  if (!row.canSwap) {
-    return (
-      <View className="flex-row items-center justify-between px-6 py-3">
-        {body}
-      </View>
-    );
+  if (!canSwap) {
+    return <View className={rowClass}>{body}</View>;
   }
 
   return (
     <GestureDetector gesture={gesture}>
-      <Animated.View
-        className="flex-row items-center justify-between px-6 py-3"
-        style={animatedStyle}
-      >
+      <Animated.View className={rowClass} style={animatedStyle}>
         {body}
       </Animated.View>
     </GestureDetector>
+  );
+}
+
+/** One row of a grouped section. A chevron means it pushes a screen; an
+ *  action row is a tinted label instead, as in system grouped lists. */
+function SectionRow({
+  onPress,
+  label,
+  detail,
+  first,
+  trailing,
+  disabled,
+  accessibilityLabel,
+  mutedColor,
+}: {
+  onPress: () => void;
+  label: string;
+  detail?: string;
+  first?: boolean;
+  trailing?: "chevron" | "spinner";
+  disabled?: boolean;
+  accessibilityLabel?: string;
+  mutedColor: ColorValue | undefined;
+}) {
+  const navigates = trailing === "chevron";
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel ?? label}
+      className={`min-h-12 flex-row items-center gap-3 py-2.5 active:opacity-60 ${
+        first ? "" : "border-t border-border/70"
+      } ${disabled ? "opacity-50" : ""}`}
+    >
+      <View className="flex-1 gap-0.5">
+        <Text
+          className={
+            navigates
+              ? detail
+                ? "font-semibold"
+                : ""
+              : "font-medium text-primary"
+          }
+        >
+          {label}
+        </Text>
+        {detail ? <Text variant="muted">{detail}</Text> : null}
+      </View>
+      {trailing === "spinner" ? (
+        <ActivityIndicator />
+      ) : navigates ? (
+        <SymbolView name={CHEVRON_ICON} tintColor={mutedColor} size={14} />
+      ) : null}
+    </Pressable>
   );
 }
 
@@ -260,14 +410,8 @@ export default function VariantPage() {
   const scheme = useColorScheme();
   const { session } = useAuth();
   const foreground = useResolveClassNames("text-foreground").color;
-  const mutedColor = useResolveClassNames("text-muted-foreground").color;
   const primaryColor = useResolveClassNames("text-primary").color;
-  const primaryForegroundColor = useResolveClassNames(
-    "text-primary-foreground",
-  ).color;
-  const secondaryForegroundColor = useResolveClassNames(
-    "text-secondary-foreground",
-  ).color;
+  const mutedColor = useResolveClassNames("text-muted-foreground").color;
   const reducedMotion = useReducedMotion();
 
   const scrollY = useSharedValue(0);
@@ -278,10 +422,12 @@ export default function VariantPage() {
   // Header background + title fade in together as the hero scrolls away, so
   // controls are always themed-on-surface or themed-on-pastel — never white
   // text on a light blur.
+  // A short crossfade: a half-transparent bar over half-visible rows looked
+  // like a rendering fault at arbitrary scroll positions.
   const headerStyle = useAnimatedStyle(() => {
     const opacity = interpolate(
       scrollY.value,
-      [HERO_HEIGHT - 80, HERO_HEIGHT - 40],
+      [HERO_HEIGHT - 64, HERO_HEIGHT - 52],
       [0, 1],
       {
         extrapolateLeft: "clamp",
@@ -346,7 +492,7 @@ export default function VariantPage() {
   const recipe = recipes[0];
 
   // Every meal on this recipe: this version's, and its siblings' (spec 0004).
-  const { data: meals } = useQuery<PlannedMeal>(
+  const { data: meals, isLoading: mealsLoading } = useQuery<PlannedMeal>(
     "SELECT * FROM planned_meals WHERE variant_id = ? OR recipe_id = ?",
     [id ?? "", recipeId],
   );
@@ -363,11 +509,11 @@ export default function VariantPage() {
       }),
     [meals, id, plannedMealId],
   );
-  const { data: items } = useQuery<ListItem>(
+  const { data: items, isFetching: itemsFetching } = useQuery<ListItem>(
     "SELECT * FROM list_items WHERE planned_meal_id = ?",
     [meal?.id ?? ""],
   );
-  const { data: peopleRows } = useQuery<{
+  const { data: peopleRows, isFetching: peopleFetching } = useQuery<{
     id: string;
     name: string;
     user_id: string | null;
@@ -375,6 +521,16 @@ export default function VariantPage() {
     "SELECT id, name, user_id FROM household_people WHERE list_id = ? ORDER BY created_at, id",
     [meal?.list_id ?? ""],
   );
+  // The meal's items and people arrive a render after the meal itself.
+  // Drawing before then shows the rows without their list column and the
+  // eaters as "Nobody", then jumps; so the skeleton holds until the first
+  // fetch for this meal is in. Later refetches (a tick toggled) don't hold.
+  const [loadedMealId, setLoadedMealId] = useState<string | null>(null);
+  const mealId = meal?.id ?? null;
+  const mealReady = !mealId || loadedMealId === mealId;
+  if (mealId && !mealReady && !itemsFetching && !peopleFetching) {
+    setLoadedMealId(mealId);
+  }
   const people = useMemo(
     () => toEaters(peopleRows, session?.user.id),
     [peopleRows, session],
@@ -398,6 +554,8 @@ export default function VariantPage() {
 
   // Not planned: swaps are a preview and live here only.
   const [activeSwaps, setActiveSwaps] = useState<Record<number, number>>({});
+  // The blurb is clamped; a tap opens it.
+  const [descriptionOpen, setDescriptionOpen] = useState(false);
   // Planned: the shopping list says what each line is right now.
   const delta = useMemo(
     () => mealDelta(ingredientLines, meal ? items : []),
@@ -416,10 +574,10 @@ export default function VariantPage() {
             qtyText: display.qty_text,
             name: display.item_name,
             prepNote: display.prep_note ?? null,
-            swapped: !!swap,
-            bought: false,
-            missing: false,
-            canSwap: (line.swaps?.length ?? 0) > 0,
+            swappedFrom: swap ? line.item_name : null,
+            list: null,
+            itemId: null,
+            alternatives: othersThan(display.item_name, line),
           };
         }
         const state = delta.lines[idx];
@@ -429,14 +587,47 @@ export default function VariantPage() {
           qtyText: display.qty_text,
           name: display.item_name,
           prepNote: display.prep_note ?? null,
-          swapped: !!state?.swap,
-          bought,
-          missing: !state?.item,
-          canSwap:
-            !!state?.item && !bought && alternativesForLine(line).length > 1,
+          swappedFrom: state?.swap ? line.item_name : null,
+          list: bought ? "bought" : state?.item ? "toBuy" : "missing",
+          itemId: state?.item?.id ?? null,
+          alternatives:
+            state?.item && !bought ? othersThan(display.item_name, line) : [],
         };
       }),
     [ingredientLines, meal, activeSwaps, delta],
+  );
+
+  // Same write as the shop page's checkbox; the watched query re-renders.
+  const handleToggle = useCallback((itemId: string, bought: boolean) => {
+    setItemStatus(itemId, bought ? "active" : "purchased").catch(() =>
+      Alert.alert("Couldn't update item", "Please try again."),
+    );
+  }, []);
+
+  const handlePick = useCallback(
+    (idx: number, alternative: Alternative) => {
+      const line = ingredientLines[idx];
+      if (!line) return;
+      if (meal) {
+        const item = delta.lines[idx]?.item;
+        if (!item || item.status === "purchased") return;
+        // Same write as the shop page: the list is the record of swaps.
+        applySwap(item.id, alternative).catch(() =>
+          Alert.alert("Couldn't swap item", "Please try again."),
+        );
+        return;
+      }
+      const swapIdx = (line.swaps ?? []).findIndex(
+        (s) => itemNameKey(s.item_name) === itemNameKey(alternative.name),
+      );
+      setActiveSwaps((prev) => {
+        const copy = { ...prev };
+        if (swapIdx < 0) delete copy[idx];
+        else copy[idx] = swapIdx;
+        return copy;
+      });
+    },
+    [ingredientLines, meal, delta],
   );
 
   const handleSwap = useCallback(
@@ -531,7 +722,7 @@ export default function VariantPage() {
     }
   }, [variant?.name, variant?.description, recipe?.from_url]);
 
-  if (isLoading) {
+  if (isLoading || mealsLoading || !mealReady) {
     return (
       <View className="flex-1 bg-background">
         <Stack.Screen options={{ title: "", headerTransparent: true }} />
@@ -565,17 +756,19 @@ export default function VariantPage() {
   }
 
   const colors = tonalPair(variant.id, scheme === "dark");
-  const eyebrow = [variant.recipe_cuisine, variant.recipe_category]
+  // The recipe's facts stay with the recipe, the meal's with the meal
+  // (spec 0004). Whether the two agree is not knowable yet: see the
+  // "sized for" question in the spec's open points.
+  const meta = [
+    variant.total_time,
+    variant.recipe_yield,
+    variant.recipe_cuisine || variant.recipe_category,
+  ]
     .filter(Boolean)
     .join(" · ");
-  const stats = [
-    variant.total_time
-      ? { icon: TIME_ICON, label: "Time", value: variant.total_time }
-      : null,
-    variant.recipe_yield
-      ? { icon: SERVES_ICON, label: "Serves", value: variant.recipe_yield }
-      : null,
-  ].filter((s): s is NonNullable<typeof s> => s !== null);
+  const blurbLead = variant.description
+    ? firstSentence(variant.description)
+    : null;
 
   const fromDomain = (() => {
     try {
@@ -611,10 +804,7 @@ export default function VariantPage() {
       <Stack.Screen
         options={{
           title: variant.name ?? "Recipe",
-          headerBackButtonDisplayMode: "minimal",
-          headerTransparent: true,
           headerTintColor: foreground as string | undefined,
-          headerShadowVisible: false,
           headerBackground: () => (
             <Animated.View
               style={[StyleSheet.absoluteFill, headerStyle]}
@@ -622,23 +812,60 @@ export default function VariantPage() {
             />
           ),
           headerTitle: () => (
-            <Animated.View style={headerStyle}>
+            <Animated.View style={headerStyle} className="px-2">
               <Text
                 numberOfLines={1}
-                className="max-w-55 text-base font-semibold"
+                ellipsizeMode="tail"
+                className="text-center text-base font-semibold"
               >
                 {variant.name}
               </Text>
             </Animated.View>
           ),
+          // Share stays a direct control; the menu holds the rare actions.
           headerRight: () => (
-            <Pressable
-              onPress={onShare}
-              hitSlop={12}
-              className="items-center justify-center p-2"
-            >
-              <SymbolView name={SHARE_ICON} tintColor={foreground} size={22} />
-            </Pressable>
+            <View className="flex-row items-center">
+              <Pressable
+                onPress={() => void onShare()}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel="Share"
+                className="items-center justify-center p-2"
+              >
+                <SymbolView
+                  name={SHARE_ICON}
+                  tintColor={foreground}
+                  size={22}
+                />
+              </Pressable>
+              {meal ? (
+                <MenuView
+                  actions={[
+                    {
+                      id: "plan",
+                      title: "Plan this again",
+                      image: "calendar.badge.plus",
+                    },
+                  ]}
+                  onPressAction={({ nativeEvent: { event } }) => {
+                    if (event === "plan") openPlan();
+                  }}
+                >
+                  <View
+                    accessible
+                    accessibilityRole="button"
+                    accessibilityLabel="More"
+                    className="items-center justify-center p-2"
+                  >
+                    <SymbolView
+                      name={MENU_ICON}
+                      tintColor={foreground}
+                      size={22}
+                    />
+                  </View>
+                </MenuView>
+              ) : null}
+            </View>
           ),
         }}
       />
@@ -646,7 +873,9 @@ export default function VariantPage() {
       <Animated.ScrollView
         onScroll={scrollHandler}
         scrollEventThrottle={16}
-        contentContainerStyle={{ paddingBottom: 120 + insets.bottom }}
+        contentContainerStyle={{
+          paddingBottom: ACTION_HEIGHT + ACTION_GAP + insets.bottom + 40,
+        }}
         showsVerticalScrollIndicator={false}
       >
         <Animated.View
@@ -660,126 +889,71 @@ export default function VariantPage() {
             style={{ flex: 1 }}
           >
             <Animated.View
-              className="flex-1 items-center justify-center gap-3 px-8"
+              className="flex-1 justify-end gap-2 px-6 pb-6"
               style={[
                 { paddingTop: insets.top + 56 },
                 heroContentAnimatedStyle,
               ]}
             >
-              {eyebrow ? (
-                <Text className="text-xs font-medium uppercase tracking-[0.2em] text-foreground/60">
-                  {eyebrow}
-                </Text>
-              ) : null}
-              <Text className="text-center text-4xl font-bold tracking-tight">
+              <Text className="text-4xl font-bold tracking-tight">
                 {variant.name}
               </Text>
+              {meta ? (
+                <Text className="text-[15px] text-foreground/70">{meta}</Text>
+              ) : null}
             </Animated.View>
           </LinearGradient>
         </Animated.View>
 
-        {/* One continuous surface over the hero — structure comes from type
-            hierarchy and hairlines, not nested cards. */}
-        <View className="-mt-7 gap-10 rounded-t-[28px] bg-background px-6 pt-8">
-          {variant.description ? (
-            <Text variant="lead" className="text-center">
-              {variant.description}
-            </Text>
-          ) : null}
-
-          {stats.length ? (
-            <View className="flex-row border-y border-border/60 py-4">
-              {stats.map((s, i) => (
-                <View
-                  key={s.label}
-                  className={`flex-1 items-center gap-1 px-4 ${i > 0 ? "border-l border-border/60" : ""}`}
-                >
-                  <SymbolView
-                    name={s.icon}
-                    tintColor={primaryColor}
-                    size={20}
-                  />
-                  <Text
-                    variant="muted"
-                    className="text-[11px] uppercase tracking-widest"
-                  >
-                    {s.label}
-                  </Text>
-                  <Text className="text-center font-semibold" numberOfLines={2}>
-                    {s.value}
-                  </Text>
-                </View>
-              ))}
-            </View>
-          ) : null}
-
+        {/* The wash ends and the page continues on the same surface, as an
+            App Store or Music header does. No sheet: that is a modal idiom.
+            Structure comes from type and hairlines, not cards; the only
+            grouped section is the planned meal. */}
+        <View className="gap-8 bg-background px-6 pt-6">
           {/* The meal's facts next to the recipe's. Nothing is computed for
               the user; both are visible and the human judges (spec 0004). */}
           {meal ? (
-            <View className="gap-3 rounded-2xl border border-border/60 p-4">
-              <Pressable
+            <View className="rounded-2xl bg-secondary px-4">
+              <SectionRow
+                first
                 onPress={openEaters}
-                accessibilityRole="button"
                 accessibilityLabel="Who is eating"
-                className="flex-row items-center gap-3"
-              >
-                <View className="flex-1 gap-0.5">
-                  <Text
-                    variant="muted"
-                    className="text-[11px] uppercase tracking-widest"
-                  >
-                    On the plan
-                  </Text>
-                  <Text className="font-semibold">{mealLabel(meal)}</Text>
-                  <Text variant="muted">
-                    {eatersLabel({
-                      people,
-                      eaterIds: parseEaterIds(meal.eater_ids),
-                      extraPortions: meal.extra_portions ?? 0,
-                    })}
-                    {" · "}
-                    {shoppedLabel(items)}
-                  </Text>
-                </View>
-                <SymbolView
-                  name={CHEVRON_ICON}
-                  tintColor={mutedColor}
-                  size={14}
-                />
-              </Pressable>
+                label={mealLabel(meal)}
+                detail={eatersLabel({
+                  people,
+                  eaterIds: parseEaterIds(meal.eater_ids),
+                  extraPortions: meal.extra_portions ?? 0,
+                })}
+                trailing="chevron"
+                mutedColor={mutedColor}
+              />
+              <SectionRow
+                onPress={() =>
+                  void runAdjust(
+                    adjust.status === "error"
+                      ? adjust.operationId
+                      : Crypto.randomUUID(),
+                  )
+                }
+                disabled={
+                  adjust.status === "running" ||
+                  (adjust.status === "error" && !adjust.retryable)
+                }
+                label={
+                  adjust.status === "error"
+                    ? "Retry adjusting the recipe"
+                    : adjust.status === "running"
+                      ? "Adjusting the recipe…"
+                      : "Adjust the recipe for this meal"
+                }
+                trailing={adjust.status === "running" ? "spinner" : undefined}
+                mutedColor={mutedColor}
+              />
               {adjust.status === "error" ? (
-                <Text className="text-sm text-destructive">
+                <Text className="pb-3 text-sm text-destructive">
                   {adjust.message}
                 </Text>
               ) : null}
-              <View className="flex-row items-center justify-between gap-2">
-                <Button variant="ghost" size="sm" onPress={openPlan}>
-                  <Text>Plan again</Text>
-                </Button>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  disabled={
-                    adjust.status === "running" ||
-                    (adjust.status === "error" && !adjust.retryable)
-                  }
-                  onPress={() =>
-                    void runAdjust(
-                      adjust.status === "error"
-                        ? adjust.operationId
-                        : Crypto.randomUUID(),
-                    )
-                  }
-                >
-                  {adjust.status === "running" ? (
-                    <ActivityIndicator />
-                  ) : (
-                    <Text className="text-secondary-foreground">
-                      {adjust.status === "error" ? "Retry" : "Adjust recipe"}
-                    </Text>
-                  )}
-                </Button>
-              </View>
             </View>
           ) : null}
 
@@ -795,9 +969,9 @@ export default function VariantPage() {
                 })
               }
               accessibilityRole="link"
-              className="flex-row items-center justify-center gap-1"
+              className="flex-row items-center gap-1"
             >
-              <Text variant="muted" className="text-sm">
+              <Text variant="muted" className="text-base">
                 Another version is planned for {mealLabel(sibling)}
               </Text>
               <SymbolView
@@ -809,70 +983,108 @@ export default function VariantPage() {
           ) : null}
 
           {!meal && !sibling && lastPast ? (
-            <Text variant="muted" className="text-center text-sm">
+            <Text variant="muted" className="text-base">
               Last planned {mealLabel(lastPast)}
             </Text>
           ) : null}
 
-          {recipe?.from_name || recipe?.from_url ? (
-            <View className="items-center">
-              <Text
-                variant="muted"
-                className="text-xs uppercase tracking-widest"
-              >
-                Adapted from
-              </Text>
-              {recipe.from_url ? (
+          {variant.description || recipe?.from_name || recipe?.from_url ? (
+            <View className="gap-2">
+              {variant.description ? (
                 <Pressable
-                  onPress={() => void Linking.openURL(recipe.from_url!)}
-                  hitSlop={8}
+                  onPress={() => setDescriptionOpen((open) => !open)}
+                  accessibilityRole="button"
+                  accessibilityLabel={
+                    descriptionOpen ? "Show less" : "Show full description"
+                  }
                 >
-                  <Text className="mt-0.5 text-sm font-semibold text-primary">
-                    {recipe.from_name && recipe.from_name !== recipe.from_url
-                      ? recipe.from_name
-                      : fromDomain || recipe.from_name}
+                  {/* Clamped at a sentence, never mid-word, with the
+                      disclosure inline as the system does it. */}
+                  <Text className="text-[15px] leading-5 text-muted-foreground">
+                    {blurbLead && !descriptionOpen
+                      ? blurbLead
+                      : variant.description}
+                    {blurbLead ? (
+                      <Text className="text-[15px] font-medium text-primary">
+                        {descriptionOpen ? "  less" : "  more"}
+                      </Text>
+                    ) : null}
                   </Text>
                 </Pressable>
-              ) : (
-                <Text className="mt-0.5 text-sm font-semibold">
-                  {recipe.from_name}
-                </Text>
-              )}
+              ) : null}
+              {recipe?.from_name || recipe?.from_url ? (
+                <View className="flex-row flex-wrap items-baseline gap-x-1">
+                  <Text variant="muted">Adapted from</Text>
+                  {recipe.from_url ? (
+                    <Pressable
+                      onPress={() => void Linking.openURL(recipe.from_url!)}
+                      hitSlop={8}
+                    >
+                      <Text className="text-sm font-semibold text-primary">
+                        {recipe.from_name &&
+                        recipe.from_name !== recipe.from_url
+                          ? recipe.from_name
+                          : fromDomain || recipe.from_name}
+                      </Text>
+                    </Pressable>
+                  ) : (
+                    <Text className="text-sm font-semibold">
+                      {recipe.from_name}
+                    </Text>
+                  )}
+                </View>
+              ) : null}
             </View>
           ) : null}
 
           {ingredientLines.length > 0 ? (
-            <View className="gap-1">
-              <View className="flex-row items-baseline justify-between pb-2">
+            <View>
+              {/* The caption names what the ticks below mean. */}
+              <View className="flex-row items-baseline justify-between gap-4 pb-1">
                 <Text variant="h3">Ingredients</Text>
-                <Text variant="muted">{ingredientLines.length} items</Text>
+                {meal ? (
+                  <Text variant="muted" className="flex-1 text-right">
+                    {shoppedLabel(items)}
+                  </Text>
+                ) : null}
               </View>
-              <View className="-mx-6 divide-y divide-border/60 border-y border-border/60">
+              <View>
                 {rows.map((row, idx) => (
                   <IngredientRow
                     key={idx}
                     row={row}
                     idx={idx}
+                    last={idx === rows.length - 1}
                     onSwap={handleSwap}
+                    onPick={handlePick}
+                    onToggle={handleToggle}
                     mutedColor={mutedColor}
                     primaryColor={primaryColor}
                   />
                 ))}
               </View>
               {meal && delta.extra.length > 0 ? (
-                <View className="gap-1 pt-4">
-                  <Text
-                    variant="muted"
-                    className="text-[11px] uppercase tracking-widest"
-                  >
+                <View className="pt-5">
+                  <Text variant="muted" className="pb-1">
                     Also on the list
                   </Text>
                   {delta.extra.map((item) => (
-                    <Text key={item.id} variant="muted">
-                      {item.name}
-                      {item.spec ? ` — ${item.spec}` : ""}
-                      {item.status === "purchased" ? " · bought" : ""}
-                    </Text>
+                    <View key={item.id} className="flex-row items-start">
+                      <ListStateIcon
+                        state={item.status === "purchased" ? "bought" : "toBuy"}
+                        onToggle={() =>
+                          handleToggle(item.id, item.status === "purchased")
+                        }
+                        mutedColor={mutedColor}
+                        primaryColor={primaryColor}
+                      />
+                      <View className="flex-1 gap-0.5 py-2.5">
+                        <Text>{item.name}</Text>
+                        {item.spec ? (
+                          <Text variant="muted">{item.spec}</Text>
+                        ) : null}
+                      </View>
+                    </View>
                   ))}
                 </View>
               ) : null}
@@ -880,88 +1092,52 @@ export default function VariantPage() {
           ) : null}
 
           {instructions.length > 0 ? (
-            <View className="gap-6">
-              <View className="flex-row items-center justify-between">
-                <Text variant="h3">Steps</Text>
-                <Button variant="secondary" size="sm" onPress={openCook}>
-                  <SymbolView
-                    name={COOK_ICON}
-                    tintColor={secondaryForegroundColor}
-                    size={16}
-                  />
-                  <Text className="text-secondary-foreground">Cook</Text>
-                </Button>
-              </View>
-              <View className="gap-8">
+            <View className="gap-5">
+              <Text variant="h3">Steps</Text>
+              <View className="gap-6">
                 {instructions.map((step, idx) => (
-                  <View key={idx} className="gap-2">
-                    <View className="flex-row items-baseline gap-3">
-                      <Text className="text-base font-bold text-primary">
-                        {String(idx + 1).padStart(2, "0")}
-                      </Text>
+                  <View key={idx} className="flex-row gap-3">
+                    <Text
+                      variant="muted"
+                      className="w-5 text-base font-semibold tabular-nums"
+                    >
+                      {idx + 1}
+                    </Text>
+                    <View className="flex-1 gap-1">
                       {step.name ? (
-                        <Text className="flex-1 text-lg font-semibold">
-                          {step.name}
+                        <Text className="font-semibold">{step.name}</Text>
+                      ) : null}
+                      <Text className="leading-6">{step.text}</Text>
+                      {step.tip ? (
+                        <Text variant="muted" className="mt-1 text-base">
+                          Tip: {step.tip}
                         </Text>
                       ) : null}
                     </View>
-                    <Text className="leading-relaxed">{step.text}</Text>
-                    {step.tip ? (
-                      <View className="mt-1 border-l-2 border-primary/30 pl-3">
-                        <Text variant="muted" className="italic">
-                          Tip: {step.tip}
-                        </Text>
-                      </View>
-                    ) : null}
                   </View>
                 ))}
               </View>
             </View>
           ) : null}
-
-          {parsed?.content_markdown ? (
-            <View className="gap-3">
-              <Text variant="h3">Story</Text>
-              <EnrichedMarkdownText markdown={parsed.content_markdown} />
-            </View>
-          ) : null}
         </View>
       </Animated.ScrollView>
 
-      {/* The next real action: cook a planned meal, otherwise plan it. */}
+      {/* UI layer: the one next action, floating over the content as Liquid
+          Glass, nothing opaque behind it. Cook a planned meal, otherwise
+          plan it. Without glass (Android, older iOS) a plain capsule. */}
       <View
-        pointerEvents="box-none"
-        style={{ position: "absolute", right: 16, bottom: 16 + insets.bottom }}
+        style={{
+          pointerEvents: "box-none",
+          position: "absolute",
+          left: 16,
+          right: 16,
+          bottom: insets.bottom + ACTION_GAP,
+        }}
       >
-        {meal ? (
-          <Button
-            size="lg"
-            className="rounded-full shadow-lg"
-            onPress={openCook}
-          >
-            <SymbolView
-              name={COOK_ICON}
-              tintColor={primaryForegroundColor}
-              size={20}
-            />
-            <Text className="font-semibold text-primary-foreground">Cook</Text>
-          </Button>
-        ) : (
-          <Button
-            size="lg"
-            className="rounded-full shadow-lg"
-            onPress={openPlan}
-          >
-            <SymbolView
-              name={ADD_PLAN_ICON}
-              tintColor={primaryForegroundColor}
-              size={20}
-            />
-            <Text className="font-semibold text-primary-foreground">
-              Add to plan
-            </Text>
-          </Button>
-        )}
+        <PrimaryAction
+          label={meal ? "Cook" : "Add to plan"}
+          onPress={meal ? openCook : openPlan}
+        />
       </View>
     </View>
   );
