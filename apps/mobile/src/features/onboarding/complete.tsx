@@ -107,13 +107,15 @@ export function CompleteSetup() {
       }
       art={onboardingArt.kitchen}
       subtitle={
-        error ? "Your answers are still here." : "Getting your kitchen ready."
+        error
+          ? "Your answers are still here."
+          : "Tailoring meal ideas and recipes to your household."
       }
-      title="We’re preparing your profile"
+      title="Getting your kitchen ready"
     >
       <FormError message={error} />
       {!error ? (
-        <Text className="text-muted-foreground">Just a moment.</Text>
+        <Text className="text-muted-foreground">Just a moment…</Text>
       ) : null}
     </OnboardingScreen>
   );

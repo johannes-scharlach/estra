@@ -1,4 +1,8 @@
-import { dietOptions, type CookingProfile, type HouseholdPerson } from "@estra/profile";
+import {
+  dietOptions,
+  type CookingProfile,
+  type HouseholdPerson,
+} from "@estra/profile";
 import { useRouter } from "expo-router";
 import { View } from "react-native";
 import { AddRow } from "@/components/add-row";
@@ -7,32 +11,38 @@ import { onboardingArt } from "@/features/onboarding/art";
 import { type Step } from "@/features/onboarding/draft";
 import { PersonRow } from "@/features/onboarding/person-row";
 import { useOnboarding } from "@/features/onboarding/provider";
-import { DietEditor, Field, MealRoutineEditor, RestrictionsEditor, SelectionEditor } from "@/features/profile/form";
+import {
+  DietEditor,
+  Field,
+  MealRoutineEditor,
+  RestrictionsEditor,
+  SelectionEditor,
+} from "@/features/profile/form";
 
 export const titles: Record<Step, string> = {
-  name: "What should we call you?",
-  goals: "What brings you here?",
-  diet: "How do you like to eat?",
+  name: "What should Estra call you?",
+  goals: "What matters most in your kitchen?",
+  diet: "How do you eat?",
   household: "Who are you cooking for?",
   restrictions: "Anything to avoid?",
   groceries: "Where do you shop?",
-  kitchen: "Your kitchen",
-  pantry: "Your usual pantry",
-  fresh: "Your fresh staples",
+  kitchen: "What equipment do you have?",
+  pantry: "What’s in your pantry?",
+  fresh: "What fresh ingredients belong in your rotation?",
   email: "Save your setup",
   code: "Check your inbox",
 };
 
 export const subtitles: Record<Exclude<Step, "email" | "code">, string> = {
-  name: "So your household knows it’s you.",
-  goals: "Choose what matters to you.",
-  diet: "Choose one. We’ll use it to guide your recipes.",
-  household: "Add the people you usually cook for.",
-  restrictions: "Tell us about allergies or ingredients you don’t eat.",
-  groceries: "So suggestions fit the shops you use.",
-  kitchen: "Keep the equipment you use. Add anything else.",
-  pantry: "Select what you usually keep at home.",
-  fresh: "Keep what you usually buy each week.",
+  name: "This is how Estra will address you.",
+  goals: "Estra will steer recipes and ideas toward your goals.",
+  diet: "Your dietary baseline for recipes.",
+  household: "Add anyone who regularly eats with you.",
+  restrictions: "Allergies, intolerances, or things nobody in the house likes.",
+  groceries: "So recipes only call for ingredients you can actually find.",
+  kitchen: "Estra can adjust recipes to make sense in your kitchen.",
+  pantry: "The things waiting in your cupboards, ready to cook with.",
+  fresh: "So recipes feature the fresh staples you're excited to buy and cook.",
 };
 
 export const artByStep: Partial<
@@ -102,21 +112,35 @@ function HouseholdEditor({
   );
 }
 
-export function SetupQuestion({ step, onNext }: { step: Step; onNext: () => void }) {
+export function SetupQuestion({
+  step,
+  onNext,
+}: {
+  step: Step;
+  onNext: () => void;
+}) {
   const router = useRouter();
   const { draft, update } = useOnboarding();
   if (!draft) return null;
   const person = draft.people.find((p) => p.id === draft.onboarding_person_id)!;
   function editProfile(changes: Partial<CookingProfile>) {
-    void update((d) => ({ ...d, profile: { ...d.profile, ...changes } })).catch(() => {});
+    void update((d) => ({ ...d, profile: { ...d.profile, ...changes } })).catch(
+      () => {},
+    );
   }
   function editPerson(value: HouseholdPerson) {
-    void update((d) => ({ ...d, people: d.people.map((p) => p.id === value.id ? value : p) })).catch(() => {});
+    void update((d) => ({
+      ...d,
+      people: d.people.map((p) => (p.id === value.id ? value : p)),
+    })).catch(() => {});
   }
-  return <>
+  return (
+    <>
       {step === "name" ? (
         <Field
-          label="First name"
+          label="What should Estra call you?"
+          hideLabel
+          placeholder="Your first name or nickname"
           value={person.name}
           onChangeText={(name) => editPerson({ ...person, name })}
           autoCapitalize="words"
@@ -141,7 +165,10 @@ export function SetupQuestion({ step, onNext }: { step: Step; onNext: () => void
             people={draft.people}
             onAdd={() => router.push("/setup/person" as never)}
             onEdit={(id) =>
-              router.push({ pathname: "/setup/person", params: { id } } as never)
+              router.push({
+                pathname: "/setup/person",
+                params: { id },
+              } as never)
             }
             onRemove={(id) =>
               void update((d) => ({
@@ -157,30 +184,28 @@ export function SetupQuestion({ step, onNext }: { step: Step; onNext: () => void
         </View>
       ) : null}
       {step === "restrictions" ? (
-        <View className="gap-3">
-          <RestrictionsEditor
-            value={draft.profile.restrictions}
-            onChange={(restrictions) => editProfile({ restrictions })}
-          />
-          <Text className="text-sm leading-5 text-muted-foreground">
-            Include restrictions for anyone you cook for.
-          </Text>
-        </View>
+        <RestrictionsEditor
+          hideLabel
+          value={draft.profile.restrictions}
+          onChange={(restrictions) => editProfile({ restrictions })}
+        />
       ) : null}
       {step === "groceries" ? (
         <View className="gap-6">
           <Field
-            label="Main supermarket or shop"
+            label="Main grocery store"
             value={draft.profile.main_supermarket}
-            onChangeText={(main_supermarket) => editProfile({ main_supermarket })}
-            placeholder="Your usual shop"
+            onChangeText={(main_supermarket) =>
+              editProfile({ main_supermarket })
+            }
+            placeholder="e.g. Trader Joe’s, Tesco, Rewe, or Aldi"
           />
           <Field
-            label="Other shops & your routine"
+            label="Other shops & how often you go"
             multiline
             value={draft.profile.other_shops}
             onChangeText={(other_shops) => editProfile({ other_shops })}
-            placeholder="Where else do you shop, and how often?"
+            placeholder="e.g. Asian grocery once a month, farmer’s market on Saturdays, bakery for fresh bread"
           />
         </View>
       ) : null}
@@ -191,6 +216,8 @@ export function SetupQuestion({ step, onNext }: { step: Step; onNext: () => void
           onChange={(kitchen_equipment) => editProfile({ kitchen_equipment })}
         />
       ) : null}
+      {/* Follow-up feature: Apple Music grid redesign — replace high-level
+          buckets with item-level staple chips ("Pick at least 3" low-floor/high-ceiling). */}
       {step === "pantry" ? (
         <SelectionEditor
           field="pantry"
@@ -205,5 +232,6 @@ export function SetupQuestion({ step, onNext }: { step: Step; onNext: () => void
           onChange={(fresh_ingredients) => editProfile({ fresh_ingredients })}
         />
       ) : null}
-  </>;
+    </>
+  );
 }

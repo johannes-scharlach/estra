@@ -108,7 +108,7 @@ export function EditSetupPerson() {
         onPress: () => void save(),
       }}
       onBack={() => router.back()}
-      subtitle="Add the people you regularly cook for."
+      subtitle="So Estra can tailor portions and recipes to your household."
       title={title}
     >
       <FormError message={error} />

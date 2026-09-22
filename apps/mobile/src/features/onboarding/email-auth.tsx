@@ -171,7 +171,9 @@ export function useEmailAuth({
         },
     resendAction: initialCode
       ? {
-          label: remaining ? `Resend in ${remaining}s` : "Resend code",
+          label: remaining
+            ? `Didn’t get it? Resend in ${remaining}s`
+            : "Didn’t get a code? Resend",
           disabled: busy || remaining > 0,
           onPress: () => void send(),
         }
@@ -214,8 +216,8 @@ export function EmailAuthFields({
               <Text
                 className={
                   state.resendAction.disabled
-                    ? "font-medium text-primary opacity-40"
-                    : "font-medium text-primary"
+                    ? "text-sm text-muted-foreground/60"
+                    : "text-sm text-muted-foreground underline"
                 }
               >
                 {state.resendAction.label}
@@ -230,11 +232,11 @@ export function EmailAuthFields({
             <Text
               className={
                 state.busy
-                  ? "font-medium text-primary opacity-40"
-                  : "font-medium text-primary"
+                  ? "text-sm text-muted-foreground/40"
+                  : "text-sm text-muted-foreground"
               }
             >
-              Use a different email
+              Wrong email? Change address
             </Text>
           </Pressable>
         </>

@@ -39,14 +39,22 @@ export function FormScreen({ children }: { children: ReactNode }) {
 }
 export function Field({
   label,
+  hideLabel,
   multiline,
   style,
   ref,
   ...props
-}: TextInputProps & { label: string } & React.RefAttributes<TextInput>) {
+}: TextInputProps & {
+  label: string;
+  hideLabel?: boolean;
+} & React.RefAttributes<TextInput>) {
   return (
-    <View className="gap-2">
-      <Text className="font-medium">{label}</Text>
+    <View className={hideLabel ? "" : "gap-2"}>
+      {hideLabel ? (
+        <Text className="sr-only">{label}</Text>
+      ) : (
+        <Text className="font-medium">{label}</Text>
+      )}
       <Input
         ref={ref}
         accessibilityLabel={label}
@@ -340,17 +348,24 @@ export function DietEditor({
 export function RestrictionsEditor({
   value,
   onChange,
+  hideLabel,
+  placeholder,
 }: {
   value: string;
   onChange: (value: string) => void;
+  hideLabel?: boolean;
+  placeholder?: string;
 }) {
   return (
     <Field
       label="Allergies & ingredients"
+      hideLabel={hideLabel}
       multiline
       value={value}
       onChangeText={onChange}
-      placeholder="Anything we should avoid"
+      placeholder={
+        placeholder ?? "e.g. Peanuts, gluten, shellfish, mushrooms, cilantro"
+      }
     />
   );
 }

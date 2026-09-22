@@ -152,19 +152,21 @@ function SectionEditor({
       {section === "shops" && (
         <>
           <Field
-            label="Main supermarket or shop"
+            label="Main grocery store"
             value={draft.main_supermarket}
             onChangeText={(main_supermarket) =>
               setDraft((d) => ({ ...d, main_supermarket }))
             }
+            placeholder="e.g. Trader Joe’s, Tesco, Rewe, or Aldi"
           />
           <Field
-            label="Other shops and routine"
+            label="Other shops & how often you go"
             multiline
             value={draft.other_shops}
             onChangeText={(other_shops) =>
               setDraft((d) => ({ ...d, other_shops }))
             }
+            placeholder="e.g. Asian grocery once a month, farmer’s market on Saturdays, bakery for fresh bread"
           />
         </>
       )}

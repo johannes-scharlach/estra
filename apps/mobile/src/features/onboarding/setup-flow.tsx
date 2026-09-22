@@ -252,7 +252,7 @@ function Questions({ initialStep }: { initialStep: Step }) {
                         ? "Your cooking setup is ready to save."
                         : pageStep === "code"
                           ? `Enter the six-digit code sent to ${draft.email.trim() || "your email"}.`
-                          : "Sign in with an email code. No password needed."
+                          : "We’ll email you a six-digit code. No passwords to remember."
                       : subtitles[pageStep]}
                   </Text>
                 </View>
