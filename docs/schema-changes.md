@@ -26,6 +26,11 @@ Needs all four, or rows never reach devices:
 - Sync rules only decide what a device can read.
 - Writes go through Supabase's REST API under RLS, which also needs explicit
   `grant`s to `authenticated` — RLS filters rows but grants nothing.
+- PowerSync uploads every local write as an upsert (`INSERT ... ON CONFLICT
+  (id) DO UPDATE`, see `apps/mobile/src/db/connector.ts`). Postgres runs that
+  statement's conflict scan under RLS, so an upserted row must also satisfy
+  the table's SELECT policy, not just the insert policy. See migration
+  `20260914110000`.
 - RLS policies call `is_list_member(uuid)` (SECURITY DEFINER). A policy on
   `list_members` that queries `list_members` recurses infinitely.
 

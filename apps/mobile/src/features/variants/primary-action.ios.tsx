@@ -6,18 +6,28 @@ import { Button, Text } from "@expo/ui/swift-ui";
 import {
   buttonStyle,
   controlSize,
+  disabled,
   font,
+  foregroundStyle,
   frame,
 } from "@expo/ui/swift-ui/modifiers";
 import { useResolveClassNames } from "uniwind";
 
 import { useColorScheme } from "@/hooks/use-color-scheme";
 
-import { ACTION_HEIGHT, type PrimaryActionProps } from "./primary-action-shared";
+import {
+  ACTION_HEIGHT,
+  type PrimaryActionProps,
+} from "./primary-action-shared";
 
-export function PrimaryAction({ label, onPress }: PrimaryActionProps) {
+export function PrimaryAction({
+  label,
+  onPress,
+  disabled: isDisabled = false,
+}: PrimaryActionProps) {
   const scheme = useColorScheme();
   const primary = useResolveClassNames("bg-primary").backgroundColor;
+  const onPrimary = useResolveClassNames("text-primary-foreground").color;
   return (
     <Host
       // A fixed frame, not matchContents: measuring the label before the
@@ -30,12 +40,17 @@ export function PrimaryAction({ label, onPress }: PrimaryActionProps) {
     >
       <Button
         onPress={onPress}
-        modifiers={[buttonStyle("glassProminent"), controlSize("large")]}
+        modifiers={[
+          buttonStyle("glassProminent"),
+          controlSize("large"),
+          disabled(isDisabled),
+        ]}
       >
         {/* The label fills the host, so the capsule does too. */}
         <Text
           modifiers={[
             font({ size: 17, weight: "semibold" }),
+            ...(onPrimary === undefined ? [] : [foregroundStyle(onPrimary)]),
             frame({ maxWidth: Infinity, maxHeight: Infinity }),
           ]}
         >

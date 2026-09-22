@@ -99,3 +99,49 @@ export function mealDelta<L extends IngredientLine, I extends MealItem>(
     items.length > 0 && items.every((item) => item.status === "purchased");
   return { lines: states, extra, shopped };
 }
+
+/**
+ * Who a variant was adjusted for: the meal's eaters and extra at the time
+ * the adjust route wrote it (`variants.sized_for`). Null for a variant as
+ * imported or written by hand — its yield text is the only sizing it has.
+ */
+export type SizedFor = { eater_ids: string[]; extra_portions: number };
+
+export type MealSync = {
+  /** "match": adjusted for exactly these eaters and extra. "differs": for
+   *  others. "unknown": never adjusted; the recipe is sized as written. */
+  sizing: "match" | "differs" | "unknown";
+  /** Lines the list swapped that the recipe's steps don't know about. */
+  swaps: number;
+  /** Nothing to adjust: sized for this meal and no swaps pending. */
+  inSync: boolean;
+};
+
+/**
+ * Whether the recipe still describes the meal. The variant the adjust route
+ * writes folds the swaps into its lines, so any swap the list shows against
+ * it is new drift; and its stamp says who it was sized for. Sets compare
+ * by id, never by name.
+ */
+export function mealSync(
+  sizedFor: SizedFor | null,
+  meal: SizedFor,
+  delta: MealDelta<IngredientLine, MealItem>,
+): MealSync {
+  const swaps = delta.lines.filter((state) => state.swap).length;
+  const sizing = !sizedFor
+    ? "unknown"
+    : sameEaters(sizedFor, meal)
+      ? "match"
+      : "differs";
+  return { sizing, swaps, inSync: sizing === "match" && swaps === 0 };
+}
+
+function sameEaters(a: SizedFor, b: SizedFor): boolean {
+  if (a.extra_portions !== b.extra_portions) return false;
+  const ids = new Set(a.eater_ids);
+  return (
+    ids.size === new Set(b.eater_ids).size &&
+    b.eater_ids.every((id) => ids.has(id))
+  );
+}

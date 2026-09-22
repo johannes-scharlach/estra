@@ -121,15 +121,12 @@ export default function Welcome() {
         </View>
         <Text
           accessibilityRole="header"
-          className="text-[40px] font-bold leading-[44px] tracking-tight"
+          className="text-4xl font-bold leading-11 tracking-tight"
         >
-          Make yourself{"\n"}at home.
+          Feed your home
         </Text>
-        <Text className="text-[17px] leading-6 text-muted-foreground">
-          Plan your meals. Shop one List. Cook something good.
-        </Text>
-        <Text className="text-sm text-muted-foreground">
-          You can change your answers later.
+        <Text className="text-xl leading-6 text-muted-foreground">
+          Plan and pivot while keeping everyone in the loop.
         </Text>
       </View>
       <FormError message={error ?? access.error} />
@@ -137,11 +134,6 @@ export default function Welcome() {
         <Text className="text-muted-foreground">
           This saved setup belongs to another account or household. Sign in to
           resume it, or start a new setup.
-        </Text>
-      ) : null}
-      {draft && !mismatch ? (
-        <Text className="text-muted-foreground">
-          Your saved answers are ready to continue.
         </Text>
       ) : null}
       {!session ? (

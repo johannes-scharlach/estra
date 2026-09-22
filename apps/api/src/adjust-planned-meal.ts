@@ -179,7 +179,14 @@ export async function saveAdjusted(opts: {
     const existing = await findVariantIdentity(client, variantId);
     if (existing) return existing;
 
-    await insertVariant(client, { recipeId, variantId, recipe });
+    // The stamp is the meal as loaded, the same input the prompt was built
+    // from; the device compares it to the meal's current values.
+    await insertVariant(client, {
+      recipeId,
+      variantId,
+      recipe,
+      sizedFor: { eater_ids: context.meal.eater_ids, extra_portions: context.meal.extra_portions },
+    });
     const repointed = await client.query(
       "UPDATE planned_meals SET variant_id = $1, updated_at = now() WHERE id = $2 AND variant_id = $3",
       [variantId, plannedMealId, oldVariantId],

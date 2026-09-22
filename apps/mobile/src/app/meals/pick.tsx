@@ -1,12 +1,11 @@
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
-import { SymbolView } from "expo-symbols";
 import { useState } from "react";
 import { Pressable, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery } from "@powersync/react";
-import { useResolveClassNames } from "uniwind";
+import { CloseButton } from "@/components/close-button";
 
 import { Button } from "@/components/ui/button";
 import { Text } from "@/components/ui/text";
@@ -16,7 +15,6 @@ import { SLOT_LABEL, type MealSlot } from "@/features/meals/slots";
 import { tonalPair } from "@/features/variants/tonal";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 
-const X_ICON = { ios: "xmark", android: "close", web: "close" } as const;
 
 /** pageSheet, not formSheet: the picker scrolls, and inside a formSheet the
  *  detent measuring pass mangles ScrollView frames (react-native-screens
@@ -26,7 +24,6 @@ export default function PickFromCookbookSheet() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const dark = useColorScheme() === "dark";
-  const mutedColor = useResolveClassNames("text-muted-foreground").color;
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -62,13 +59,7 @@ export default function PickFromCookbookSheet() {
       <Stack.Screen
         options={{
           headerRight: () => (
-            <Pressable
-              onPress={() => router.back()}
-              hitSlop={12}
-              className="size-8 items-center justify-center rounded-full bg-muted"
-            >
-              <SymbolView name={X_ICON} tintColor={mutedColor} size={15} />
-            </Pressable>
+            <CloseButton onPress={() => router.back()} disabled={saving} />
           ),
         }}
       />

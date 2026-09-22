@@ -1,11 +1,9 @@
 import { newPerson, personSchema, type HouseholdPerson } from "@estra/profile";
 import * as Crypto from "expo-crypto";
-import { GlassView } from "expo-glass-effect";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { SymbolView } from "expo-symbols";
 import { useState } from "react";
-import { Platform, Pressable, View } from "react-native";
-import { useResolveClassNames } from "uniwind";
+import { Platform, View } from "react-native";
+import { CloseButton } from "@/components/close-button";
 import { Button } from "@/components/ui/button";
 import { Text } from "@/components/ui/text";
 import { OnboardingScreen } from "@/features/onboarding/onboarding-screen";
@@ -22,7 +20,6 @@ export function EditSetupPerson() {
   );
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const iconColor = useResolveClassNames("text-foreground").color;
 
   async function save() {
     const parsed = personSchema.safeParse(person);
@@ -37,7 +34,9 @@ export function EditSetupPerson() {
       await commit((draft) => ({
         ...draft,
         people: draft.people.some((entry) => entry.id === person.id)
-          ? draft.people.map((entry) => (entry.id === person.id ? parsed.data : entry))
+          ? draft.people.map((entry) =>
+              entry.id === person.id ? parsed.data : entry,
+            )
           : [...draft.people, parsed.data],
       }));
       router.back();
@@ -64,7 +63,11 @@ export function EditSetupPerson() {
   }
 
   const title = existing ? "Edit a person" : "Add a person";
-  const actionLabel = busy ? "Saving…" : existing ? "Save changes" : "Add person";
+  const actionLabel = busy
+    ? "Saving…"
+    : existing
+      ? "Save changes"
+      : "Add person";
   const removeButton = existing ? (
     <Button variant="ghost" disabled={busy} onPress={() => void remove()}>
       <Text className="text-destructive">Remove person</Text>
@@ -80,25 +83,7 @@ export function EditSetupPerson() {
       <>
         <View className="flex-row items-start justify-between gap-3 px-6 pt-4">
           <Text className="flex-1 text-lg font-semibold">{title}</Text>
-          <Pressable
-            accessibilityLabel="Close"
-            accessibilityRole="button"
-            className="h-11 w-11 items-center justify-center overflow-hidden rounded-full border border-border bg-card/80"
-            onPress={() => router.back()}
-            style={{ borderCurve: "continuous" }}
-          >
-            <GlassView
-              isInteractive
-              style={{
-                bottom: 0,
-                left: 0,
-                position: "absolute",
-                right: 0,
-                top: 0,
-              }}
-            />
-            <SymbolView name="xmark" size={18} tintColor={iconColor} />
-          </Pressable>
+          <CloseButton onPress={() => router.back()} disabled={busy} />
         </View>
         <View className="mt-4 gap-4 px-6 pb-8">
           <FormError message={error} />
@@ -114,7 +99,11 @@ export function EditSetupPerson() {
 
   return (
     <OnboardingScreen
-      action={{ label: actionLabel, disabled: busy, onPress: () => void save() }}
+      action={{
+        label: actionLabel,
+        disabled: busy,
+        onPress: () => void save(),
+      }}
       onBack={() => router.back()}
       subtitle="Add the people you regularly cook for."
       title={title}

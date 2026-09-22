@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { lineForItem, mealDelta, type IngredientLine } from "./index";
+import { lineForItem, mealDelta, mealSync, type IngredientLine } from "./index";
 
 const lines: IngredientLine[] = [
   {
@@ -48,5 +48,26 @@ describe("mealDelta", () => {
     const delta = mealDelta(doubled, [{ name: "Canned tuna", spec: null, status: "active" }]);
     expect(delta.extra).toHaveLength(1);
     expect(delta.lines.every((s) => s.item === null)).toBe(true);
+  });
+});
+
+describe("mealSync", () => {
+  const meal = { eater_ids: ["anna", "ben"], extra_portions: 1.5 };
+  const noSwaps = mealDelta(lines, [{ name: "Bulgur", spec: null, status: "active" }]);
+  const oneSwap = mealDelta(lines, [{ name: "Canned tuna", spec: null, status: "active" }]);
+
+  it("is in sync only when sized for the same eaters, in any order, with no swaps pending", () => {
+    expect(mealSync({ eater_ids: ["ben", "anna"], extra_portions: 1.5 }, meal, noSwaps)).toEqual({
+      sizing: "match",
+      swaps: 0,
+      inSync: true,
+    });
+    expect(mealSync({ eater_ids: ["ben", "anna"], extra_portions: 1.5 }, meal, oneSwap).inSync).toBe(false);
+  });
+
+  it("tells a recipe sized for other eaters from one never adjusted", () => {
+    expect(mealSync({ eater_ids: ["anna"], extra_portions: 1.5 }, meal, noSwaps).sizing).toBe("differs");
+    expect(mealSync({ eater_ids: ["anna", "ben"], extra_portions: 0 }, meal, noSwaps).sizing).toBe("differs");
+    expect(mealSync(null, meal, noSwaps)).toEqual({ sizing: "unknown", swaps: 0, inSync: false });
   });
 });

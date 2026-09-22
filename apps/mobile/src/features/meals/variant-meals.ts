@@ -1,3 +1,5 @@
+import type { MealSync } from "@estra/meals";
+
 import { dayName } from "@/features/chat/compose";
 import { SLOT_LABEL, SLOT_ORDER, type MealSlot } from "@/features/meals/slots";
 
@@ -52,9 +54,37 @@ export function mealLabel(meal: MealRow, today: Date = new Date()): string {
 }
 
 /** Shopping progress for the meal's list items. */
-export function shoppedLabel(items: readonly { status: string | null }[]): string {
+export function shoppedLabel(
+  items: readonly { status: string | null }[],
+): string {
   if (items.length === 0) return "Nothing to buy";
   const bought = items.filter((i) => i.status === "purchased").length;
   if (bought === items.length) return "Shopped";
   return `${bought} of ${items.length} shopped`;
+}
+
+/**
+ * Why the recipe no longer describes the meal, under the Adjust action:
+ * the recipe's own sizing when it isn't this meal's, and the swaps its
+ * steps don't know about. Empty when in sync.
+ */
+export function driftLabel(sync: MealSync, recipeYield: string | null): string {
+  const parts: string[] = [];
+  if (sync.sizing !== "match") {
+    parts.push(
+      recipeYield
+        ? sync.sizing === "unknown"
+          ? `As written: ${recipeYield}`
+          : recipeYield
+        : "Not sized for this meal",
+    );
+  }
+  if (sync.swaps > 0) {
+    parts.push(
+      sync.swaps === 1
+        ? "1 swap not in the steps"
+        : `${sync.swaps} swaps not in the steps`,
+    );
+  }
+  return parts.join(" · ");
 }

@@ -88,6 +88,8 @@ const variants = new Table({
   /** JSON array of {qty_text, item_name, prep_note, category_id, swaps:[{qty_text,item_name,prep_note,category_id}]} */
   ingredient_lines: column.text,
   instructions: column.text,
+  /** JSON {eater_ids, extra_portions} the adjust route sized this for; null as imported. */
+  sized_for: column.text,
   created_at: column.text,
   updated_at: column.text,
 });

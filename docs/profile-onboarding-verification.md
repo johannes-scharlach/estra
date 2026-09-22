@@ -39,10 +39,12 @@ tests do not verify Postgres RLS or PowerSync delivery.
 Use the spec's complete manual acceptance list, especially:
 
 - Fresh install: complete all eleven steps, custom entries, multiple people,
-  explicit empty equipment, and a weekday/weekend meal routine.
+  explicit empty equipment, and an It varies meal-routine detail.
 - Restart while typing, between steps, and on the code screen. Confirm answers
   survive, saved people survive, cancelled person edits do not, and OTP does not.
-  Use native Back/swipe after resuming to revisit earlier questions.
+  Use Previous, horizontal paging, and Android Back after resuming to revisit
+  earlier questions. The first question has no Previous; Android Back returns
+  to Welcome.
 - Wrong code, expiry, resend, corrected email, returning email at signup, unknown
   email on Sign in, and a stored session without a Profile.
 - Interrupt finalization and reconnect. Verify one list, one creator membership,
@@ -57,5 +59,13 @@ Use the spec's complete manual acceptance list, especially:
   category labels rather than examples, and the correct serving baseline.
 - iOS and Android: keyboard visibility, six-digit paste/autofill, native switch
   and picker sizing, screen readers, larger text, back gestures, and safe areas.
-- Motion: native wizard pushes/back gestures, progress changes, reduced motion.
+- Setup paging: questions move horizontally while progress and navigation
+  stay fixed. The Previous arrow is a 44pt native clear-glass circle on iOS.
+  Controls float above content without a footer background; scroll the last
+  field clear of them. Paging must not flash Saving or dim the controls. Try slow drags, fast flicks, interrupted button transitions, rotation,
+  and returning from the person editor. Required name/custom diet answers block
+  forward paging. Email sending, verification, and Finish setup require their
+  explicit actions (code autofill still verifies as before).
+- Motion: reduced motion skips button-driven sliding. Check VoiceOver/TalkBack
+  only reach the current page and that large text keeps both actions readable.
   Judge smoothness in a release build on the slowest supported device.

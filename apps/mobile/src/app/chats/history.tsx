@@ -1,15 +1,11 @@
 import { useQuery } from "@powersync/react";
 import { Link, Stack, useRouter } from "expo-router";
-import { SymbolView } from "expo-symbols";
 import { Platform, Pressable, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useResolveClassNames } from "uniwind";
 
 import { Text } from "@/components/ui/text";
 import type { Chat, List } from "@/db/schema";
 import { MONTH_SHORT, WEEKDAY_LONG } from "@/features/meals/slots";
-
-const X_ICON = { ios: "xmark", android: "close", web: "close" } as const;
 
 function when(iso: string | null): string {
   if (!iso) return "";
@@ -26,7 +22,6 @@ function when(iso: string | null): string {
 export default function ChatHistorySheet() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const mutedColor = useResolveClassNames("text-muted-foreground").color;
 
   const { data: lists } = useQuery<List>(
     "SELECT * FROM lists ORDER BY created_at LIMIT 1",
@@ -41,21 +36,15 @@ export default function ChatHistorySheet() {
 
   return (
     <>
-      <Stack.Screen
-        options={{
-          ...(Platform.OS === "ios" && {
-            headerRight: () => (
-              <Pressable
-                onPress={() => router.back()}
-                hitSlop={12}
-                className="size-8 items-center justify-center rounded-full bg-muted"
-              >
-                <SymbolView name={X_ICON} tintColor={mutedColor} size={15} />
-              </Pressable>
-            ),
-          }),
-        }}
-      />
+      {Platform.OS === "ios" ? (
+        <Stack.Toolbar placement="right">
+          <Stack.Toolbar.Button
+            icon="xmark"
+            accessibilityLabel="Close"
+            onPress={() => router.back()}
+          />
+        </Stack.Toolbar>
+      ) : null}
       {chats.length ? (
         <ScrollView
           contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}

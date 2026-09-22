@@ -1,4 +1,4 @@
-import { itemNameKey, mealDelta, type IngredientLine } from "@estra/meals";
+import { itemNameKey, mealDelta, mealSync } from "@estra/meals";
 import { useQuery } from "@powersync/react";
 import * as Crypto from "expo-crypto";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
@@ -43,6 +43,7 @@ import { eatersLabel, parseEaterIds, toEaters } from "@/features/meals/eaters";
 import { importFailure } from "@/features/meals/import-failure";
 import { dateKey } from "@/features/meals/slots";
 import {
+  driftLabel,
   mealLabel,
   shoppedLabel,
   variantMeals,
@@ -60,6 +61,8 @@ import { useColorScheme } from "@/hooks/use-color-scheme";
 const HERO_HEIGHT = 320;
 /** The floating action pill: its height plus its gap to the safe area. */
 const ACTION_GAP = 12;
+/** How far above the pill the scroll-edge fade runs before it is full. */
+const FADE_RUN = 40;
 
 const SHARE_ICON = {
   ios: "square.and.arrow.up",
@@ -146,18 +149,29 @@ const CHEVRON_ICON = {
   android: "chevron_right",
   web: "chevron_right",
 } as const;
+// The system's popup-button glyph: this value has a menu of choices.
+const POPUP_ICON = {
+  ios: "chevron.up.chevron.down",
+  android: "unfold_more",
+  web: "unfold_more",
+} as const;
+// A line the list swapped: the recipe's steps still name the original.
+const SWAPPED_ICON = {
+  ios: "arrow.triangle.2.circlepath",
+  android: "swap_horiz",
+  web: "swap_horiz",
+} as const;
+const OPEN_LINK_ICON = {
+  ios: "arrow.up.forward",
+  android: "open_in_new",
+  web: "open_in_new",
+} as const;
 
 type SwapDirection = "next" | "prev";
 
 /** "3-5 tins" → "3–5 tins": a range takes an en dash, not a hyphen. */
 function dashRanges(text: string): string {
   return text.replace(/(\d)\s*-\s*(\d)/g, "$1–$2");
-}
-
-/** The line's alternatives other than the one currently shown. */
-function othersThan(name: string, line: IngredientLine): Alternative[] {
-  const key = itemNameKey(name);
-  return alternativesForLine(line).filter((a) => itemNameKey(a.name) !== key);
 }
 
 /** The first sentence of a blurb, for the clamped view; null if that is
@@ -179,9 +193,10 @@ type RowModel = {
   list: ListState;
   /** The list item behind this line, when planned and still on the list. */
   itemId: string | null;
-  /** What else the recipe allows here, other than what the row shows.
-   *  Empty once the item is bought: the list is settled then. */
-  alternatives: Alternative[];
+  /** Everything the recipe allows here, its own line first, when the row
+   *  can still change. Empty once the item is bought: the list is settled
+   *  then. */
+  options: Alternative[];
 };
 
 function IngredientRow({
@@ -204,18 +219,27 @@ function IngredientRow({
   primaryColor: ColorValue | undefined;
 }) {
   const missing = row.list === "missing";
-  const canSwap = row.alternatives.length > 0;
+  const canSwap = row.options.length > 1;
   const translateX = useSharedValue(0);
+  const opacity = useSharedValue(1);
 
+  // The line flips like a card: the old text leaves the way the finger
+  // went, the new one comes in from the other side. The content itself
+  // changes a moment later, while the text is out of view.
   const animateSwap = useCallback(
     (direction: SwapDirection) => {
-      const target = direction === "next" ? -28 : 28;
+      const out = direction === "next" ? -56 : 56;
       translateX.value = withSequence(
-        withTiming(target, { duration: 100 }),
-        withTiming(0, { duration: 200 }),
+        withTiming(out, { duration: 120 }),
+        withTiming(-out, { duration: 0 }),
+        withTiming(0, { duration: 220 }),
+      );
+      opacity.value = withSequence(
+        withTiming(0, { duration: 120 }),
+        withTiming(1, { duration: 220 }),
       );
     },
-    // translateX is a stable shared value; it must not be a dependency.
+    // Shared values are stable; they must not be dependencies.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
   );
@@ -247,9 +271,35 @@ function IngredientRow({
       }
     });
 
+  // Only the words move; the tick is the list's state and stays put.
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: translateX.value }],
+    opacity: opacity.value,
   }));
+
+  const nameClass = `shrink ${
+    row.swappedFrom
+      ? "text-primary"
+      : missing
+        ? "text-muted-foreground"
+        : "text-foreground"
+  }`;
+  const currentKey = itemNameKey(row.name);
+  // A swapped name is tinted and carries the swap glyph: the change must
+  // read without colour too.
+  const name = (
+    <View className="flex-row items-center gap-1">
+      <Text className={nameClass}>{row.name}</Text>
+      {row.swappedFrom ? (
+        <SymbolView
+          name={SWAPPED_ICON}
+          tintColor={primaryColor}
+          size={12}
+          accessibilityLabel={`swapped from ${row.swappedFrom}`}
+        />
+      ) : null}
+    </View>
+  );
 
   const body = (
     <>
@@ -266,64 +316,72 @@ function IngredientRow({
       {/* The hairline belongs to the text column, inset past the tick as
           system grouped lists inset past their leading glyph. */}
       <View
-        className={`flex-1 gap-0.5 py-2.5 ${last ? "" : "border-b border-border/70"}`}
+        className={`flex-1 py-2.5 ${last ? "" : "border-b border-border/70"}`}
       >
-        <View className="flex-row flex-wrap items-baseline gap-x-1.5">
-          {row.qtyText ? (
-            <Text
-              className={
-                missing
-                  ? "font-semibold text-muted-foreground"
-                  : "font-semibold"
-              }
-            >
-              {dashRanges(row.qtyText)}
-            </Text>
-          ) : null}
-          <Text
-            className={
-              row.swappedFrom
-                ? "text-primary"
-                : missing
-                  ? "text-muted-foreground"
-                  : "text-foreground"
-            }
-          >
-            {row.name}
-          </Text>
-          {row.swappedFrom ? (
-            <Text variant="muted" className="text-sm">
-              instead of {row.swappedFrom}
-            </Text>
-          ) : null}
-          {missing ? (
-            <Text variant="muted" className="text-sm">
-              not on the list
-            </Text>
-          ) : null}
-        </View>
-        {row.prepNote ? <Text variant="muted">{row.prepNote}</Text> : null}
-        {/* The recipe's alternatives are content, not a hidden control:
-            "or risini" says what else works, and tapping it swaps. */}
-        {canSwap ? (
-          <View className="flex-row flex-wrap items-baseline gap-x-1">
-            <Text variant="muted">or</Text>
-            {row.alternatives.map((alternative, i) => (
-              <Pressable
-                key={alternative.name}
-                onPress={() => onPick(idx, alternative)}
-                hitSlop={8}
-                accessibilityRole="button"
-                accessibilityLabel={`Use ${alternative.name} instead`}
+        <Animated.View className="gap-0.5" style={animatedStyle}>
+          <View className="flex-row flex-wrap items-baseline gap-x-1.5">
+            {row.qtyText ? (
+              <Text
+                className={
+                  missing
+                    ? "font-semibold text-muted-foreground"
+                    : "font-semibold"
+                }
               >
-                <Text className="text-sm font-medium text-primary">
-                  {alternative.name}
-                  {i < row.alternatives.length - 1 ? "," : ""}
-                </Text>
-              </Pressable>
-            ))}
+                {dashRanges(row.qtyText)}
+              </Text>
+            ) : null}
+            {canSwap ? (
+              // A popup button, as Settings shows a value with choices: the
+              // name and the system's up-down chevron open a menu of what
+              // the recipe allows here. A swapped name is tinted; the menu's
+              // title says what the recipe had.
+              <MenuView
+                // The host sizes itself to the label once; a longer name
+                // after a swap would be clipped, so a new name is a new host.
+                key={row.name}
+                title={row.swappedFrom ? `Recipe: ${row.swappedFrom}` : ""}
+                actions={row.options.map((option) => ({
+                  id: option.name,
+                  title: option.name,
+                  state: itemNameKey(option.name) === currentKey ? "on" : "off",
+                }))}
+                onPressAction={({ nativeEvent: { event } }) => {
+                  const option = row.options.find((o) => o.name === event);
+                  if (option && itemNameKey(option.name) !== currentKey) {
+                    onPick(idx, option);
+                  }
+                }}
+              >
+                <View
+                  accessible
+                  accessibilityRole="button"
+                  accessibilityLabel={`${row.name}, choose an alternative`}
+                  className="flex-row items-center gap-1"
+                >
+                  {name}
+                  <SymbolView
+                    name={POPUP_ICON}
+                    tintColor={mutedColor}
+                    size={11}
+                  />
+                </View>
+              </MenuView>
+            ) : (
+              name
+            )}
+            {missing ? (
+              <Text variant="muted" className="text-sm">
+                not on the list
+              </Text>
+            ) : null}
           </View>
-        ) : null}
+          {row.prepNote ? (
+            <Text variant="muted" className="text-sm">
+              {row.prepNote}
+            </Text>
+          ) : null}
+        </Animated.View>
       </View>
     </>
   );
@@ -338,9 +396,7 @@ function IngredientRow({
 
   return (
     <GestureDetector gesture={gesture}>
-      <Animated.View className={rowClass} style={animatedStyle}>
-        {body}
-      </Animated.View>
+      <Animated.View className={rowClass}>{body}</Animated.View>
     </GestureDetector>
   );
 }
@@ -373,29 +429,35 @@ function SectionRow({
       disabled={disabled}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}
-      className={`min-h-12 flex-row items-center gap-3 py-2.5 active:opacity-60 ${
-        first ? "" : "border-t border-border/70"
-      } ${disabled ? "opacity-50" : ""}`}
+      className={`pl-4 active:opacity-60 ${disabled ? "opacity-50" : ""}`}
     >
-      <View className="flex-1 gap-0.5">
-        <Text
-          className={
-            navigates
-              ? detail
-                ? "font-semibold"
-                : ""
-              : "font-medium text-primary"
-          }
-        >
-          {label}
-        </Text>
-        {detail ? <Text variant="muted">{detail}</Text> : null}
+      {/* The hairline starts at the text and runs to the group's edge, as
+          a system inset-grouped list draws it. */}
+      <View
+        className={`min-h-12 flex-row items-center gap-3 py-2.5 pr-4 ${
+          first ? "" : "border-t border-border/70"
+        }`}
+      >
+        <View className="flex-1 gap-0.5">
+          <Text
+            className={
+              navigates
+                ? detail
+                  ? "font-semibold"
+                  : ""
+                : "font-medium text-primary"
+            }
+          >
+            {label}
+          </Text>
+          {detail ? <Text variant="muted">{detail}</Text> : null}
+        </View>
+        {trailing === "spinner" ? (
+          <ActivityIndicator />
+        ) : navigates ? (
+          <SymbolView name={CHEVRON_ICON} tintColor={mutedColor} size={14} />
+        ) : null}
       </View>
-      {trailing === "spinner" ? (
-        <ActivityIndicator />
-      ) : navigates ? (
-        <SymbolView name={CHEVRON_ICON} tintColor={mutedColor} size={14} />
-      ) : null}
     </Pressable>
   );
 }
@@ -410,6 +472,10 @@ export default function VariantPage() {
   const scheme = useColorScheme();
   const { session } = useAuth();
   const foreground = useResolveClassNames("text-foreground").color;
+  const backgroundColor = useResolveClassNames("bg-background").backgroundColor;
+  // The token is a hex, so an alpha suffix gives its transparent end.
+  const background =
+    typeof backgroundColor === "string" ? backgroundColor : "#000000";
   const primaryColor = useResolveClassNames("text-primary").color;
   const mutedColor = useResolveClassNames("text-muted-foreground").color;
   const reducedMotion = useReducedMotion();
@@ -561,6 +627,22 @@ export default function VariantPage() {
     () => mealDelta(ingredientLines, meal ? items : []),
     [ingredientLines, items, meal],
   );
+  // Does the recipe still describe the meal? Swaps the list made since,
+  // and who the adjust route sized it for (spec 0004).
+  const sync = useMemo(
+    () =>
+      meal
+        ? mealSync(
+            parsed?.sizedFor ?? null,
+            {
+              eater_ids: parseEaterIds(meal.eater_ids),
+              extra_portions: meal.extra_portions ?? 0,
+            },
+            delta,
+          )
+        : null,
+    [meal, parsed, delta],
+  );
 
   const rows = useMemo(
     (): RowModel[] =>
@@ -577,7 +659,7 @@ export default function VariantPage() {
             swappedFrom: swap ? line.item_name : null,
             list: null,
             itemId: null,
-            alternatives: othersThan(display.item_name, line),
+            options: alternativesForLine(line),
           };
         }
         const state = delta.lines[idx];
@@ -590,8 +672,7 @@ export default function VariantPage() {
           swappedFrom: state?.swap ? line.item_name : null,
           list: bought ? "bought" : state?.item ? "toBuy" : "missing",
           itemId: state?.item?.id ?? null,
-          alternatives:
-            state?.item && !bought ? othersThan(display.item_name, line) : [],
+          options: state?.item && !bought ? alternativesForLine(line) : [],
         };
       }),
     [ingredientLines, meal, activeSwaps, delta],
@@ -756,16 +837,19 @@ export default function VariantPage() {
   }
 
   const colors = tonalPair(variant.id, scheme === "dark");
-  // The recipe's facts stay with the recipe, the meal's with the meal
-  // (spec 0004). Whether the two agree is not knowable yet: see the
-  // "sized for" question in the spec's open points.
+  // The fade is full from the pill's top edge down.
+  const fadeHeight = ACTION_HEIGHT + ACTION_GAP + insets.bottom + FADE_RUN;
+  // For a planned meal the yield is not up here: sizing is judged against
+  // the meal, in the meal group, so there is no second copy to disagree with.
   const meta = [
     variant.total_time,
-    variant.recipe_yield,
+    meal ? null : variant.recipe_yield,
     variant.recipe_cuisine || variant.recipe_category,
   ]
     .filter(Boolean)
-    .join(" · ");
+    // The dot is tied to the fact after it, so a wrap never leaves it
+    // dangling at the end of a line.
+    .join(" · ");
   const blurbLead = variant.description
     ? firstSentence(variant.description)
     : null;
@@ -912,8 +996,8 @@ export default function VariantPage() {
         <View className="gap-8 bg-background px-6 pt-6">
           {/* The meal's facts next to the recipe's. Nothing is computed for
               the user; both are visible and the human judges (spec 0004). */}
-          {meal ? (
-            <View className="rounded-2xl bg-secondary px-4">
+          {meal && sync ? (
+            <View className="rounded-2xl bg-secondary">
               <SectionRow
                 first
                 onPress={openEaters}
@@ -927,30 +1011,42 @@ export default function VariantPage() {
                 trailing="chevron"
                 mutedColor={mutedColor}
               />
-              <SectionRow
-                onPress={() =>
-                  void runAdjust(
+              {/* The second row is the recipe's standing against the meal:
+                  in sync, a plain statement; otherwise the drift, with the
+                  action that resolves it. */}
+              {sync.inSync ? (
+                <View className="pl-4">
+                  <View className="min-h-12 justify-center border-t border-border/70 py-2.5 pr-4">
+                    <Text variant="muted">Adjusted for this meal</Text>
+                  </View>
+                </View>
+              ) : (
+                <SectionRow
+                  onPress={() =>
+                    void runAdjust(
+                      adjust.status === "error"
+                        ? adjust.operationId
+                        : Crypto.randomUUID(),
+                    )
+                  }
+                  disabled={
+                    adjust.status === "running" ||
+                    (adjust.status === "error" && !adjust.retryable)
+                  }
+                  label={
                     adjust.status === "error"
-                      ? adjust.operationId
-                      : Crypto.randomUUID(),
-                  )
-                }
-                disabled={
-                  adjust.status === "running" ||
-                  (adjust.status === "error" && !adjust.retryable)
-                }
-                label={
-                  adjust.status === "error"
-                    ? "Retry adjusting the recipe"
-                    : adjust.status === "running"
-                      ? "Adjusting the recipe…"
-                      : "Adjust the recipe for this meal"
-                }
-                trailing={adjust.status === "running" ? "spinner" : undefined}
-                mutedColor={mutedColor}
-              />
+                      ? "Retry adjusting the recipe"
+                      : adjust.status === "running"
+                        ? "Adjusting the recipe…"
+                        : "Adjust the recipe"
+                  }
+                  detail={driftLabel(sync, variant.recipe_yield)}
+                  trailing={adjust.status === "running" ? "spinner" : undefined}
+                  mutedColor={mutedColor}
+                />
+              )}
               {adjust.status === "error" ? (
-                <Text className="pb-3 text-sm text-destructive">
+                <Text className="px-4 pb-3 text-sm text-destructive">
                   {adjust.message}
                 </Text>
               ) : null}
@@ -1019,6 +1115,8 @@ export default function VariantPage() {
                     <Pressable
                       onPress={() => void Linking.openURL(recipe.from_url!)}
                       hitSlop={8}
+                      accessibilityRole="link"
+                      className="flex-row items-center gap-0.5"
                     >
                       <Text className="text-sm font-semibold text-primary">
                         {recipe.from_name &&
@@ -1026,6 +1124,12 @@ export default function VariantPage() {
                           ? recipe.from_name
                           : fromDomain || recipe.from_name}
                       </Text>
+                      {/* Says it leaves the app, as Safari's link glyph does. */}
+                      <SymbolView
+                        name={OPEN_LINK_ICON}
+                        tintColor={primaryColor}
+                        size={10}
+                      />
                     </Pressable>
                   ) : (
                     <Text className="text-sm font-semibold">
@@ -1039,11 +1143,13 @@ export default function VariantPage() {
 
           {ingredientLines.length > 0 ? (
             <View>
-              {/* The caption names what the ticks below mean. */}
-              <View className="flex-row items-baseline justify-between gap-4 pb-1">
+              {/* The caption names what the ticks below mean. It sits under
+                  the heading, not in the trailing slot: that slot is where a
+                  section's action goes, and this is a status. */}
+              <View className="gap-0.5 pb-2">
                 <Text variant="h3">Ingredients</Text>
                 {meal ? (
-                  <Text variant="muted" className="flex-1 text-right">
+                  <Text variant="muted" className="text-sm">
                     {shoppedLabel(items)}
                   </Text>
                 ) : null}
@@ -1096,10 +1202,12 @@ export default function VariantPage() {
               <Text variant="h3">Steps</Text>
               <View className="gap-6">
                 {instructions.map((step, idx) => (
-                  <View key={idx} className="flex-row gap-3">
+                  // The number sits in the same column as the ticks above,
+                  // so the page keeps one left rail from top to bottom.
+                  <View key={idx} className="flex-row">
                     <Text
                       variant="muted"
-                      className="w-5 text-base font-semibold tabular-nums"
+                      className="w-9 text-base font-semibold tabular-nums"
                     >
                       {idx + 1}
                     </Text>
@@ -1121,6 +1229,23 @@ export default function VariantPage() {
           ) : null}
         </View>
       </Animated.ScrollView>
+
+      {/* The scroll-edge fade iOS puts under a floating control: rows dim as
+          they pass under Cook instead of being cut by it, and a little still
+          shows through, which says there is more below. Not opaque: the
+          button itself stays glass over content. */}
+      <LinearGradient
+        colors={[`${background}00`, `${background}BF`, `${background}BF`]}
+        locations={[0, FADE_RUN / fadeHeight, 1]}
+        style={{
+          pointerEvents: "none",
+          position: "absolute",
+          left: 0,
+          right: 0,
+          bottom: 0,
+          height: fadeHeight,
+        }}
+      />
 
       {/* UI layer: the one next action, floating over the content as Liquid
           Glass, nothing opaque behind it. Cook a planned meal, otherwise

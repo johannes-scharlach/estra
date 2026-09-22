@@ -69,3 +69,4 @@ not evidence of more confidence.
 - Full static checks: `pnpm typecheck` and `pnpm lint`
 - Mobile tests: `pnpm --filter mobile test`
 - API unit tests (no database): `pnpm --filter api test`
+- Shared rules: `pnpm --filter @estra/meals test`

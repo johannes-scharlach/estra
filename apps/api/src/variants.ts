@@ -1,3 +1,4 @@
+import type { SizedFor } from "@estra/meals";
 import { randomUUID } from "node:crypto";
 import type { Client, PoolClient } from "pg";
 
@@ -35,12 +36,14 @@ export async function insertVariant(
     recipeId: string;
     variantId: string;
     recipe: RecipeInput;
+    /** Who the adjust route sized it for; omitted for imports. */
+    sizedFor?: SizedFor;
   },
 ): Promise<{ recipeId: string; variantId: string }> {
-  const { recipeId, variantId, recipe } = opts;
+  const { recipeId, variantId, recipe, sizedFor } = opts;
   await client.query(
-    `INSERT INTO variants (id, recipe_id, name, description, locale, total_time, recipe_yield, content_markdown, recipe_category, recipe_cuisine, ingredient_lines, instructions)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12::jsonb)`,
+    `INSERT INTO variants (id, recipe_id, name, description, locale, total_time, recipe_yield, content_markdown, recipe_category, recipe_cuisine, ingredient_lines, instructions, sized_for)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12::jsonb,$13::jsonb)`,
     [
       variantId,
       recipeId,
@@ -54,6 +57,7 @@ export async function insertVariant(
       recipe.recipeCuisine ?? null,
       JSON.stringify(recipe.recipeIngredient),
       JSON.stringify(recipe.recipeInstructions),
+      sizedFor ? JSON.stringify(sizedFor) : null,
     ],
   );
   return { recipeId, variantId };

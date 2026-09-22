@@ -8,19 +8,23 @@ import {
 } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Pressable, View } from "react-native";
+import { Pressable, View } from "react-native";
 
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { CloseButton } from "@/components/close-button";
 import { Text } from "@/components/ui/text";
 import type { List, Variant } from "@/db/schema";
 import { setPlannedMeal } from "@/db/planned-meals";
 import { useAuth } from "@/db/provider";
 import { saveAndPlanMessage } from "@/features/chat/compose";
 import { queueMessage } from "@/features/chat/message-queue";
+import { PrimaryAction } from "@/features/variants/primary-action";
 import { DayStrip } from "@/features/meals/day-strip";
 import { toEaters } from "@/features/meals/eaters";
-import { EXTRA_PORTIONS_ERROR, EatersPicker } from "@/features/meals/eaters-picker";
+import {
+  EXTRA_PORTIONS_ERROR,
+  EatersPicker,
+} from "@/features/meals/eaters-picker";
 import {
   dateKey,
   SLOT_LABEL,
@@ -137,15 +141,16 @@ export default function PlanVariantSheet() {
   }
 
   return (
-    <>
-      {/* Sections are direct children of the screen root: react-native-screens
-          #3634 — inside a formSheet, ScrollView frames get mangled unless the
-          scroll view is a direct subview of the content wrapper. Keep DayStrip
-          at this depth; do not wrap it. */}
+    // Keep a native wrapper so formSheet doesn't mistake the horizontal
+    // DayStrip for its main ScrollView and resize it to the sheet's height.
+    <View collapsable={false}>
       <View className="gap-1 px-6 pt-4">
-        <Text className="text-lg font-semibold">
-          {pending ? "Save & plan" : "Add to plan"}
-        </Text>
+        <View className="flex-row items-center justify-between gap-4">
+          <Text className="flex-1 text-lg font-semibold">
+            {pending ? "Save & plan" : "Add to plan"}
+          </Text>
+          <CloseButton onPress={() => router.back()} disabled={saving} />
+        </View>
         <Text variant="muted" className="text-sm" numberOfLines={1}>
           {pending ? (dish ?? "This recipe") : (variant?.name ?? "…")}
         </Text>
@@ -231,12 +236,6 @@ export default function PlanVariantSheet() {
         sliderReady={ready}
       />
 
-      {pending ? null : (
-        <Text variant="muted" className="mt-4 px-6 text-sm">
-          Amounts follow the recipe as written.
-        </Text>
-      )}
-
       {error ? (
         <Text variant="small" className="mt-6 px-6 text-destructive">
           {error}
@@ -244,21 +243,12 @@ export default function PlanVariantSheet() {
       ) : null}
 
       <View className="mt-6 gap-2 px-6">
-        <Button
-          size="lg"
+        <PrimaryAction
+          label={saving ? "Adding…" : pending ? "Save & plan" : "Add to plan"}
           onPress={() => void onAdd()}
           disabled={saving || (!pending && !effectiveListId)}
-        >
-          {saving ? (
-            <ActivityIndicator />
-          ) : (
-            <Text>{pending ? "Save & plan" : "Add to plan"}</Text>
-          )}
-        </Button>
-        <Button variant="ghost" onPress={() => router.back()} disabled={saving}>
-          <Text>Cancel</Text>
-        </Button>
+        />
       </View>
-    </>
+    </View>
   );
 }

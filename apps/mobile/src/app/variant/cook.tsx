@@ -1,20 +1,17 @@
 import { useQuery } from "@powersync/react";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
-import { SymbolView } from "expo-symbols";
 import { useMemo, useState } from "react";
 import type { NativeScrollEvent, NativeSyntheticEvent } from "react-native";
-import { Pressable, ScrollView, useWindowDimensions, View } from "react-native";
+import { ScrollView, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useResolveClassNames } from "uniwind";
+import { CloseButton } from "@/components/close-button";
 
 import { Text } from "@/components/ui/text";
 import type { Variant } from "@/db/schema";
 import { parseVariant } from "@/db/variants";
 import { tonalPair } from "@/features/variants/tonal";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-
-const CLOSE_ICON = { ios: "xmark", android: "close", web: "close" } as const;
 
 /**
  * Cook mode: one step per screen, snap-paged horizontally. The tonal backdrop
@@ -27,7 +24,6 @@ export default function CookMode() {
   const insets = useSafeAreaInsets();
   const scheme = useColorScheme();
   const { width } = useWindowDimensions();
-  const foreground = useResolveClassNames("text-foreground").color;
 
   const { data: variants, isLoading } = useQuery<Variant>(
     "SELECT * FROM variants WHERE id = ? LIMIT 1",
@@ -120,14 +116,9 @@ export default function CookMode() {
           </ScrollView>
         )}
 
-        <Pressable
-          onPress={() => router.back()}
-          hitSlop={12}
-          style={{ position: "absolute", top: insets.top + 12, right: 16 }}
-          className="size-10 items-center justify-center rounded-full bg-card/50"
-        >
-          <SymbolView name={CLOSE_ICON} tintColor={foreground} size={18} />
-        </Pressable>
+        <View style={{ position: "absolute", top: insets.top + 12, right: 16 }}>
+          <CloseButton onPress={() => router.back()} />
+        </View>
 
         {steps.length > 1 ? (
           <View

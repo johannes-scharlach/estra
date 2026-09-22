@@ -13,8 +13,15 @@ import { Button } from "@/components/ui/button";
 import { Text } from "@/components/ui/text";
 import { updatePlannedMealEaters } from "@/db/planned-meals";
 import { useAuth } from "@/db/provider";
-import { parseEaterIds, parseExtraPortions, toEaters } from "@/features/meals/eaters";
-import { EXTRA_PORTIONS_ERROR, EatersPicker } from "@/features/meals/eaters-picker";
+import {
+  parseEaterIds,
+  parseExtraPortions,
+  toEaters,
+} from "@/features/meals/eaters";
+import {
+  EXTRA_PORTIONS_ERROR,
+  EatersPicker,
+} from "@/features/meals/eaters-picker";
 import type { MealSlot } from "@/features/meals/slots";
 
 type PersonRow = { id: string; name: string; user_id: string | null };
@@ -39,11 +46,18 @@ export default function EatersSheet() {
     "SELECT id, name, user_id FROM household_people WHERE list_id = ? ORDER BY created_at, id",
     [listId ?? ""],
   );
-  const people = useMemo(() => toEaters(rows, session?.user.id), [rows, session]);
+  const people = useMemo(
+    () => toEaters(rows, session?.user.id),
+    [rows, session],
+  );
 
-  const [eaterIds, setEaterIds] = useState(() => parseEaterIds(params.eaterIds));
+  const [eaterIds, setEaterIds] = useState(() =>
+    parseEaterIds(params.eaterIds),
+  );
   const initialExtra = parseExtraPortions(params.extraPortions ?? "") ?? 0;
-  const [extraPortions, setExtraPortions] = useState<number | null>(initialExtra);
+  const [extraPortions, setExtraPortions] = useState<number | null>(
+    initialExtra,
+  );
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [sliderReady, setSliderReady] = useState(false);
@@ -65,12 +79,21 @@ export default function EatersSheet() {
     setSaving(true);
     setError(null);
     try {
-      await updatePlannedMealEaters(listId, date, slot, variantId, eaterIds, extraPortions);
+      await updatePlannedMealEaters(
+        listId,
+        date,
+        slot,
+        variantId,
+        eaterIds,
+        extraPortions,
+      );
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.back();
     } catch (caught) {
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      setError(caught instanceof Error ? caught.message : "Could not update the meal.");
+      setError(
+        caught instanceof Error ? caught.message : "Could not update the meal.",
+      );
       setSaving(false);
     }
   }
@@ -79,9 +102,6 @@ export default function EatersSheet() {
     <>
       <View className="gap-1 px-6 pt-4">
         <Text className="text-lg font-semibold">Who&apos;s eating</Text>
-        <Text variant="muted" className="text-sm">
-          Amounts follow the recipe as written.
-        </Text>
       </View>
 
       <EatersPicker
