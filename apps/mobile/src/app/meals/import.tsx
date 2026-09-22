@@ -1,9 +1,10 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
-import { ActivityIndicator, View } from "react-native";
+import { View } from "react-native";
 import { useQuery } from "@powersync/react";
 
-import { Button } from "@/components/ui/button";
+import { CloseButton } from "@/components/close-button";
+import { PrimaryAction } from "@/features/variants/primary-action";
 import { Input } from "@/components/ui/input";
 import { Text } from "@/components/ui/text";
 import type { List } from "@/db/schema";
@@ -59,14 +60,14 @@ export default function ImportForSlotSheet() {
   }
 
   return (
-    <>
-      {/* Sections are direct children of the screen root: react-native-screens
-          #3634 — inside a formSheet, ScrollView frames get mangled unless the
-          scroll view is a direct subview of the content wrapper. */}
+    <View collapsable={false}>
       <View className="gap-1 px-6 pt-4">
-        <Text className="text-lg font-semibold">
-          Import for {slot ? SLOT_LABEL[slot] : ""}
-        </Text>
+        <View className="flex-row items-center justify-between gap-4">
+          <Text className="flex-1 text-lg font-semibold">
+            Import for {slot ? SLOT_LABEL[slot] : ""}
+          </Text>
+          <CloseButton onPress={() => router.back()} disabled={importing} />
+        </View>
         <Text variant="muted" className="text-sm">
           Paste a link — the recipe lands in your cookbook and is planned for{" "}
           {dayLabel(date)}.
@@ -95,22 +96,13 @@ export default function ImportForSlotSheet() {
         ) : null}
       </View>
 
-      <View className="mt-6 gap-2 px-6 pb-8">
-        <Button
-          size="lg"
+      <View className="mt-6 gap-2 px-6">
+        <PrimaryAction
+          label={importing ? "Importing…" : "Import & plan"}
           onPress={() => void onImport()}
           disabled={importing || !url.trim() || !list}
-        >
-          {importing ? <ActivityIndicator /> : <Text>Import & plan</Text>}
-        </Button>
-        <Button
-          variant="ghost"
-          onPress={() => router.back()}
-          disabled={importing}
-        >
-          <Text>Cancel</Text>
-        </Button>
+        />
       </View>
-    </>
+    </View>
   );
 }

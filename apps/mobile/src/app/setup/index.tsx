@@ -123,10 +123,11 @@ export default function Welcome() {
           accessibilityRole="header"
           className="text-4xl font-bold leading-11 tracking-tight"
         >
-          Feed your home
+          Meals you actually want to make
         </Text>
         <Text className="text-xl leading-6 text-muted-foreground">
-          Plan and pivot while keeping everyone in the loop.
+          Cook what you love, use what you have, and never wonder what’s for
+          dinner.
         </Text>
       </View>
       <FormError message={error ?? access.error} />

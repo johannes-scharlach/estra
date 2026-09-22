@@ -7,9 +7,10 @@ import {
 } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, View } from "react-native";
+import { View } from "react-native";
 
-import { Button } from "@/components/ui/button";
+import { CloseButton } from "@/components/close-button";
+import { PrimaryAction } from "@/features/variants/primary-action";
 import { Text } from "@/components/ui/text";
 import { updatePlannedMealEaters } from "@/db/planned-meals";
 import { useAuth } from "@/db/provider";
@@ -99,9 +100,10 @@ export default function EatersSheet() {
   }
 
   return (
-    <>
-      <View className="gap-1 px-6 pt-4">
-        <Text className="text-lg font-semibold">Who&apos;s eating</Text>
+    <View collapsable={false}>
+      <View className="flex-row items-center justify-between gap-4 px-6 pt-4">
+        <Text className="flex-1 text-lg font-semibold">Who&apos;s eating</Text>
+        <CloseButton onPress={() => router.back()} disabled={saving} />
       </View>
 
       <EatersPicker
@@ -125,14 +127,13 @@ export default function EatersSheet() {
         </Text>
       ) : null}
 
-      <View className="mt-6 gap-2 px-6 pb-6">
-        <Button size="lg" disabled={saving} onPress={() => void save()}>
-          {saving ? <ActivityIndicator /> : <Text>Apply</Text>}
-        </Button>
-        <Button variant="ghost" disabled={saving} onPress={() => router.back()}>
-          <Text>Cancel</Text>
-        </Button>
+      <View className="mt-6 gap-2 px-6">
+        <PrimaryAction
+          label={saving ? "Applying…" : "Apply"}
+          disabled={saving}
+          onPress={() => void save()}
+        />
       </View>
-    </>
+    </View>
   );
 }

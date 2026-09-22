@@ -18,7 +18,7 @@ import { scheduleOnRN } from "react-native-worklets";
 
 import type { Alternative } from "./alternatives";
 
-const PEEK_WIDTH = 64;
+const PEEK_WIDTH = 32;
 const CHOICE_GAP = 8;
 
 export function SwipeItem({
@@ -144,7 +144,9 @@ export function SwipeItem({
           if (locked.get()) return;
           const distance = start.get() + event.translationX;
           const boundary =
-            (!previous && distance > 0) || (!next && distance < 0) ? 0 : distance;
+            (!previous && distance > 0) || (!next && distance < 0)
+              ? 0
+              : distance;
           const edge = Math.sign(boundary) * pageWidth;
           const overshoot = boundary - edge;
           x.set(
@@ -184,16 +186,7 @@ export function SwipeItem({
               }),
             );
         }),
-    [
-      disabled,
-      next,
-      previous,
-      pageWidth,
-      animateSwap,
-      locked,
-      start,
-      x,
-    ],
+    [disabled, next, previous, pageWidth, animateSwap, locked, start, x],
   );
 
   const tap = useMemo(

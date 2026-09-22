@@ -7,9 +7,9 @@ import {
 } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Pressable, View } from "react-native";
+import { Pressable, View } from "react-native";
 
-import { Button } from "@/components/ui/button";
+import { CloseButton } from "@/components/close-button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Text } from "@/components/ui/text";
 import { movePlannedMeal } from "@/db/planned-meals";
@@ -23,6 +23,7 @@ import {
   type MealSlot,
 } from "@/features/meals/slots";
 import { useImportJobs } from "@/features/meals/use-import-jobs";
+import { PrimaryAction } from "@/features/variants/primary-action";
 
 export default function MoveMealSheet() {
   const { listId, date, slot, variantId } = useLocalSearchParams<{
@@ -107,9 +108,10 @@ export default function MoveMealSheet() {
   }
 
   return (
-    <>
-      <View className="px-6 pt-4">
-        <Text className="text-lg font-semibold">Move meal</Text>
+    <View collapsable={false}>
+      <View className="flex-row items-center justify-between gap-4 px-6 pt-4">
+        <Text className="flex-1 text-lg font-semibold">Move meal</Text>
+        <CloseButton onPress={() => router.back()} disabled={saving} />
       </View>
 
       {stripReady ? (
@@ -174,22 +176,13 @@ export default function MoveMealSheet() {
         </Text>
       ) : null}
 
-      <View className="mt-6 gap-2 px-6 pb-6">
-        <Button
-          size="lg"
+      <View className="mt-6 gap-2 px-6">
+        <PrimaryAction
+          label={saving ? "Moving…" : destination ? "Swap meals" : "Move meal"}
           disabled={saving || isSame || hasImport}
           onPress={() => void confirm()}
-        >
-          {saving ? (
-            <ActivityIndicator />
-          ) : (
-            <Text>{destination ? "Swap meals" : "Move meal"}</Text>
-          )}
-        </Button>
-        <Button variant="ghost" disabled={saving} onPress={() => router.back()}>
-          <Text>Cancel</Text>
-        </Button>
+        />
       </View>
-    </>
+    </View>
   );
 }

@@ -1,14 +1,40 @@
 import { newPerson, type HouseholdPerson } from "@estra/profile";
 import * as Crypto from "expo-crypto";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useState } from "react";
-import { Alert } from "react-native";
+import { useState, type ReactNode } from "react";
+import { Alert, ScrollView, View } from "react-native";
+import { CloseButton } from "@/components/close-button";
 import { Button } from "@/components/ui/button";
 import { Text } from "@/components/ui/text";
 import { removePerson, savePerson } from "@/db/profiles";
 import { useHouseholdAccess } from "@/features/onboarding/access";
-import { FormError, FormScreen, PersonFields } from "@/features/profile/form";
+import { FormError, PersonFields } from "@/features/profile/form";
 import { useHousehold } from "@/features/profile/use-household";
+import { PrimaryAction } from "@/features/variants/primary-action";
+
+function PersonSheet({
+  busy = false,
+  children,
+}: {
+  busy?: boolean;
+  children: ReactNode;
+}) {
+  const router = useRouter();
+  return (
+    <ScrollView
+      contentInsetAdjustmentBehavior="automatic"
+      automaticallyAdjustKeyboardInsets
+      keyboardShouldPersistTaps="handled"
+      contentContainerClassName="gap-6 px-6 pt-4"
+    >
+      <View className="flex-row items-center justify-between gap-4">
+        <Text className="flex-1 text-lg font-semibold">Household person</Text>
+        <CloseButton onPress={() => router.back()} disabled={busy} />
+      </View>
+      {children}
+    </ScrollView>
+  );
+}
 
 export default function ProfilePerson() {
   const { id } = useLocalSearchParams<{ id?: string }>();
@@ -16,17 +42,17 @@ export default function ProfilePerson() {
   const { household, error } = useHousehold(listId);
   if (!household || !listId)
     return (
-      <FormScreen>
+      <PersonSheet>
         <FormError message={error} />
         <Text>Loading…</Text>
-      </FormScreen>
+      </PersonSheet>
     );
   const person = household.people.find((p) => p.id === id);
   if (id && !person)
     return (
-      <FormScreen>
+      <PersonSheet>
         <Text>This person is no longer in the household.</Text>
-      </FormScreen>
+      </PersonSheet>
     );
   return (
     <PersonEditor
@@ -68,15 +94,14 @@ function PersonEditor({
     }
   }
   return (
-    <FormScreen>
+    <PersonSheet busy={busy}>
       <FormError message={error} />
       <PersonFields person={person} onChange={setPerson} />
-      <Button disabled={busy} onPress={() => void commit()}>
-        <Text>{busy ? "Saving…" : "Save person"}</Text>
-      </Button>
-      <Button variant="ghost" disabled={busy} onPress={() => router.back()}>
-        <Text>Cancel</Text>
-      </Button>
+      <PrimaryAction
+        label={busy ? "Saving…" : "Save person"}
+        disabled={busy}
+        onPress={() => void commit()}
+      />
       {initial && (
         <Button
           variant="destructive"
@@ -99,6 +124,6 @@ function PersonEditor({
           <Text>Remove person</Text>
         </Button>
       )}
-    </FormScreen>
+    </PersonSheet>
   );
 }

@@ -3,16 +3,17 @@ import {
   type CookingProfile,
   type SelectionField,
 } from "@estra/profile";
-import { Stack, useLocalSearchParams, useRouter } from "expo-router";
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { useState, type ReactNode } from "react";
+import { ScrollView, View } from "react-native";
+import { CloseButton } from "@/components/close-button";
+import { PrimaryAction } from "@/features/variants/primary-action";
 import { Text } from "@/components/ui/text";
 import { saveProfileSection } from "@/db/profiles";
 import { useHouseholdAccess } from "@/features/onboarding/access";
 import {
   Field,
   FormError,
-  FormScreen,
   MealRoutineEditor,
   RestrictionsEditor,
   SelectionEditor,
@@ -28,22 +29,50 @@ const titles: Record<string, string> = {
   meals_at_home: "Meals at home",
   shops: "Shopping routine",
 };
+
+function SectionSheet({
+  title,
+  busy = false,
+  children,
+}: {
+  title: string;
+  busy?: boolean;
+  children: ReactNode;
+}) {
+  const router = useRouter();
+  return (
+    // Keep the main ScrollView directly under the native sheet content wrapper.
+    <ScrollView
+      contentInsetAdjustmentBehavior="automatic"
+      automaticallyAdjustKeyboardInsets
+      keyboardShouldPersistTaps="handled"
+      contentContainerClassName="gap-6 px-6 pt-4"
+    >
+      <View className="flex-row items-center justify-between gap-4">
+        <Text className="flex-1 text-lg font-semibold">{title}</Text>
+        <CloseButton onPress={() => router.back()} disabled={busy} />
+      </View>
+      {children}
+    </ScrollView>
+  );
+}
+
 export default function EditProfileSection() {
   const { section } = useLocalSearchParams<{ section: string }>();
   const { listId } = useHouseholdAccess();
   const { household, error } = useHousehold(listId);
   if (!household || !listId)
     return (
-      <FormScreen>
+      <SectionSheet title={titles[section] ?? "Profile"}>
         <FormError message={error} />
         <Text>Loading…</Text>
-      </FormScreen>
+      </SectionSheet>
     );
   if (!titles[section])
     return (
-      <FormScreen>
+      <SectionSheet title="Profile">
         <Text>Unknown Profile section.</Text>
-      </FormScreen>
+      </SectionSheet>
     );
   return (
     <SectionEditor
@@ -97,8 +126,7 @@ function SectionEditor({
     }
   }
   return (
-    <FormScreen>
-      <Stack.Screen options={{ title: titles[section] }} />
+    <SectionSheet title={titles[section] ?? "Profile"} busy={busy}>
       <FormError message={error} />
       {selection && (
         <SelectionEditor
@@ -110,9 +138,7 @@ function SectionEditor({
       {section === "restrictions" && (
         <RestrictionsEditor
           value={draft.restrictions}
-          onChange={(restrictions) =>
-            setDraft((d) => ({ ...d, restrictions }))
-          }
+          onChange={(restrictions) => setDraft((d) => ({ ...d, restrictions }))}
         />
       )}
       {section === "meals_at_home" && (
@@ -142,12 +168,11 @@ function SectionEditor({
           />
         </>
       )}
-      <Button disabled={busy} onPress={() => void save()}>
-        <Text>{busy ? "Saving…" : "Save"}</Text>
-      </Button>
-      <Button variant="ghost" disabled={busy} onPress={() => router.back()}>
-        <Text>Cancel</Text>
-      </Button>
-    </FormScreen>
+      <PrimaryAction
+        label={busy ? "Saving…" : "Save"}
+        disabled={busy}
+        onPress={() => void save()}
+      />
+    </SectionSheet>
   );
 }

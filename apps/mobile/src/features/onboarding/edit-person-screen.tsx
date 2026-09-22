@@ -9,6 +9,7 @@ import { Text } from "@/components/ui/text";
 import { OnboardingScreen } from "@/features/onboarding/onboarding-screen";
 import { useOnboarding } from "@/features/onboarding/provider";
 import { FormError, PersonFields } from "@/features/profile/form";
+import { PrimaryAction } from "@/features/variants/primary-action";
 
 export function EditSetupPerson() {
   const { id } = useLocalSearchParams<{ id?: string }>();
@@ -80,20 +81,22 @@ export function EditSetupPerson() {
     // No opaque background either — the sheet's own glass material shows
     // through — and dismiss is a corner X, not the full-screen back button.
     return (
-      <>
-        <View className="flex-row items-start justify-between gap-3 px-6 pt-4">
+      <View collapsable={false}>
+        <View className="flex-row items-center justify-between gap-4 px-6 pt-4">
           <Text className="flex-1 text-lg font-semibold">{title}</Text>
           <CloseButton onPress={() => router.back()} disabled={busy} />
         </View>
-        <View className="mt-4 gap-4 px-6 pb-8">
+        <View className="mt-4 gap-4 px-6">
           <FormError message={error} />
           <PersonFields person={person} onChange={setPerson} />
-          <Button size="lg" disabled={busy} onPress={() => void save()}>
-            <Text>{actionLabel}</Text>
-          </Button>
+          <PrimaryAction
+            label={actionLabel}
+            disabled={busy}
+            onPress={() => void save()}
+          />
           {removeButton}
         </View>
-      </>
+      </View>
     );
   }
 

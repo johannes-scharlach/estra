@@ -93,7 +93,10 @@ function Questions({ initialStep }: { initialStep: Step }) {
     if (index > 0 && !moving.current && !auth.busy) {
       void move(index - 1).catch(() => {});
     }
-  }, [index, auth.busy, move]);
+    if (index === 0 && !moving.current && !auth.busy) {
+      router.back();
+    }
+  }, [index, auth.busy, move, router]);
 
   useFocusEffect(
     useCallback(() => {
@@ -297,17 +300,10 @@ function Questions({ initialStep }: { initialStep: Step }) {
           >
             <View
               className="min-h-14 min-w-14 items-center justify-center"
-              style={{ opacity: index > 0 ? 1 : 0 }}
-              pointerEvents={index > 0 ? "auto" : "none"}
-              accessibilityElementsHidden={index === 0}
-              importantForAccessibility={
-                index === 0 ? "no-hide-descendants" : "auto"
-              }
+              pointerEvents={"auto"}
+              importantForAccessibility={"auto"}
             >
-              <PreviousQuestionButton
-                disabled={locked || index === 0}
-                onPress={previous}
-              />
+              <PreviousQuestionButton disabled={locked} onPress={previous} />
             </View>
             <Button
               className={

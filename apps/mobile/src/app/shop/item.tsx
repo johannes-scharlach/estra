@@ -4,6 +4,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, View } from "react-native";
 
+import { CloseButton } from "@/components/close-button";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Text } from "@/components/ui/text";
@@ -17,6 +18,7 @@ import {
 import type { ListItem } from "@/db/schema";
 import { alternativesForItem } from "@/features/shop/alternatives";
 import { CategoryMenu } from "@/features/shop/category-menu";
+import { PrimaryAction } from "@/features/variants/primary-action";
 
 /** Row shape: the list item plus its meal provenance, if any. */
 type ItemRow = ListItem & {
@@ -61,15 +63,22 @@ export default function ShopItemSheet() {
 
   if (isLoading) {
     return (
-      <View className="items-center justify-center p-12">
-        <ActivityIndicator />
+      <View collapsable={false} className="px-6 pt-4">
+        <View className="flex-row items-center justify-between gap-4">
+          <Text className="flex-1 text-lg font-semibold">Loading item…</Text>
+          <CloseButton onPress={() => router.back()} />
+        </View>
+        <ActivityIndicator className="my-6" />
       </View>
     );
   }
   if (!item) {
     return (
-      <View className="gap-1 px-6 pt-4 pb-8">
-        <Text className="text-lg font-semibold">Item not found</Text>
+      <View collapsable={false} className="gap-1 px-6 pt-4">
+        <View className="flex-row items-center justify-between gap-4">
+          <Text className="flex-1 text-lg font-semibold">Item not found</Text>
+          <CloseButton onPress={() => router.back()} />
+        </View>
         <Text variant="muted">It may have been removed on another device.</Text>
       </View>
     );
@@ -95,12 +104,12 @@ export default function ShopItemSheet() {
   }
 
   return (
-    <>
-      {/* Sections are direct children of the screen root: react-native-screens
-          #3634 — inside a formSheet, ScrollView frames get mangled unless the
-          scroll view is a direct subview of the content wrapper. */}
+    <View collapsable={false}>
       <View className="gap-1 px-6 pt-4">
-        <Text className="text-lg font-semibold">{item.name}</Text>
+        <View className="flex-row items-center justify-between gap-4">
+          <Text className="flex-1 text-lg font-semibold">{item.name}</Text>
+          <CloseButton onPress={() => router.back()} disabled={saving} />
+        </View>
         {item.spec ? <Text variant="muted" className="text-sm">{item.spec}</Text> : null}
         <Text variant="muted" className="text-sm">{provenance}</Text>
       </View>
@@ -168,7 +177,7 @@ export default function ShopItemSheet() {
         />
       </View>
 
-      <View className="mt-6 gap-2 px-6 pb-8">
+      <View className="mt-6 gap-2 px-6">
         <Text variant="muted" className="text-xs uppercase tracking-widest">Rename</Text>
         <Input
           value={edit}
@@ -179,14 +188,12 @@ export default function ShopItemSheet() {
             if (!saving && edit.trim()) void close(() => renameItem(item.id, edit));
           }}
         />
-        <Button
-          size="lg"
+        <PrimaryAction
+          label={saving ? "Applying…" : "Apply"}
           disabled={saving || !edit.trim()}
           onPress={() => void close(() => renameItem(item.id, edit))}
-        >
-          {saving ? <ActivityIndicator /> : <Text>Apply</Text>}
-        </Button>
+        />
       </View>
-    </>
+    </View>
   );
 }

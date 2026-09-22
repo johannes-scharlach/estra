@@ -12,12 +12,25 @@ export default function ProfileLayout() {
     >
       <Stack.Screen
         name="index"
-        options={{ title: "Household Profile", presentation: "formSheet" }}
+        options={{ title: "Household Profile", presentation: "pageSheet" }}
       />
-      <Stack.Screen name="[section]" options={{ presentation: "formSheet" }} />
+      <Stack.Screen
+        name="[section]"
+        options={{
+          presentation: "formSheet",
+          sheetAllowedDetents: [0.5, 1],
+          sheetGrabberVisible: true,
+          headerShown: false,
+        }}
+      />
       <Stack.Screen
         name="person"
-        options={{ title: "Household person", presentation: "formSheet" }}
+        options={{
+          presentation: "formSheet",
+          sheetAllowedDetents: [0.5, 1],
+          sheetGrabberVisible: true,
+          headerShown: false,
+        }}
       />
     </Stack>
   );
