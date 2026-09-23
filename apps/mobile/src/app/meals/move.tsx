@@ -23,7 +23,7 @@ import {
   type MealSlot,
 } from "@/features/meals/slots";
 import { useImportJobs } from "@/features/meals/use-import-jobs";
-import { PrimaryAction } from "@/features/variants/primary-action";
+import { PrimaryAction } from "@/components/action";
 
 export default function MoveMealSheet() {
   const { listId, date, slot, variantId } = useLocalSearchParams<{

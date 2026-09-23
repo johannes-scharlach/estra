@@ -8,7 +8,7 @@ import { CloseButton } from "@/components/close-button";
 import { Input } from "@/components/ui/input";
 import { Text } from "@/components/ui/text";
 import { importRecipe } from "@/features/meals/import-adapters";
-import { PrimaryAction } from "@/features/variants/primary-action";
+import { PrimaryAction } from "@/components/action";
 
 /** Native formSheet: detents, grabber, swipe-to-dismiss. Unmounts on close,
  *  so the URL draft is always fresh. Same pattern as variant/plan. */

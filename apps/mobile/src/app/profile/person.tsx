@@ -10,7 +10,7 @@ import { removePerson, savePerson } from "@/db/profiles";
 import { useHouseholdAccess } from "@/features/onboarding/access";
 import { FormError, PersonFields } from "@/features/profile/form";
 import { useHousehold } from "@/features/profile/use-household";
-import { PrimaryAction } from "@/features/variants/primary-action";
+import { PrimaryAction } from "@/components/action";
 
 function PersonSheet({
   busy = false,

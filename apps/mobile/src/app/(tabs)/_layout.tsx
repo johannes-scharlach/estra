@@ -24,14 +24,14 @@ export default function TabsLayout() {
       rippleColor={indicatorColor}
       labelVisibilityMode="labeled"
     >
-      <NativeTabs.Trigger name="meals">
-        <NativeTabs.Trigger.Label>Meals</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon sf="fork.knife" md="restaurant" />
-      </NativeTabs.Trigger>
-
       <NativeTabs.Trigger name="(home)">
         <NativeTabs.Trigger.Label>Home</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf="house.fill" md="home" />
+      </NativeTabs.Trigger>
+
+      <NativeTabs.Trigger name="meals">
+        <NativeTabs.Trigger.Label>Meals</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon sf="fork.knife" md="restaurant" />
       </NativeTabs.Trigger>
 
       <NativeTabs.Trigger name="shop">

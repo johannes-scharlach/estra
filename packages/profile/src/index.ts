@@ -1,13 +1,13 @@
 import { z } from "zod";
 
 export const goalOptions = {
-  "eat-healthy": "Eat healthy",
-  "cook-with-confidence": "Cook with confidence",
-  "know-what-to-make": "Know what to make",
-  "save-money": "Save money",
-  "reduce-food-waste": "Reduce food waste",
-  "save-time": "Save time",
+  "cook-with-what-you-have": "Cook with what I have",
+  "fast-weeknight-dinners": "Fast weeknight dinners",
   "explore-new-cuisines": "Explore new cuisines",
+  "use-up-what-you-buy": "Use up what I buy",
+  "fresh-healthy-meals": "Fresh, healthy meals",
+  "cook-on-a-budget": "Cook on a budget",
+  "cook-with-confidence": "Cook with more confidence",
 } as const;
 export const dietOptions = {
   flexitarian: "Flexitarian",
@@ -19,27 +19,27 @@ export const dietOptions = {
   other: "Other diet",
 } as const;
 export const dietDescriptions = {
-  flexitarian: "More plants, less meat; still eats meat and fish",
+  flexitarian: "I eat everything and love putting veg at the center",
   omnivore: "I eat everything",
-  "meat-heavy": "You love your proteins",
-  pescetarian: "Vegetarian + seafood",
-  vegetarian: "No meat or fish",
+  "meat-heavy": "I want meat or protein at every meal",
+  pescetarian: "Vegetarian, plus seafood",
+  vegetarian: "Dairy and eggs, but no meat or fish",
   vegan: "No animal products at all",
-  other: "Describe your diet",
+  other: "I have a different diet",
 } as const;
 export const equipmentOptions = {
   oven: "Oven",
   stove: "Stove",
   microwave: "Microwave",
-  "air-fryer": "Air Fryer",
+  "air-fryer": "Air fryer",
   blender: "Blender",
-  "slow-cooker": "Slow Cooker",
-  "food-processor": "Food Processor",
-  "rice-cooker": "Rice Cooker",
+  "slow-cooker": "Slow cooker",
+  "food-processor": "Food processor",
+  "rice-cooker": "Rice cooker",
 } as const;
 export const pantryOptions = {
   cannedFoods: "Canned foods",
-  dryFoods: "Dry carb staples",
+  dryFoods: "Pasta, rice & grains",
   seasonings: "Sauces & condiments",
   driedSpices: "Dried spices & herbs",
   nutsAndDriedFruit: "Nuts & dried fruit",
@@ -56,7 +56,9 @@ export const categoryExamples: Record<string, string> = {
   cannedFoods: "Tomatoes, beans, chickpeas, tuna, etc.",
   dryFoods: "Pasta, rice, bulgur, tortillas, etc.",
   seasonings: "Asian pastes, sauces, salsa, mustard, mayo, etc.",
-  specialtySeasonings: "For creativity and riffing",
+  driedSpices: "Black pepper, cumin, oregano, paprika, etc.",
+  nutsAndDriedFruit: "Almonds, walnuts, raisins, seeds, etc.",
+  specialtySeasonings: "Chili crisp, miso, tahini, furikake, etc.",
   freshVegAndHerbs: "Broccoli, peppers, coriander, tomatoes, cucumber, etc.",
 };
 export const ageGroups = [
@@ -131,7 +133,7 @@ export function newPerson(id: string): HouseholdPerson {
     age_group: "Adult",
     diet: "flexitarian",
     diet_other: "",
-    meal_times: "Always",
+    meal_times: "All meals",
   };
 }
 function selected(

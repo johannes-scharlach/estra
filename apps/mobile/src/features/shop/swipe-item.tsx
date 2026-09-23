@@ -5,6 +5,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { SymbolView } from "expo-symbols";
 import { View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
@@ -13,13 +14,12 @@ import Animated, {
   useReducedMotion,
   useSharedValue,
   withSpring,
+  withTiming,
 } from "react-native-reanimated";
 import { scheduleOnRN } from "react-native-worklets";
+import { useResolveClassNames } from "uniwind";
 
 import type { Alternative } from "./alternatives";
-
-const PEEK_WIDTH = 32;
-const CHOICE_GAP = 8;
 
 export function SwipeItem({
   leading,
@@ -55,8 +55,18 @@ export function SwipeItem({
   const start = useSharedValue(0);
   const locked = useSharedValue(false);
   const reduced = useReducedMotion();
-  const pageWidth = Math.max(0, width - PEEK_WIDTH);
-  const surfaceWidth = Math.max(0, pageWidth - CHOICE_GAP);
+  const mutedColor = useResolveClassNames("text-muted-foreground").color;
+  const primaryColor = useResolveClassNames("text-primary").color;
+  const pageWidth = width;
+  // The Swap icon stays faint until a finger is on the row.
+  const pressed = useSharedValue(0);
+  const press = useCallback(
+    (down: boolean) => {
+      "worklet";
+      pressed.set(withTiming(down ? 1 : 0, { duration: down ? 100 : 300 }));
+    },
+    [pressed],
+  );
 
   const commit = useCallback(
     async (direction: 1 | -1) => {
@@ -137,6 +147,7 @@ export function SwipeItem({
         .enabled(!disabled && !!(next || previous) && pageWidth > 0)
         .activeOffsetX([-10, 10])
         .failOffsetY([-16, 16])
+        .onBegin(() => press(true))
         .onStart(() => {
           if (!locked.get()) start.set(x.get());
         })
@@ -177,6 +188,7 @@ export function SwipeItem({
           }
         })
         .onFinalize((_event, success) => {
+          press(false);
           if (!success && !locked.get())
             x.set(
               withSpring(0, {
@@ -186,40 +198,17 @@ export function SwipeItem({
               }),
             );
         }),
-    [disabled, next, previous, pageWidth, animateSwap, locked, start, x],
+    [disabled, next, previous, pageWidth, animateSwap, locked, press, start, x],
   );
 
   const tap = useMemo(
     () =>
       Gesture.Tap()
         .maxDistance(8)
-        .onEnd((event, success) => {
-          if (!success || locked.get()) return;
-          const offset = reduced ? 0 : x.get();
-          const direction =
-            next && event.x >= pageWidth + offset
-              ? 1
-              : previous && event.x < -pageWidth + offset + surfaceWidth
-                ? -1
-                : null;
-          if (direction !== null) {
-            if (!disabled && pageWidth > 0) animateSwap(direction, 0);
-          } else {
-            scheduleOnRN(onOpen);
-          }
+        .onEnd((_event, success) => {
+          if (success && !locked.get()) scheduleOnRN(onOpen);
         }),
-    [
-      animateSwap,
-      disabled,
-      locked,
-      next,
-      onOpen,
-      pageWidth,
-      previous,
-      reduced,
-      surfaceWidth,
-      x,
-    ],
+    [locked, onOpen],
   );
   // A drag that fails the pan's axis test must not fall through to a tap.
   const gesture = useMemo(() => Gesture.Exclusive(pan, tap), [pan, tap]);
@@ -233,20 +222,31 @@ export function SwipeItem({
   const previousStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: -pageWidth + (reduced ? 0 : x.get()) }],
   }));
+  const restingIconStyle = useAnimatedStyle(() => ({
+    opacity: 0.3 * (1 - pressed.get()),
+  }));
+  const pressedIconStyle = useAnimatedStyle(() => ({
+    opacity: pressed.get(),
+  }));
   const shownNext = transition && !completed ? transition.next : next;
   const shownPrevious =
     transition && !completed ? transition.previous : previous;
+  // Tapping the hint swaps forward while there is a next option, else back.
+  const hint = next ? 1 : previous ? -1 : null;
+  const hintTap = useMemo(
+    () =>
+      Gesture.Tap()
+        .enabled(hint !== null && !disabled && pageWidth > 0)
+        .onBegin(() => press(true))
+        .onFinalize(() => press(false))
+        .onEnd((_event, success) => {
+          if (success && !locked.get() && hint !== null) animateSwap(hint, 0);
+        }),
+    [animateSwap, disabled, hint, locked, pageWidth, press],
+  );
 
   return (
     <View className="flex-1 flex-row items-center">
-      <View
-        pointerEvents="none"
-        className="absolute bottom-1 left-0 top-1 rounded-xl border border-transparent"
-        style={{
-          right: shownNext ? PEEK_WIDTH + CHOICE_GAP : 0,
-          borderCurve: "continuous",
-        }}
-      />
       {leading}
       <View
         className="flex-1 overflow-hidden"
@@ -254,12 +254,7 @@ export function SwipeItem({
       >
         <GestureDetector gesture={gesture}>
           <Animated.View>
-            <Animated.View
-              style={[
-                rowStyle,
-                { width: shownNext && width ? surfaceWidth : "100%" },
-              ]}
-            >
+            <Animated.View style={rowStyle}>
               {transition && !completed ? transition.children : children}
             </Animated.View>
             {[
@@ -277,11 +272,8 @@ export function SwipeItem({
               option && width ? (
                 <Animated.View
                   key={key}
-                  style={[
-                    style,
-                    { width: surfaceWidth, borderCurve: "continuous" },
-                  ]}
-                  className="absolute bottom-0 left-0 top-0 overflow-hidden rounded-none border-l border-border -ml-px"
+                  style={[style, { width: pageWidth }]}
+                  className="absolute bottom-0 left-0 top-0"
                   accessibilityElementsHidden
                   importantForAccessibility="no-hide-descendants"
                 >
@@ -294,6 +286,36 @@ export function SwipeItem({
           </Animated.View>
         </GestureDetector>
       </View>
+      {/* Every row keeps the slot so amounts line up and never shift on swap. */}
+      <GestureDetector gesture={hintTap}>
+        <View
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+          className="w-10 self-stretch items-center justify-center"
+        >
+          {hint !== null && !disabled
+            ? [
+                { key: "resting", style: restingIconStyle, color: mutedColor },
+                {
+                  key: "pressed",
+                  style: pressedIconStyle,
+                  color: primaryColor,
+                },
+              ].map(({ key, style, color }) => (
+                <Animated.View key={key} style={style} className="absolute">
+                  <SymbolView
+                    name={{
+                      ios: "arrow.left.arrow.right",
+                      android: "swap_horiz",
+                    }}
+                    tintColor={color}
+                    size={15}
+                  />
+                </Animated.View>
+              ))
+            : null}
+        </View>
+      </GestureDetector>
     </View>
   );
 }

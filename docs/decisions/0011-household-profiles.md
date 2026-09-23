@@ -13,10 +13,11 @@ a unique `(list_id, user_id)` enforce that an account identifies at most one
 person in that household. Leaving clears the link but retains the person.
 Deleting a list cascades to its Profile and people.
 
-The Profile uses separate columns for each selection group, shopping notes,
-and meal routine. Selection groups are JSON objects containing preset boolean
-keys and an `other` string array. Missing keys are unselected. Meal routine is
-free text, supporting weekday/weekend differences without a scheduling model.
+The Profile uses separate columns for each selection group, household
+restrictions, shopping notes, and meal routine. Selection groups are JSON
+objects containing preset boolean keys and an `other` string array. Missing
+keys are unselected. Meal routine is one of the setup presets. Selecting
+`It varies` allows a household to supply its changing-pattern detail.
 
 Before authentication a versioned device-local draft stores answers, progress,
 the onboarding person's ID, and stable finalization IDs. Person IDs do not

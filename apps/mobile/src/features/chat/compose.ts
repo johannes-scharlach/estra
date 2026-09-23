@@ -4,7 +4,13 @@ import {
   whoIsEating,
   type Eater,
 } from "@/features/meals/eaters";
-import { addDays, dateKey, SLOT_LABEL, WEEKDAY_LONG, type MealSlot } from "@/features/meals/slots";
+import {
+  addDays,
+  dateKey,
+  SLOT_LABEL,
+  WEEKDAY_LONG,
+  type MealSlot,
+} from "@/features/meals/slots";
 
 /**
  * The app never puts words in the user's mouth: everything it sends in
@@ -14,7 +20,11 @@ import { addDays, dateKey, SLOT_LABEL, WEEKDAY_LONG, type MealSlot } from "@/fea
 
 /** Home entry: chips plus any unfinished input (images may accompany).
  *  Ingredients lowercased so the sentence reads plain. */
-export function entryMessage(chips: string[], attachmentCount: number, draft: string): string {
+export function entryMessage(
+  chips: string[],
+  attachmentCount: number,
+  draft: string,
+): string {
   const ingredients = draft.trim() ? [...chips, draft.trim()] : chips;
   const names = ingredients.map((chip) => chip.toLowerCase());
   const list =
@@ -38,14 +48,18 @@ export function mealPlanMessage(opts: {
   notes: string;
   attachmentCount: number;
 }): string {
-  const meals = opts.slots.map(({ day, meal }) => `- ${day}: ${SLOT_LABEL[meal].toLowerCase()}`);
+  const meals = opts.slots.map(
+    ({ day, meal }) => `- ${day}: ${SLOT_LABEL[meal].toLowerCase()}`,
+  );
   return [
     "Help me draft a meal plan for these meals:",
     ...meals,
     opts.notes.trim(),
     opts.attachmentCount === 1 ? "I've attached an image." : "",
     opts.attachmentCount > 1 ? "I've attached some images." : "",
-  ].filter(Boolean).join("\n");
+  ]
+    .filter(Boolean)
+    .join("\n");
 }
 
 /** Day named the way the user saw it on the strip: today, tomorrow,
@@ -86,4 +100,24 @@ export function saveAndPlanMessage(
       ? `, plus ${formatExtraPortions(opts.extraPortions)} extra ${opts.extraPortions === 1 ? "portion" : "portions"}`
       : "";
   return `Save this and plan it for ${dayName(opts.day, today)} ${slot}. Eating: ${who}${extra}.`;
+}
+
+/** Adjust is an explicit request assembled from the meal the user can see. */
+export function adjustRecipeMessage(opts: {
+  date: string;
+  meal: string;
+  people: Eater[];
+  eaterIds: string[];
+  extraPortions: number;
+  swaps: { from: string; to: string }[];
+}): string {
+  const names = opts.people
+    .filter((person) => opts.eaterIds.includes(person.id))
+    .map((person) => (person.self ? "me" : person.name));
+  return [
+    `Write a variant for ${opts.date} ${opts.meal}.`,
+    `Eating: ${joinNames(names) || "nobody from the household"}${opts.extraPortions ? `, plus ${formatExtraPortions(opts.extraPortions)} extra portions` : ""}.`,
+    ...opts.swaps.map((swap) => `Use ${swap.to} instead of ${swap.from}.`),
+    "Size the recipe for these eaters and fold the shopping list's swaps into the ingredients and steps.",
+  ].join("\n");
 }

@@ -9,7 +9,7 @@ import { Text } from "@/components/ui/text";
 import { OnboardingScreen } from "@/features/onboarding/onboarding-screen";
 import { useOnboarding } from "@/features/onboarding/provider";
 import { FormError, PersonFields } from "@/features/profile/form";
-import { PrimaryAction } from "@/features/variants/primary-action";
+import { PrimaryAction } from "@/components/action";
 
 export function EditSetupPerson() {
   const { id } = useLocalSearchParams<{ id?: string }>();

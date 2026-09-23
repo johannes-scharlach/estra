@@ -97,7 +97,8 @@ streams:
     auto_subscribe: true
     priority: 3
     query: |
-      SELECT chats.* FROM chats
+      SELECT chats.id, chats.list_id, chats.recipe_id, chats.initial_variant_id,
+        chats.planned_meal_id, chats.created_by, chats.title, chats.created_at, chats.updated_at FROM chats
         INNER JOIN list_members ON list_members.list_id = chats.list_id
       WHERE list_members.user_id = auth.user_id()
 

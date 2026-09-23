@@ -6,6 +6,7 @@ import { useResolveClassNames } from "uniwind";
 import { Text } from "@/components/ui/text";
 
 import type { CategoryMenuProps } from "./category-menu";
+import { sentenceCase } from "./text";
 
 const CHEVRON_ICON = {
   ios: "chevron.up.chevron.down",
@@ -34,7 +35,7 @@ export function CategoryMenu({
         },
         ...categories.map((cat) => ({
           id: cat.id,
-          title: cat.name,
+          title: sentenceCase(cat.name),
           state: (categoryId === cat.id ? "on" : "off") as MenuAction["state"],
         })),
       ]}
@@ -43,16 +44,13 @@ export function CategoryMenu({
         accessible
         accessibilityRole="button"
         accessibilityLabel={`Category: ${categoryName ?? "Uncategorised"}`}
-        className="flex-row items-center justify-between rounded-xl border border-border px-4 py-3"
+        className="min-h-12 flex-row items-center gap-2 px-4 py-3 active:bg-accent"
       >
-        <Text className="text-sm font-medium">
-          {categoryName ?? "Uncategorised"}
+        <Text className="flex-1 text-base">Category</Text>
+        <Text variant="muted" className="text-base">
+          {sentenceCase(categoryName ?? "Uncategorised")}
         </Text>
-        <SymbolView
-          name={CHEVRON_ICON}
-          tintColor={mutedColor}
-          size={16}
-        />
+        <SymbolView name={CHEVRON_ICON} tintColor={mutedColor} size={16} />
       </View>
     </MenuView>
   );

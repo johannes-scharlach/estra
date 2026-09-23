@@ -32,13 +32,18 @@ export function variantMeals<M extends MealRow>(
       slotIndex(a.meal) - slotIndex(b.meal),
   );
   const upcoming = sorted.filter((m) => (m.slot_date ?? "") >= opts.today);
-  const selected =
-    (opts.plannedMealId
-      ? sorted.find((m) => m.id === opts.plannedMealId)
-      : undefined) ??
-    upcoming.find((m) => m.variant_id === opts.variantId) ??
-    null;
+  const explicit = opts.plannedMealId
+    ? sorted.find((m) => m.id === opts.plannedMealId)
+    : undefined;
+  const selected = explicit
+    ? explicit.variant_id === opts.variantId
+      ? explicit
+      : null
+    : (upcoming.find((m) => m.variant_id === opts.variantId) ?? null);
   const sibling =
+    (explicit && explicit.variant_id !== opts.variantId
+      ? explicit
+      : undefined) ??
     upcoming.find((m) => m.variant_id !== opts.variantId && m !== selected) ??
     null;
   const past = sorted.filter((m) => (m.slot_date ?? "") < opts.today);

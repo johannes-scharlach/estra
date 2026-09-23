@@ -3,6 +3,8 @@ import { fetch as expoFetch } from "expo/fetch";
 
 import { env } from "@/lib/env";
 import { supabase } from "@/lib/supabase";
+import { dateKey } from "@/features/meals/slots";
+import type { QueuedMessage } from "./message-queue";
 
 /** Mirrors the server's message type: suggested replies ride as a data part. */
 export type AssistantUIMessage = UIMessage<never, { suggestions: string[] }>;
@@ -20,6 +22,7 @@ export async function* streamReply(opts: {
   chatId: string;
   listId: string;
   message: AssistantUIMessage;
+  recipeContext?: QueuedMessage["recipeContext"];
 }): AsyncGenerator<AssistantUIMessage> {
   const { data } = await supabase.auth.getSession();
   const token = data.session?.access_token;
@@ -38,6 +41,8 @@ export async function* streamReply(opts: {
         listId: opts.listId,
         message: messages[messages.length - 1],
         localTime: `${new Date().toString()} (${Intl.DateTimeFormat().resolvedOptions().timeZone})`,
+        localDate: dateKey(new Date()),
+        recipeContext: opts.recipeContext,
       },
     }),
   });

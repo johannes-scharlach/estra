@@ -2,7 +2,7 @@ import { useQuery } from "@powersync/react";
 import * as Haptics from "expo-haptics";
 import { useFocusEffect, useRouter, Stack } from "expo-router";
 import { SymbolView } from "expo-symbols";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   AccessibilityInfo,
   Alert,
@@ -35,6 +35,7 @@ import {
   type ShopRow,
 } from "@/features/shop/shop-item-row";
 import { SwapSession } from "@/features/shop/swap-session";
+import { sentenceCase } from "@/features/shop/text";
 
 const HIGHLIGHT_MS = 4500;
 type Held = Browse & { hold: HeldPosition };
@@ -101,6 +102,9 @@ function ListScreen({ list }: { list: List }) {
   const sessions = useRef(new Map<string, SwapSession>());
   const [browsing, setBrowsing] = useState(new Map<string, Held>());
   const [highlighted, setHighlighted] = useState<string | null>(null);
+  // The row whose sheet is open stays lit, so the sheet reads as its detail.
+  const [selected, setSelected] = useState<string | null>(null);
+  useFocusEffect(useCallback(() => setSelected(null), []));
   const highlightTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -123,9 +127,11 @@ function ListScreen({ list }: { list: List }) {
   });
 
   const { data: rows } = useQuery<ShopRow>(
-    `SELECT i.*, c.name AS category_name, v.ingredient_lines
+    `SELECT i.*, c.name AS category_name, v.ingredient_lines,
+            pm.slot_date AS slot_date, pm.meal AS meal
        FROM list_items i
        LEFT JOIN categories c ON c.id = i.category_id
+       LEFT JOIN planned_meals pm ON pm.id = i.planned_meal_id
        LEFT JOIN variants v ON v.id = i.variant_id
       WHERE i.list_id = ?
       ORDER BY i.status,
@@ -165,6 +171,7 @@ function ListScreen({ list }: { list: List }) {
   }
 
   function open(id: string) {
+    setSelected(id);
     router.push({ pathname: "/shop/item", params: { itemId: id } });
   }
 
@@ -227,7 +234,7 @@ function ListScreen({ list }: { list: List }) {
       entries.push({
         key: `category:${category}`,
         kind: "header",
-        title: item.category_name ?? "Uncategorised",
+        title: sentenceCase(item.category_name ?? "Uncategorised"),
       });
     }
     entries.push({ key: item.id, kind: "item", item });
@@ -247,20 +254,20 @@ function ListScreen({ list }: { list: List }) {
       removeClippedSubviews={false}
       contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
     >
-      {active.length === 0 ? (
-        <Text variant="muted" className="px-6 py-4">
-          Nothing on the list.
-        </Text>
-      ) : null}
+      <Text variant="muted" className="px-4 pb-1">
+        {active.length === 0
+          ? "Nothing to buy. Plan a meal or tap + to add an item."
+          : `${active.length} to buy${checked.length ? ` · ${checked.length} checked` : ""}`}
+      </Text>
       {entries.map((entry, index) => {
         if (entry.kind === "header") {
           return (
             <Animated.View
               key={entry.key}
               layout={ROW_LAYOUT}
-              className="px-6 pb-2 pt-6"
+              className="px-4 pb-1.5 pt-6"
             >
-              <Text className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
+              <Text className="text-[13px] font-semibold text-muted-foreground">
                 {entry.title}
               </Text>
             </Animated.View>
@@ -271,7 +278,9 @@ function ListScreen({ list }: { list: List }) {
             key={entry.key}
             item={entry.item}
             browse={browsing.get(entry.item.id)}
-            highlighted={highlighted === entry.item.id}
+            highlighted={
+              highlighted === entry.item.id || selected === entry.item.id
+            }
             divider={entries[index + 1]?.kind === "item"}
             onCheck={check}
             onSwap={swap}

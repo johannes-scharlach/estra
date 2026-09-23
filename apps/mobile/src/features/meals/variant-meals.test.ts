@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { driftLabel, mealLabel, shoppedLabel, variantMeals } from "./variant-meals";
+import {
+  driftLabel,
+  mealLabel,
+  shoppedLabel,
+  variantMeals,
+} from "./variant-meals";
 
 const v1 = "variant-1";
 const v2 = "variant-2";
@@ -14,9 +19,23 @@ const meals = [
 const today = "2026-09-18";
 
 describe("variantMeals", () => {
+  it("keeps an older page honest after its explicitly selected meal moves to another variant", () => {
+    const result = variantMeals(meals, {
+      variantId: v1,
+      plannedMealId: "sat-v2",
+      today,
+    });
+    expect(result.selected).toBeNull();
+    expect(result.sibling?.id).toBe("sat-v2");
+  });
   it("prefers the meal the card opened, else the nearest upcoming one on this variant", () => {
-    expect(variantMeals(meals, { variantId: v1, plannedMealId: "fri", today }).selected?.id).toBe("fri");
-    expect(variantMeals(meals, { variantId: v1, today }).selected?.id).toBe("mon-lunch");
+    expect(
+      variantMeals(meals, { variantId: v1, plannedMealId: "fri", today })
+        .selected?.id,
+    ).toBe("fri");
+    expect(variantMeals(meals, { variantId: v1, today }).selected?.id).toBe(
+      "mon-lunch",
+    );
   });
 
   it("names a sibling version's upcoming meal and the last past meal only when idle", () => {
@@ -33,23 +52,40 @@ describe("variantMeals", () => {
 describe("labels", () => {
   it("say the day the way the chat message does and count the shopping", () => {
     const on = new Date(2026, 8, 18);
-    expect(mealLabel({ id: "x", variant_id: v1, slot_date: "2026-09-18", meal: "dinner" }, on)).toBe("Today · Dinner");
-    expect(mealLabel({ id: "x", variant_id: v1, slot_date: "2026-09-21", meal: "lunch" }, on)).toBe("Monday · Lunch");
+    expect(
+      mealLabel(
+        { id: "x", variant_id: v1, slot_date: "2026-09-18", meal: "dinner" },
+        on,
+      ),
+    ).toBe("Today · Dinner");
+    expect(
+      mealLabel(
+        { id: "x", variant_id: v1, slot_date: "2026-09-21", meal: "lunch" },
+        on,
+      ),
+    ).toBe("Monday · Lunch");
     expect(shoppedLabel([])).toBe("Nothing to buy");
-    expect(shoppedLabel([{ status: "purchased" }, { status: "active" }])).toBe("1 of 2 shopped");
+    expect(shoppedLabel([{ status: "purchased" }, { status: "active" }])).toBe(
+      "1 of 2 shopped",
+    );
     expect(shoppedLabel([{ status: "purchased" }])).toBe("Shopped");
   });
 
   it("name the drift between recipe and meal, and nothing when there is none", () => {
-    expect(driftLabel({ sizing: "unknown", swaps: 2, inSync: false }, "Serves 4")).toBe(
-      "As written: Serves 4 · 2 swaps not in the steps",
-    );
-    expect(driftLabel({ sizing: "differs", swaps: 0, inSync: false }, "Sized for Anna + 1 extra")).toBe(
-      "Sized for Anna + 1 extra",
-    );
-    expect(driftLabel({ sizing: "unknown", swaps: 1, inSync: false }, null)).toBe(
-      "Not sized for this meal · 1 swap not in the steps",
-    );
-    expect(driftLabel({ sizing: "match", swaps: 0, inSync: true }, "Sized for Anna")).toBe("");
+    expect(
+      driftLabel({ sizing: "unknown", swaps: 2, inSync: false }, "Serves 4"),
+    ).toBe("As written: Serves 4 · 2 swaps not in the steps");
+    expect(
+      driftLabel(
+        { sizing: "differs", swaps: 0, inSync: false },
+        "Sized for Anna + 1 extra",
+      ),
+    ).toBe("Sized for Anna + 1 extra");
+    expect(
+      driftLabel({ sizing: "unknown", swaps: 1, inSync: false }, null),
+    ).toBe("Not sized for this meal · 1 swap not in the steps");
+    expect(
+      driftLabel({ sizing: "match", swaps: 0, inSync: true }, "Sized for Anna"),
+    ).toBe("");
   });
 });

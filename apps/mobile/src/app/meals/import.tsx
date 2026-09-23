@@ -4,7 +4,7 @@ import { View } from "react-native";
 import { useQuery } from "@powersync/react";
 
 import { CloseButton } from "@/components/close-button";
-import { PrimaryAction } from "@/features/variants/primary-action";
+import { PrimaryAction } from "@/components/action";
 import { Input } from "@/components/ui/input";
 import { Text } from "@/components/ui/text";
 import type { List } from "@/db/schema";

@@ -6,9 +6,17 @@ import { z } from "zod";
 import { pool, inTransaction } from "./db.js";
 import { UnknownHouseholdPersonError } from "./errors.js";
 import {
+  readChatMeal,
+  readChatVariant,
+  searchChatVariants,
+  writeChatVariant,
+} from "./chat-variants.js";
+import type { RecipeChat } from "./recipe-chat.js";
+import {
   clearPlannedMeal,
   MEAL_SLOTS,
   readPlan,
+  plannedMealId,
   setPlannedMeal,
 } from "./plan.js";
 import { CookRecipeSchema } from "./recipe-schema.js";
@@ -18,8 +26,41 @@ import { createRecipe, insertVariant, variantUrl } from "./variants.js";
  * Tools act, never present (ADR 9). Saving lands on the same tables as a URL
  * import; the app opens the returned url on the recipe screen.
  */
-export function buildChatTools(userId: string, listId: string) {
+export function buildChatTools(
+  userId: string,
+  listId: string,
+  context: {
+    chatId: string;
+    messageId: string;
+    chat: RecipeChat;
+    today: string;
+  },
+) {
   return {
+    searchVariants: tool({
+      description:
+        "Search saved variants by literal text in names, descriptions, ingredients and steps. Results include matching excerpts, creation date, yield and recorded sizing. Scope to a recipeId to browse its versions; an empty query lists newest first. Use readVariant for full content.",
+      inputSchema: z.object({
+        query: z.string().max(200).default(""),
+        recipeId: z.uuid().optional(),
+        limit: z.number().int().min(1).max(30).default(10),
+      }),
+      execute: (input) => searchChatVariants(listId, input),
+    }),
+    readVariant: tool({
+      description:
+        "Read the complete saved variant by id, including ingredients, instructions, creation date and sizing.",
+      inputSchema: z.object({ variantId: z.uuid() }),
+      execute: ({ variantId }) =>
+        inTransaction((client) => readChatVariant(client, listId, variantId)),
+    }),
+    readPlannedMeal: tool({
+      description:
+        "Read a household planned meal's current variant, eaters, extra portions and shopping items, including which are bought. Read before rewriting a planned meal.",
+      inputSchema: z.object({ plannedMealId: z.uuid() }),
+      execute: ({ plannedMealId: id }) =>
+        inTransaction((client) => readChatMeal(client, listId, id)),
+    }),
     readPlan: tool({
       description:
         "What is planned on the household's calendar from a given day, two weeks ahead. Read it before answering anything about the week.",
@@ -54,6 +95,14 @@ export function buildChatTools(userId: string, listId: string) {
           ),
       }),
       execute: async ({ variantId, date, meal, eaterIds, extraPortions }) => {
+        if (
+          context.chat.planned_meal_id === plannedMealId(listId, date, meal)
+        ) {
+          return {
+            error:
+              "Use updateRecipe to revise this conversation's meal; it preserves bought items and updates the meal automatically.",
+          };
+        }
         try {
           return await inTransaction((client) =>
             setPlannedMeal(client, {
@@ -67,7 +116,8 @@ export function buildChatTools(userId: string, listId: string) {
             }),
           );
         } catch (e) {
-          if (e instanceof UnknownHouseholdPersonError) return { error: e.message };
+          if (e instanceof UnknownHouseholdPersonError)
+            return { error: e.message };
           throw e;
         }
       },
@@ -110,27 +160,29 @@ export function buildChatTools(userId: string, listId: string) {
 
     updateRecipe: tool({
       description:
-        "Apply a change the user asked for to a recipe already in their cookbook, by writing the complete updated recipe as a new version. Returns the url of the new version.",
+        "Apply an explicitly requested change by writing the complete recipe as a new variant. For this chat's associated upcoming meal, also updates that meal and its unbought shopping items, preserving bought items. Returns a link and the actual shopping changes.",
       inputSchema: z.object({
         variantId: z.uuid().describe("id of the version being changed"),
         recipe: CookRecipeSchema,
+        sizedFor: z
+          .object({
+            eater_ids: z.array(z.uuid()),
+            extra_portions: z.number().min(0).multipleOf(0.01),
+          })
+          .optional()
+          .describe(
+            "Record only when this recipe was actually sized for these household eaters and extra portions.",
+          ),
       }),
-      execute: async ({ variantId, recipe }) => {
-        const row = await pool.query<{ recipe_id: string }>(
-          "SELECT recipe_id FROM variants WHERE id = $1",
-          [variantId],
-        );
-        const recipeId = row.rows[0]?.recipe_id;
-        if (!recipeId) return { error: "No such recipe" };
-        const saved = await inTransaction((client) =>
-          insertVariant(client, { recipe, recipeId, variantId: randomUUID() }),
-        );
-        return {
-          variantId: saved.variantId,
-          name: recipe.name,
-          url: variantUrl(saved.variantId),
-        };
-      },
+      execute: ({ variantId, recipe, sizedFor }) =>
+        writeChatVariant({
+          userId,
+          listId,
+          ...context,
+          baseVariantId: variantId,
+          recipe,
+          sizedFor,
+        }),
     }),
 
     searchSavedRecipes: tool({

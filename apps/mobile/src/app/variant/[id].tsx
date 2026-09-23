@@ -12,6 +12,7 @@ import {
   ActivityIndicator,
   Alert,
   Linking,
+  Keyboard,
   Pressable,
   Share,
   StyleSheet,
@@ -19,6 +20,7 @@ import {
 } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { KeyboardStickyView } from "react-native-keyboard-controller";
 import Animated, {
   interpolate,
   runOnJS,
@@ -36,11 +38,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Text } from "@/components/ui/text";
 import { applySwap, setItemStatus } from "@/db/items";
 import { useAuth } from "@/db/provider";
-import type { ListItem, PlannedMeal, Variant, Recipe } from "@/db/schema";
+import type { List, ListItem, PlannedMeal, Variant, Recipe } from "@/db/schema";
 import { parseVariant } from "@/db/variants";
-import { adjustPlannedMeal } from "@/features/meals/adjust-recipe";
+import { Composer } from "@/features/chat/composer";
+import { adjustRecipeMessage } from "@/features/chat/compose";
+import type { ImageAttachment } from "@/features/chat/image-attachment";
+import { queueMessage } from "@/features/chat/message-queue";
 import { eatersLabel, parseEaterIds, toEaters } from "@/features/meals/eaters";
-import { importFailure } from "@/features/meals/import-failure";
 import { dateKey } from "@/features/meals/slots";
 import {
   driftLabel,
@@ -53,15 +57,11 @@ import {
   alternativesForLine,
   type Alternative,
 } from "@/features/shop/alternatives";
-import { PrimaryAction } from "@/features/variants/primary-action";
-import { ACTION_HEIGHT } from "@/features/variants/primary-action-shared";
 import { tonalPair } from "@/features/variants/tonal";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 
 const HERO_HEIGHT = 320;
-/** The floating action pill: its height plus its gap to the safe area. */
-const ACTION_GAP = 12;
-/** How far above the pill the scroll-edge fade runs before it is full. */
+/** How far above the composer the scroll-edge fade runs before it is full. */
 const FADE_RUN = 40;
 
 const SHARE_ICON = {
@@ -478,7 +478,12 @@ export default function VariantPage() {
     typeof backgroundColor === "string" ? backgroundColor : "#000000";
   const primaryColor = useResolveClassNames("text-primary").color;
   const mutedColor = useResolveClassNames("text-muted-foreground").color;
+  const actionColor = useResolveClassNames("text-primary-foreground").color;
   const reducedMotion = useReducedMotion();
+  const [composerHeight, setComposerHeight] = useState(96);
+  const { data: lists } = useQuery<List>(
+    "SELECT * FROM lists ORDER BY created_at LIMIT 1",
+  );
 
   const scrollY = useSharedValue(0);
   const scrollHandler = useAnimatedScrollHandler((event) => {
@@ -754,43 +759,26 @@ export default function VariantPage() {
     [ingredientLines, meal, delta],
   );
 
-  // Adjusting: one operation id per series of attempts, so a retry after a
-  // timeout finds the finished result instead of writing a second version.
-  const [adjust, setAdjust] = useState<
-    | { status: "idle" }
-    | { status: "running"; operationId: string }
-    | {
-        status: "error";
-        operationId: string;
-        message: string;
-        retryable: boolean;
-      }
-  >({ status: "idle" });
-  const runAdjust = useCallback(
-    async (operationId: string) => {
-      if (!meal) return;
-      setAdjust({ status: "running", operationId });
-      try {
-        const result = await adjustPlannedMeal({
-          plannedMealId: meal.id,
-          operationId,
-        });
-        router.replace({
-          pathname: "/variant/[id]",
-          params: { id: result.variantId, plannedMealId: meal.id },
-        });
-      } catch (error) {
-        const failure = importFailure(error);
-        setAdjust({
-          status: "error",
-          operationId,
-          message: failure.message,
-          retryable: failure.retryable,
-        });
-      }
-    },
-    [meal, router],
-  );
+  const conversationListId = meal?.list_id ?? lists[0]?.id;
+  const startChat = (text: string, attachments: ImageAttachment[] = []) => {
+    if (!variant || !recipeId || !conversationListId) return;
+    const chatId = Crypto.randomUUID();
+    queueMessage({
+      chatId,
+      listId: conversationListId,
+      messageId: Crypto.randomUUID(),
+      text,
+      attachments,
+      recipeContext: {
+        variantId: variant.id,
+        recipeId,
+        plannedMealId: meal?.id,
+        previewSwaps: meal ? undefined : activeSwaps,
+      },
+    });
+    Keyboard.dismiss();
+    router.push({ pathname: "/chats/[id]", params: { id: chatId } });
+  };
 
   const onShare = useCallback(async () => {
     const message = [variant?.name, variant?.description, recipe?.from_url]
@@ -837,8 +825,8 @@ export default function VariantPage() {
   }
 
   const colors = tonalPair(variant.id, scheme === "dark");
-  // The fade is full from the pill's top edge down.
-  const fadeHeight = ACTION_HEIGHT + ACTION_GAP + insets.bottom + FADE_RUN;
+  // The fade is full from the composer's top edge down.
+  const fadeHeight = composerHeight + FADE_RUN;
   // For a planned meal the yield is not up here: sizing is judged against
   // the meal, in the meal group, so there is no second copy to disagree with.
   const meta = [
@@ -922,33 +910,51 @@ export default function VariantPage() {
                   size={22}
                 />
               </Pressable>
-              {meal ? (
-                <MenuView
-                  actions={[
-                    {
-                      id: "plan",
-                      title: "Plan this again",
-                      image: "calendar.badge.plus",
-                    },
-                  ]}
-                  onPressAction={({ nativeEvent: { event } }) => {
-                    if (event === "plan") openPlan();
-                  }}
+              <MenuView
+                actions={[
+                  {
+                    id: "history",
+                    title: "Chat history",
+                    image: "bubble.left.and.bubble.right",
+                  },
+                  { id: "variants", title: "Variants", image: "square.stack" },
+                  ...(meal
+                    ? [
+                        {
+                          id: "plan",
+                          title: "Plan this again",
+                          image: "calendar.badge.plus" as const,
+                        },
+                      ]
+                    : []),
+                ]}
+                onPressAction={({ nativeEvent: { event } }) => {
+                  if (event === "plan") openPlan();
+                  if (event === "history")
+                    router.push({
+                      pathname: "/chats/history",
+                      params: { recipeId, listId: conversationListId },
+                    });
+                  if (event === "variants")
+                    router.push({
+                      pathname: "/variant/versions",
+                      params: { recipeId, id: variant.id },
+                    });
+                }}
+              >
+                <View
+                  accessible
+                  accessibilityRole="button"
+                  accessibilityLabel="More"
+                  className="items-center justify-center p-2"
                 >
-                  <View
-                    accessible
-                    accessibilityRole="button"
-                    accessibilityLabel="More"
-                    className="items-center justify-center p-2"
-                  >
-                    <SymbolView
-                      name={MENU_ICON}
-                      tintColor={foreground}
-                      size={22}
-                    />
-                  </View>
-                </MenuView>
-              ) : null}
+                  <SymbolView
+                    name={MENU_ICON}
+                    tintColor={foreground}
+                    size={22}
+                  />
+                </View>
+              </MenuView>
             </View>
           ),
         }}
@@ -958,8 +964,10 @@ export default function VariantPage() {
         onScroll={scrollHandler}
         scrollEventThrottle={16}
         contentContainerStyle={{
-          paddingBottom: ACTION_HEIGHT + ACTION_GAP + insets.bottom + 40,
+          paddingBottom: composerHeight + 40,
         }}
+        keyboardDismissMode="interactive"
+        keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
         <Animated.View
@@ -1023,33 +1031,28 @@ export default function VariantPage() {
               ) : (
                 <SectionRow
                   onPress={() =>
-                    void runAdjust(
-                      adjust.status === "error"
-                        ? adjust.operationId
-                        : Crypto.randomUUID(),
+                    startChat(
+                      adjustRecipeMessage({
+                        date: meal.slot_date ?? "",
+                        meal: meal.meal ?? "meal",
+                        people,
+                        eaterIds: parseEaterIds(meal.eater_ids),
+                        extraPortions: meal.extra_portions ?? 0,
+                        swaps: delta.lines
+                          .filter((line) => line.swap && line.item)
+                          .map((line) => ({
+                            from: line.line.item_name,
+                            to: line.item!.name ?? "",
+                          })),
+                      }),
                     )
                   }
-                  disabled={
-                    adjust.status === "running" ||
-                    (adjust.status === "error" && !adjust.retryable)
-                  }
-                  label={
-                    adjust.status === "error"
-                      ? "Retry adjusting the recipe"
-                      : adjust.status === "running"
-                        ? "Adjusting the recipe…"
-                        : "Adjust the recipe"
-                  }
+                  disabled={!conversationListId}
+                  label="Adjust the recipe"
                   detail={driftLabel(sync, variant.recipe_yield)}
-                  trailing={adjust.status === "running" ? "spinner" : undefined}
                   mutedColor={mutedColor}
                 />
               )}
-              {adjust.status === "error" ? (
-                <Text className="px-4 pb-3 text-sm text-destructive">
-                  {adjust.message}
-                </Text>
-              ) : null}
             </View>
           ) : null}
 
@@ -1068,7 +1071,9 @@ export default function VariantPage() {
               className="flex-row items-center gap-1"
             >
               <Text variant="muted" className="text-base">
-                Another version is planned for {mealLabel(sibling)}
+                {sibling.id === plannedMealId
+                  ? `${mealLabel(sibling)} now uses another version`
+                  : `Another version is planned for ${mealLabel(sibling)}`}
               </Text>
               <SymbolView
                 name={CHEVRON_ICON}
@@ -1230,10 +1235,8 @@ export default function VariantPage() {
         </View>
       </Animated.ScrollView>
 
-      {/* The scroll-edge fade iOS puts under a floating control: rows dim as
-          they pass under Cook instead of being cut by it, and a little still
-          shows through, which says there is more below. Not opaque: the
-          button itself stays glass over content. */}
+      {/* The recipe fades beneath the floating composer. Its measured height
+          also reserves room for the last step, attachments and multiline text. */}
       <LinearGradient
         colors={[`${background}00`, `${background}BF`, `${background}BF`]}
         locations={[0, FADE_RUN / fadeHeight, 1]}
@@ -1247,23 +1250,45 @@ export default function VariantPage() {
         }}
       />
 
-      {/* UI layer: the one next action, floating over the content as Liquid
-          Glass, nothing opaque behind it. Cook a planned meal, otherwise
-          plan it. Without glass (Android, older iOS) a plain capsule. */}
-      <View
-        style={{
-          pointerEvents: "box-none",
-          position: "absolute",
-          left: 16,
-          right: 16,
-          bottom: insets.bottom + ACTION_GAP,
-        }}
+      <KeyboardStickyView
+        style={{ position: "absolute", bottom: 0, left: 0, right: 0 }}
+        offset={{ closed: 0, opened: insets.bottom }}
       >
-        <PrimaryAction
-          label={meal ? "Cook" : "Add to plan"}
-          onPress={meal ? openCook : openPlan}
-        />
-      </View>
+        <View
+          onLayout={(event) =>
+            setComposerHeight(event.nativeEvent.layout.height)
+          }
+        >
+          <Composer
+            floating
+            placeholder="Ask about this recipe"
+            busy={!conversationListId}
+            suggestions={[]}
+            onSend={startChat}
+            emptyAction={
+              <Pressable
+                onPress={meal ? openCook : openPlan}
+                accessibilityRole="button"
+                accessibilityLabel={meal ? "Cook" : "Add to plan"}
+                className="size-11 items-center justify-center rounded-full bg-primary active:opacity-70"
+              >
+                <SymbolView
+                  name={
+                    meal
+                      ? { ios: "frying.pan", android: "skillet" }
+                      : {
+                          ios: "calendar.badge.plus",
+                          android: "event_available",
+                        }
+                  }
+                  size={22}
+                  tintColor={actionColor}
+                />
+              </Pressable>
+            }
+          />
+        </View>
+      </KeyboardStickyView>
     </View>
   );
 }

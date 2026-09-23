@@ -11,6 +11,7 @@ import {
 import { Text } from "@/components/ui/text";
 
 import type { CategoryMenuProps } from "./category-menu";
+import { sentenceCase } from "./text";
 
 const CHEVRON_ICON = {
   ios: "chevron.up.chevron.down",
@@ -41,16 +42,13 @@ export function CategoryMenu({
             y: e.nativeEvent.pageY,
           });
         }}
-        className="flex-row items-center justify-between rounded-xl border border-border px-4 py-3"
+        className="min-h-12 flex-row items-center gap-2 px-4 py-3 active:bg-accent"
       >
-        <Text className="text-sm font-medium">
-          {categoryName ?? "Uncategorised"}
+        <Text className="flex-1 text-base">Category</Text>
+        <Text variant="muted" className="text-base">
+          {sentenceCase(categoryName ?? "Uncategorised")}
         </Text>
-        <SymbolView
-          name={CHEVRON_ICON}
-          tintColor={mutedColor}
-          size={16}
-        />
+        <SymbolView name={CHEVRON_ICON} tintColor={mutedColor} size={16} />
       </Pressable>
       <AndroidMenuOverlay
         anchor={anchor}
@@ -64,7 +62,7 @@ export function CategoryMenu({
           },
           ...categories.map((cat) => ({
             id: cat.id,
-            title: cat.name,
+            title: sentenceCase(cat.name),
             selected: categoryId === cat.id,
             onSelect: () => onSelect(cat.id),
           })),

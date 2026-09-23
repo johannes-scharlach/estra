@@ -141,12 +141,20 @@ const list_items = new Table(
 const chats = new Table(
   {
     list_id: column.text,
+    recipe_id: column.text,
+    initial_variant_id: column.text,
+    planned_meal_id: column.text,
     created_by: column.text,
     title: column.text,
     created_at: column.text,
     updated_at: column.text,
   },
-  { indexes: { by_list_recent: ["list_id", "updated_at"] } },
+  {
+    indexes: {
+      by_list_recent: ["list_id", "updated_at"],
+      by_recipe: ["list_id", "recipe_id", "updated_at"],
+    },
+  },
 );
 
 const chat_messages = new Table(

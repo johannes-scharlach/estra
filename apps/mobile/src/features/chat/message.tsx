@@ -19,6 +19,8 @@ import { MessageMenu } from "./message-menu";
 import { imageParts } from "./image-attachment";
 import { messageText, runningTool, type Parts } from "./stream";
 import { parseSegments, readableMessage, type Idea } from "./tags";
+import { recipeResults } from "./recipe-results";
+import { RecipeResultView } from "./recipe-result";
 
 const CHEVRON_ICON = {
   ios: "chevron.right",
@@ -217,6 +219,9 @@ const TOOL_LABEL: Record<string, string> = {
   addToCookbook: "Writing the recipe…",
   updateRecipe: "Rewriting the recipe…",
   searchSavedRecipes: "Checking your cookbook…",
+  searchVariants: "Finding versions…",
+  readVariant: "Reading the recipe…",
+  readPlannedMeal: "Checking the meal and shopping list…",
 };
 
 export function AssistantMessage({
@@ -224,15 +229,19 @@ export function AssistantMessage({
   streaming = false,
   onIdea,
   onSavePlan,
+  showRecipeResults = false,
 }: {
   parts: Parts;
   streaming?: boolean;
   onIdea: (idea: Idea) => void;
   onSavePlan?: (title: string) => void;
+  showRecipeResults?: boolean;
 }) {
   const text = messageText(parts);
   const segments = useMemo(() => parseSegments(text), [text]);
   const tool = streaming ? runningTool(parts) : null;
+  const results = showRecipeResults ? recipeResults(parts) : [];
+  if (!text && !tool && !results.length) return null;
   return (
     <MessageMenu text={streaming ? "" : readableMessage(text)}>
       <View>
@@ -269,6 +278,9 @@ export function AssistantMessage({
             {TOOL_LABEL[tool] ?? "Working…"}
           </Text>
         ) : null}
+        {results.map((result) => (
+          <RecipeResultView key={result.variantId} result={result} />
+        ))}
       </View>
     </MessageMenu>
   );

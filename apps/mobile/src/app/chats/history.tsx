@@ -1,5 +1,5 @@
 import { useQuery } from "@powersync/react";
-import { Link, Stack, useRouter } from "expo-router";
+import { Link, Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { Platform, Pressable, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -22,20 +22,31 @@ function when(iso: string | null): string {
 export default function ChatHistorySheet() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { recipeId, listId } = useLocalSearchParams<{
+    recipeId?: string;
+    listId?: string;
+  }>();
 
   const { data: lists } = useQuery<List>(
     "SELECT * FROM lists ORDER BY created_at LIMIT 1",
   );
-  const list = lists[0] ?? null;
+  const effectiveListId = listId ?? lists[0]?.id;
   const { data: chats } = useQuery<Chat>(
-    list
-      ? "SELECT * FROM chats WHERE list_id = ? ORDER BY updated_at DESC"
+    effectiveListId
+      ? recipeId
+        ? "SELECT * FROM chats WHERE list_id = ? AND recipe_id = ? ORDER BY updated_at DESC"
+        : "SELECT * FROM chats WHERE list_id = ? AND recipe_id IS NULL ORDER BY updated_at DESC"
       : "SELECT * FROM chats WHERE 0",
-    list ? [list.id] : [],
+    effectiveListId
+      ? recipeId
+        ? [effectiveListId, recipeId]
+        : [effectiveListId]
+      : [],
   );
 
   return (
     <>
+      <Stack.Screen options={{ title: recipeId ? "Recipe chats" : "Chats" }} />
       {Platform.OS === "ios" ? (
         <Stack.Toolbar placement="right">
           <Stack.Toolbar.Button

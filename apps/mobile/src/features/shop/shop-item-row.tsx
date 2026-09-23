@@ -1,6 +1,6 @@
 import { SymbolView } from "expo-symbols";
 import { useEffect, useState } from "react";
-import { Alert, type ColorValue, View } from "react-native";
+import { Alert, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
   Easing,
@@ -18,8 +18,13 @@ import {
   type Alternative,
 } from "@/features/shop/alternatives";
 import { CheckOff } from "@/features/shop/check-off";
+import { splitSpec } from "@/features/shop/spec";
+import { capitalize } from "@/features/shop/text";
 import { SwipeItem } from "@/features/shop/swipe-item";
 import { cn } from "@/lib/utils";
+import { slotWhen } from "@/features/meals/slots";
+import { tonalPair } from "@/features/variants/tonal";
+import { useColorScheme } from "@/hooks/use-color-scheme";
 
 const CHECK_DELAY_MS = 380;
 export const ROW_LAYOUT = LinearTransition.springify()
@@ -34,6 +39,8 @@ const SWAP_LAYOUT = LinearTransition.duration(650)
 export type ShopRow = ListItem & {
   category_name: string | null;
   ingredient_lines: string | null;
+  slot_date: string | null;
+  meal: string | null;
 };
 export type Browse = { options: Alternative[]; selected: Alternative };
 
@@ -55,6 +62,15 @@ export function ShopItemRow({
   onOpen: (id: string) => void;
 }) {
   const mutedColor = useResolveClassNames("text-muted-foreground").color;
+  const dark = useColorScheme() === "dark";
+  // Meal rows say which meal, not the recipe's full name: a dot in the
+  // recipe's tonal hue plus "Tue dinner". The sheet carries the name.
+  const source = item.variant_id
+    ? {
+        when: slotWhen(item.slot_date, item.meal),
+        color: tonalPair(item.variant_id, dark)[1],
+      }
+    : null;
   const primaryColor = useResolveClassNames("text-primary").color;
   const purchased = item.status === "purchased";
   const { pending, press, release } = useCheckOff(purchased, () =>
@@ -100,7 +116,10 @@ export function ShopItemRow({
       style={{ zIndex: highlighted ? 1 : 0 }}
     >
       <View
-        className={cn("flex-row items-center pl-3", highlighted && "bg-accent")}
+        className={cn(
+          "flex-row items-center pl-1.5",
+          highlighted && "bg-accent",
+        )}
       >
         <SwipeItem
           leading={
@@ -129,7 +148,8 @@ export function ShopItemRow({
                       : { ios: "circle", android: "radio_button_unchecked" }
                   }
                   tintColor={checked ? primaryColor : mutedColor}
-                  size={24}
+                  weight="medium"
+                  size={28}
                 />
               </View>
             </GestureDetector>
@@ -143,8 +163,7 @@ export function ShopItemRow({
             <IngredientContent
               name={option.name}
               spec={specOf(option)}
-              plannedMeal={!!item.planned_meal_id}
-              mutedColor={mutedColor}
+              source={source}
             />
           )}
           onOpen={open}
@@ -177,8 +196,7 @@ export function ShopItemRow({
             <IngredientContent
               name={name}
               spec={spec}
-              plannedMeal={!!item.planned_meal_id}
-              mutedColor={mutedColor}
+              source={source}
               checked={checked}
             />
           </View>
@@ -187,7 +205,7 @@ export function ShopItemRow({
       {divider ? (
         <View
           pointerEvents="none"
-          className="absolute bottom-0 left-[72px] right-0 border-b border-border/60"
+          className="absolute bottom-0 left-[66px] right-0 border-b border-border/60"
         />
       ) : null}
     </Animated.View>
@@ -220,44 +238,59 @@ function specOf(option: Alternative) {
 function IngredientContent({
   name,
   spec,
-  plannedMeal,
-  mutedColor,
+  source,
   checked = false,
 }: {
   name: string;
   spec: string | null;
-  plannedMeal: boolean;
-  mutedColor: ColorValue | undefined;
+  source: { when: string; color: string } | null;
   checked?: boolean;
 }) {
+  // Meal specs are ours ("qty, prep"): the amount goes right, prep stays on
+  // the sheet. The user's own note is shown as written, never parsed.
+  const { amount } = source ? splitSpec(spec) : { amount: null };
+  const detail = source ? source.when : spec;
   return (
     <View className="gap-0.5">
-      <View className="flex-row items-center gap-2">
+      <View className="flex-row items-baseline gap-3">
         <Text
           className={cn(
-            "shrink text-sm font-medium",
+            "shrink grow text-[17px] font-medium",
             checked && "text-muted-foreground line-through",
           )}
           numberOfLines={1}
         >
-          {name}
+          {capitalize(name)}
         </Text>
-        {plannedMeal ? (
-          <SymbolView
-            name={{ ios: "fork.knife", android: "restaurant" }}
-            tintColor={mutedColor}
-            size={12}
-          />
+        {amount ? (
+          <Text
+            className={cn(
+              "text-[17px] text-muted-foreground",
+              checked && "line-through",
+            )}
+            style={{ fontVariant: ["tabular-nums"] }}
+            numberOfLines={1}
+          >
+            {amount}
+          </Text>
         ) : null}
       </View>
-      {spec ? (
-        <Text
-          variant="muted"
-          className={cn("text-xs", checked && "line-through")}
-          numberOfLines={1}
-        >
-          {spec}
-        </Text>
+      {detail || source ? (
+        <View className="flex-row items-center gap-1.5">
+          {source ? (
+            <View
+              className="size-2 rounded-full"
+              style={{ backgroundColor: source.color }}
+            />
+          ) : null}
+          <Text
+            variant="muted"
+            className={cn("text-[13px]", checked && "line-through")}
+            numberOfLines={1}
+          >
+            {detail}
+          </Text>
+        </View>
       ) : null}
     </View>
   );

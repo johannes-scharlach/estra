@@ -100,6 +100,9 @@ export type Database = {
           created_by: string | null
           id: string
           list_id: string
+          recipe_id: string | null
+          initial_variant_id: string | null
+          planned_meal_id: string | null
           title: string | null
           updated_at: string
         }
@@ -108,6 +111,9 @@ export type Database = {
           created_by?: string | null
           id?: string
           list_id: string
+          recipe_id?: string | null
+          initial_variant_id?: string | null
+          planned_meal_id?: string | null
           title?: string | null
           updated_at?: string
         }
@@ -116,10 +122,34 @@ export type Database = {
           created_by?: string | null
           id?: string
           list_id?: string
+          recipe_id?: string | null
+          initial_variant_id?: string | null
+          planned_meal_id?: string | null
           title?: string | null
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "chats_recipe_id_fkey"
+            columns: ["recipe_id"]
+            isOneToOne: false
+            referencedRelation: "recipes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chats_initial_variant_id_fkey"
+            columns: ["initial_variant_id"]
+            isOneToOne: false
+            referencedRelation: "variants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chats_planned_meal_id_fkey"
+            columns: ["planned_meal_id"]
+            isOneToOne: false
+            referencedRelation: "planned_meals"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "chats_list_id_fkey"
             columns: ["list_id"]

@@ -7,7 +7,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useState, type ReactNode } from "react";
 import { ScrollView, View } from "react-native";
 import { CloseButton } from "@/components/close-button";
-import { PrimaryAction } from "@/features/variants/primary-action";
+import { PrimaryAction } from "@/components/action";
 import { Text } from "@/components/ui/text";
 import { saveProfileSection } from "@/db/profiles";
 import { useHouseholdAccess } from "@/features/onboarding/access";

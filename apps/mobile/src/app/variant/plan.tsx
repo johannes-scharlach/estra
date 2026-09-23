@@ -18,7 +18,7 @@ import { setPlannedMeal } from "@/db/planned-meals";
 import { useAuth } from "@/db/provider";
 import { saveAndPlanMessage } from "@/features/chat/compose";
 import { queueMessage } from "@/features/chat/message-queue";
-import { PrimaryAction } from "@/features/variants/primary-action";
+import { PrimaryAction } from "@/components/action";
 import { DayStrip } from "@/features/meals/day-strip";
 import { toEaters } from "@/features/meals/eaters";
 import {

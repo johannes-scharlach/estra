@@ -84,6 +84,10 @@ export default function RootLayout() {
                     }}
                   />
                   <Stack.Screen
+                    name="variant/versions"
+                    options={{ title: "Variants", headerBackButtonDisplayMode: "minimal" }}
+                  />
+                  <Stack.Screen
                     name="variant/plan"
                     options={{
                       presentation: "formSheet",

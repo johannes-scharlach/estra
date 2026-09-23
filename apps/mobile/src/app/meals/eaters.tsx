@@ -10,7 +10,7 @@ import { useEffect, useMemo, useState } from "react";
 import { View } from "react-native";
 
 import { CloseButton } from "@/components/close-button";
-import { PrimaryAction } from "@/features/variants/primary-action";
+import { PrimaryAction } from "@/components/action";
 import { Text } from "@/components/ui/text";
 import { updatePlannedMealEaters } from "@/db/planned-meals";
 import { useAuth } from "@/db/provider";

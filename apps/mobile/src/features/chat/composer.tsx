@@ -1,5 +1,5 @@
 import { SymbolView } from "expo-symbols";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Pressable, ScrollView, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useResolveClassNames } from "uniwind";
@@ -31,11 +31,15 @@ export function Composer({
   busy,
   suggestions,
   onSend,
+  floating = false,
+  emptyAction,
 }: {
   placeholder: string;
   busy: boolean;
   suggestions: string[];
   onSend: (text: string, attachments: ImageAttachment[]) => void;
+  floating?: boolean;
+  emptyAction?: ReactNode;
 }) {
   const insets = useSafeAreaInsets();
   const [text, setText] = useState("");
@@ -67,8 +71,12 @@ export function Composer({
 
   return (
     <View
-      className="border-t border-border/40 bg-background"
-      style={{ paddingBottom: Math.max(insets.bottom, 8) }}
+      className={floating ? "" : "border-t border-border/40 bg-background"}
+      style={{
+        paddingBottom: floating
+          ? insets.bottom + 12
+          : Math.max(insets.bottom, 8),
+      }}
     >
       {suggestions.length && !busy ? (
         <ScrollView
@@ -106,38 +114,44 @@ export function Composer({
         </Text>
       ) : null}
       <View className="flex-row items-end gap-2 px-4 pt-2">
-        <ImageAttachmentMenu
-          onSelect={(source) => void addAttachments(source)}
-          disabled={busy}
-        />
-        <TextInput
-          value={text}
-          onChangeText={setText}
-          placeholder={placeholder}
-          placeholderTextColor={placeholderColor}
-          multiline
-          returnKeyType="send"
-          submitBehavior="blurAndSubmit"
-          onSubmitEditing={submit}
-          className="max-h-32 min-h-10 flex-1 rounded-[20px] border border-border bg-card px-4 py-2.5 text-base leading-5 text-foreground"
-        />
-        <Pressable
-          onPress={submit}
-          disabled={!canSend}
-          accessibilityLabel="Send"
-          accessibilityRole="button"
-          className={cn(
-            "mb-0.5 size-9 items-center justify-center rounded-full bg-primary",
-            !canSend && "opacity-30",
-          )}
-        >
-          <SymbolView
-            name={SEND_ICON}
-            tintColor={iconColor}
-            size={16}
-            weight="bold"
+        <View className="min-h-12 flex-1 flex-row items-end rounded-3xl border border-border bg-card pl-1 pr-4">
+          <ImageAttachmentMenu
+            onSelect={(source) => void addAttachments(source)}
+            disabled={busy}
           />
-        </Pressable>
+          <TextInput
+            value={text}
+            onChangeText={setText}
+            placeholder={placeholder}
+            placeholderTextColor={placeholderColor}
+            multiline
+            returnKeyType="send"
+            submitBehavior="blurAndSubmit"
+            onSubmitEditing={submit}
+            className="max-h-32 min-h-10 flex-1 py-2.5 text-base leading-5 text-foreground"
+          />
+        </View>
+        {!text.trim() && !attachments.length && emptyAction ? (
+          emptyAction
+        ) : (
+          <Pressable
+            onPress={submit}
+            disabled={!canSend}
+            accessibilityLabel="Send"
+            accessibilityRole="button"
+            className={cn(
+              "mb-0.5 size-9 items-center justify-center rounded-full bg-primary",
+              !canSend && "opacity-30",
+            )}
+          >
+            <SymbolView
+              name={SEND_ICON}
+              tintColor={iconColor}
+              size={16}
+              weight="bold"
+            />
+          </Pressable>
+        )}
       </View>
     </View>
   );

@@ -17,14 +17,14 @@ import { useColorScheme } from "@/hooks/use-color-scheme";
 
 import {
   ACTION_HEIGHT,
-  type PrimaryActionProps,
-} from "./primary-action-shared";
+  type ActionProps,
+} from "./action-shared";
 
 export function PrimaryAction({
   label,
   onPress,
   disabled: isDisabled = false,
-}: PrimaryActionProps) {
+}: ActionProps) {
   const scheme = useColorScheme();
   const primary = useResolveClassNames("bg-primary").backgroundColor;
   const onPrimary = useResolveClassNames("text-primary-foreground").color;
@@ -51,6 +51,49 @@ export function PrimaryAction({
           modifiers={[
             font({ size: 17, weight: "semibold" }),
             ...(onPrimary === undefined ? [] : [foregroundStyle(onPrimary)]),
+            frame({ maxWidth: Infinity, maxHeight: Infinity }),
+          ]}
+        >
+          {label}
+        </Text>
+      </Button>
+    </Host>
+  );
+}
+
+export function Action({
+  label,
+  onPress,
+  disabled: isDisabled = false,
+}: ActionProps) {
+  const scheme = useColorScheme();
+  const primary = useResolveClassNames("bg-primary").backgroundColor;
+  const onSecondary = useResolveClassNames("text-secondary-foreground").color;
+  return (
+    <Host
+      // A fixed frame, not matchContents: measuring the label before the
+      // host has its width wraps it letter by letter into a tall sliver
+      // for the first frames of the push.
+      style={{ height: ACTION_HEIGHT }}
+      seedColor={typeof primary === "string" ? primary : undefined}
+      colorScheme={scheme === "dark" ? "dark" : "light"}
+      ignoreSafeArea="all"
+    >
+      <Button
+        onPress={onPress}
+        modifiers={[
+          buttonStyle("glass"),
+          controlSize("large"),
+          disabled(isDisabled),
+        ]}
+      >
+        {/* The label fills the host, so the capsule does too. */}
+        <Text
+          modifiers={[
+            font({ size: 17, weight: "semibold" }),
+            ...(onSecondary === undefined
+              ? []
+              : [foregroundStyle(onSecondary)]),
             frame({ maxWidth: Infinity, maxHeight: Infinity }),
           ]}
         >

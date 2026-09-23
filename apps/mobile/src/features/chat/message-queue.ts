@@ -8,6 +8,14 @@ import type { ImageAttachment } from "./image-attachment";
  * client-side). One slot, in memory only.
  */
 export type QueuedMessage = {
+  chatId?: string;
+  listId?: string;
+  recipeContext?: {
+    variantId: string;
+    recipeId: string;
+    plannedMealId?: string;
+    previewSwaps?: Record<number, number>;
+  };
   messageId: string;
   text: string;
   attachments: ImageAttachment[];
@@ -19,12 +27,14 @@ export function queueMessage(message: QueuedMessage) {
   queued = message;
 }
 
-export function takeQueuedMessage(): QueuedMessage | null {
+export function takeQueuedMessage(chatId?: string): QueuedMessage | null {
+  if (queued?.chatId && queued.chatId !== chatId) return null;
   const found = queued;
   queued = null;
   return found;
 }
 
-export function peekQueuedMessage(): QueuedMessage | null {
+export function peekQueuedMessage(chatId?: string): QueuedMessage | null {
+  if (queued?.chatId && queued.chatId !== chatId) return null;
   return queued;
 }

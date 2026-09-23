@@ -3,12 +3,13 @@ import * as Crypto from "expo-crypto";
 import * as Haptics from "expo-haptics";
 import {
   Stack,
+  Link,
   useFocusEffect,
   useLocalSearchParams,
   useRouter,
 } from "expo-router";
 import { useCallback, useMemo, useRef, useState } from "react";
-import { View } from "react-native";
+import { Pressable, View } from "react-native";
 import {
   KeyboardAwareScrollView,
   KeyboardStickyView,
@@ -16,7 +17,7 @@ import {
 } from "react-native-keyboard-controller";
 
 import { Text } from "@/components/ui/text";
-import type { Chat, ChatMessage, List } from "@/db/schema";
+import type { Chat, ChatMessage, List, Variant } from "@/db/schema";
 import { waitForListMembership } from "@/db/list-readiness";
 import { attachUploadedImage, type ChatTurn } from "@/features/chat/chat-turn";
 import { Composer } from "@/features/chat/composer";
@@ -38,6 +39,7 @@ import {
   type Parts,
 } from "@/features/chat/stream";
 import { Waiting } from "@/features/chat/waiting";
+import { latestRecipeResult } from "@/features/chat/recipe-results";
 
 type Shown = { id: string; role: string; parts: Parts };
 
@@ -62,16 +64,16 @@ export default function ChatScreen() {
   const { data: chats } = useQuery<Chat>("SELECT * FROM chats WHERE id = ?", [
     chatId,
   ]);
-  const conversationListId = chats[0]?.list_id ?? list?.id;
   const { data: rows } = useQuery<ChatMessage>(
-    "SELECT * FROM chat_messages WHERE chat_id = ? ORDER BY created_at",
+    "SELECT * FROM chat_messages WHERE chat_id = ? ORDER BY created_at, id",
     [chatId],
   );
 
   // A queued message rides beside the push (the entry's "Get ideas", or
   // the plan sheet's confirm). Read once at mount for the optimistic
   // echo; the focus effect below sends it.
-  const [queuedMsg] = useState(() => peekQueuedMessage());
+  const [queuedMsg] = useState(() => peekQueuedMessage(chatId));
+  const conversationListId = chats[0]?.list_id ?? queuedMsg?.listId ?? list?.id;
 
   const [pending, setPending] = useState<AssistantUIMessage[]>(() =>
     // Local echo of the queued message minus its images (the file parts
@@ -92,8 +94,11 @@ export default function ChatScreen() {
     (queuedMsg
       ? ({
           id: chatId,
-          list_id: list?.id ?? "",
+          list_id: conversationListId ?? "",
           title: queuedMsg.text.slice(0, 80) || null,
+          recipe_id: queuedMsg.recipeContext?.recipeId ?? null,
+          initial_variant_id: queuedMsg.recipeContext?.variantId ?? null,
+          planned_meal_id: queuedMsg.recipeContext?.plannedMealId ?? null,
         } as Chat)
       : null);
 
@@ -129,6 +134,7 @@ export default function ChatScreen() {
         chatId,
         listId: conversationListId,
         message: turn.message,
+        recipeContext: queuedMsg?.recipeContext,
       })) {
         setInFlight(reply);
       }
@@ -161,7 +167,7 @@ export default function ChatScreen() {
   useFocusEffect(
     useCallback(() => {
       if (!conversationListId || busyRef.current) return;
-      const message = takeQueuedMessage();
+      const message = takeQueuedMessage(chatId);
       if (!message) return;
       void runTurn({
         message: userMessage(message.text, message.messageId),
@@ -191,6 +197,15 @@ export default function ChatScreen() {
   const last = shown[shown.length - 1];
   const suggestions =
     last?.role === "assistant" ? suggestionsOf(last.parts) : [];
+  const latestRecipe = latestRecipeResult(shown);
+  const linkedVariantId =
+    latestRecipe?.variantId ?? chat?.initial_variant_id ?? "";
+  const { data: linkedVariants } = useQuery<Variant>(
+    "SELECT * FROM variants WHERE id = ?",
+    [linkedVariantId],
+  );
+  const linkedName =
+    latestRecipe?.name ?? linkedVariants[0]?.name ?? "View recipe";
 
   const scrollRef = useRef<KeyboardAwareScrollViewRef>(null);
   const settled = useRef(false);
@@ -203,6 +218,30 @@ export default function ChatScreen() {
           headerBackButtonDisplayMode: "minimal",
         }}
       />
+      {chat?.recipe_id && linkedVariantId ? (
+        <Link
+          href={{
+            pathname: "/variant/[id]",
+            params: {
+              id: linkedVariantId,
+              plannedMealId: latestRecipe?.plannedMeal?.id,
+            },
+          }}
+          asChild
+        >
+          <Pressable
+            className="gap-0.5 border-b border-border/40 bg-secondary px-5 py-2.5 active:opacity-60"
+            accessibilityRole="link"
+          >
+            <Text variant="muted" className="text-xs">
+              {latestRecipe ? "Latest version from this chat" : "Started from"}
+            </Text>
+            <Text numberOfLines={1} className="font-medium text-primary">
+              {linkedName} →
+            </Text>
+          </Pressable>
+        </Link>
+      ) : null}
       <View className="flex-1">
         <KeyboardAwareScrollView
           ref={scrollRef}
@@ -231,6 +270,7 @@ export default function ChatScreen() {
                   key={m.id}
                   parts={m.parts}
                   streaming={busy && m.id === inFlight?.id}
+                  showRecipeResults={!!chat?.recipe_id}
                   onIdea={(idea) =>
                     void send(`Tell me more about ${idea.title}.`)
                   }
@@ -267,7 +307,7 @@ export default function ChatScreen() {
         <KeyboardStickyView>
           <Composer
             placeholder="Message"
-            busy={busy || !list || !chat}
+            busy={busy || !conversationListId || !chat}
             suggestions={suggestions}
             onSend={(text, attachments) => void send(text, attachments)}
           />

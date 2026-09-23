@@ -29,6 +29,15 @@ import type { AppBindings } from "../auth.js";
 import { buildChatTools } from "../chat-tools.js";
 import { pool } from "../db.js";
 import { env } from "../env.js";
+import { readChatMeal, readChatVariant } from "../chat-variants.js";
+import { AppError } from "../errors.js";
+import {
+  orderRecipeSeed,
+  RecipeContextSchema,
+  recipeChatPrompt,
+  recipeSeed,
+  type RecipeChat,
+} from "../recipe-chat.js";
 
 export const chats = new Hono<AppBindings>();
 
@@ -166,11 +175,15 @@ chats.post("/:id/messages", async (c) => {
       listId?: unknown;
       message?: unknown;
       localTime?: unknown;
+      localDate?: unknown;
+      recipeContext?: unknown;
     }>()
     .catch(() => ({
       listId: undefined,
       message: undefined,
       localTime: undefined,
+      localDate: undefined,
+      recipeContext: undefined,
     }));
   if (typeof body.listId !== "string" || !UUID.test(body.listId)) {
     return c.json(
@@ -195,6 +208,21 @@ chats.post("/:id/messages", async (c) => {
   const localTime =
     typeof body.localTime === "string" ? body.localTime.slice(0, 120) : null;
   const userId = c.get("user").id;
+  const date = z.iso.date().safeParse(body.localDate);
+  const today = date.success
+    ? date.data
+    : new Date().toISOString().slice(0, 10);
+  const recipeContext =
+    body.recipeContext === undefined
+      ? null
+      : RecipeContextSchema.safeParse(body.recipeContext);
+  if (recipeContext && !recipeContext.success) {
+    return c.json(
+      { error: { code: "INVALID_REQUEST", message: "Invalid recipe context" } },
+      400,
+    );
+  }
+  const start = recipeContext?.success ? recipeContext.data : null;
 
   // The pool bypasses RLS, so membership is checked here, not by Postgres.
   const member = await pool.query(
@@ -232,18 +260,87 @@ chats.post("/:id/messages", async (c) => {
   }
 
   let history: MessageRow[];
+  let chat: RecipeChat;
+  let initialRecipeRead: UIMessage | null = null;
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
-    const existing = await client.query<{ list_id: string }>(
-      "SELECT list_id FROM chats WHERE id = $1",
+    await client.query(
+      "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))",
+      [chatId],
+    );
+    const existing = await client.query<RecipeChat>(
+      "SELECT list_id, recipe_id, initial_variant_id, planned_meal_id FROM chats WHERE id = $1",
       [chatId],
     );
     if (existing.rowCount === 0) {
+      const variant = start
+        ? await readChatVariant(client, listId, start.variantId)
+        : null;
+      const meal = start?.plannedMealId
+        ? await readChatMeal(client, listId, start.plannedMealId)
+        : null;
+      if (meal && meal.variant_id !== start?.variantId) {
+        throw new AppError(
+          "PLANNED_MEAL_CHANGED",
+          "The meal now uses a different version. Open that version to start its chat.",
+          409,
+        );
+      }
+      chat = {
+        list_id: listId,
+        recipe_id: variant?.recipeId ?? null,
+        initial_variant_id: variant?.variantId ?? null,
+        planned_meal_id: meal?.id ?? null,
+      };
       await client.query(
-        "INSERT INTO chats (id, list_id, created_by, title) VALUES ($1, $2, $3, $4)",
-        [chatId, listId, userId, textOf(message).slice(0, TITLE_MAX) || null],
+        "INSERT INTO chats (id, list_id, created_by, title, recipe_id, initial_variant_id, planned_meal_id) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+        [
+          chatId,
+          listId,
+          userId,
+          textOf(message).slice(0, TITLE_MAX) || null,
+          chat.recipe_id,
+          chat.initial_variant_id,
+          chat.planned_meal_id,
+        ],
       );
+      if (variant && start) {
+        const previewSwaps = Object.entries(start.previewSwaps ?? {}).map(
+          ([index, swapIndex]) => {
+            const line = variant.recipeIngredient[Number(index)];
+            const swap = line?.swaps?.[swapIndex];
+            if (!line || !swap)
+              throw new AppError(
+                "INVALID_REQUEST",
+                "A preview swap is no longer available.",
+                400,
+              );
+            return {
+              from: line.item_name,
+              to: swap.item_name,
+              qtyText: swap.qty_text,
+              prepNote: swap.prep_note,
+            };
+          },
+        );
+        initialRecipeRead = recipeSeed(randomUUID(), [
+          {
+            tool: "readVariant",
+            input: { variantId: start.variantId },
+            output: { ...variant, previewSwaps },
+          },
+          ...(meal
+            ? [
+                {
+                  tool: "readPlannedMeal",
+                  input: { plannedMealId: meal.id },
+                  output: meal,
+                },
+              ]
+            : []),
+        ]);
+      }
     } else if (existing.rows[0]?.list_id !== listId) {
       await client.query("ROLLBACK");
       return c.json(
@@ -255,24 +352,47 @@ chats.post("/:id/messages", async (c) => {
         },
         403,
       );
+    } else {
+      chat = existing.rows[0]!;
     }
     // A retry after a failed turn resends the same message id; keep it a
     // no-op instead of a primary-key error.
     await client.query(
-      `INSERT INTO chat_messages (id, chat_id, list_id, role, parts)
-       VALUES ($1, $2, $3, 'user', $4::jsonb)
+      `INSERT INTO chat_messages (id, chat_id, list_id, role, parts, created_at)
+       VALUES ($1, $2, $3, 'user', $4::jsonb, now())
        ON CONFLICT (id) DO NOTHING`,
       [message.id, chatId, listId, JSON.stringify(message.parts)],
     );
+    // Gemini requires a function call to follow a user turn. The first recipe
+    // message therefore initiates the synthetic read; its completed tool call
+    // follows that user row instead of preceding the conversation. The small
+    // timestamp offset makes their protocol order deterministic inside this
+    // transaction (Postgres now() is fixed at transaction start).
+    if (initialRecipeRead) {
+      await client.query(
+        `INSERT INTO chat_messages (id, chat_id, list_id, role, parts, created_at)
+         VALUES ($1, $2, $3, 'assistant', $4::jsonb, now() + interval '1 microsecond')`,
+        [
+          initialRecipeRead.id,
+          chatId,
+          listId,
+          JSON.stringify(initialRecipeRead.parts),
+        ],
+      );
+    }
     const rows = await client.query<MessageRow>(
       `SELECT id, role, parts FROM chat_messages
-       WHERE chat_id = $1 ORDER BY created_at DESC LIMIT $2`,
+       WHERE chat_id = $1 ORDER BY created_at DESC, id DESC LIMIT $2`,
       [chatId, HISTORY_LIMIT],
     );
     await client.query("COMMIT");
-    history = rows.rows.reverse();
+    history = chat.recipe_id
+      ? orderRecipeSeed(rows.rows.reverse())
+      : rows.rows.reverse();
   } catch (e) {
     await client.query("ROLLBACK");
+    if (e instanceof AppError)
+      return c.json({ error: { code: e.code, message: e.message } }, e.status);
     console.error("chat message insert failed", e);
     return c.json(
       { error: { code: "INTERNAL_ERROR", message: "Could not save message" } },
@@ -292,6 +412,7 @@ chats.post("/:id/messages", async (c) => {
   const system = [
     ASSISTANT_SYSTEM_PROMPT,
     PLAN_PROMPT,
+    recipeChatPrompt(chat),
     household ? profileContext(household, userId) : null,
     localTime
       ? `The user's current local time is ${localTime}. The timezone reflects their broad region — use it for seasonal produce and measurement defaults, not as an exact location.`
@@ -309,7 +430,12 @@ chats.post("/:id/messages", async (c) => {
     messages: await convertToModelMessages(uiMessages, {
       ignoreIncompleteToolCalls: true,
     }),
-    tools: buildChatTools(userId, listId),
+    tools: buildChatTools(userId, listId, {
+      chatId,
+      messageId: message.id,
+      chat,
+      today,
+    }),
     stopWhen: stepCountIs(5),
     // Photos arrive as signed Supabase Storage URLs. Locally that is a
     // private address the SDK's default downloader refuses, so fetch plainly.
