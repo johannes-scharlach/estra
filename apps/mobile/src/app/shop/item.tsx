@@ -2,7 +2,14 @@ import * as Haptics from "expo-haptics";
 import { useQuery } from "@powersync/react";
 import { Link, useLocalSearchParams, useRouter } from "expo-router";
 import { SymbolView } from "expo-symbols";
-import { Children, useMemo, useState } from "react";
+import {
+  Children,
+  useEffect,
+  useEffectEvent,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -274,18 +281,62 @@ function MealDetails({ item, category, saving, onClose }: DetailsProps) {
 }
 
 /** Standalone items are the user's own words: name and note edit in place,
- *  saved on blur, laid out like a Reminders detail. The note is free text,
- *  never parsed. */
+ *  saved on blur or sheet dismissal, laid out like a Reminders detail. The note
+ *  is free text, never parsed. */
 function StandaloneDetails({ item, category, saving, onClose }: DetailsProps) {
-  const [name, setName] = useState(item.name ?? "");
-  const [note, setNote] = useState(item.spec ?? "");
+  const initialName = item.name ?? "";
+  const initialNote = item.spec ?? "";
+  const [name, setName] = useState(initialName);
+  const [note, setNote] = useState(initialNote);
+  const initial = useRef({ name: initialName, note: initialNote });
+  const draft = useRef({ name: initialName, note: initialNote });
+  const requested = useRef({ name: initialName, note: initialNote });
+  const mounted = useRef(true);
 
-  function save(action: () => Promise<void>, revert: () => void) {
-    action().catch(() => {
-      revert();
+  function saveName(value: string) {
+    const next = value.trim();
+    if (!next || next === requested.current.name) return;
+
+    requested.current.name = next;
+    void renameItem(item.id, value).catch(() => {
+      if (requested.current.name === next)
+        requested.current.name = initial.current.name;
+      if (mounted.current && draft.current.name === value) {
+        draft.current.name = initial.current.name;
+        setName(initial.current.name);
+      }
       Alert.alert("Couldn't save item", "Please try again.");
     });
   }
+
+  function saveNote(value: string) {
+    const next = value.trim();
+    if (next === requested.current.note) return;
+
+    requested.current.note = next;
+    void setItemSpec(item.id, value).catch(() => {
+      if (requested.current.note === next)
+        requested.current.note = initial.current.note;
+      if (mounted.current && draft.current.note === value) {
+        draft.current.note = initial.current.note;
+        setNote(initial.current.note);
+      }
+      Alert.alert("Couldn't save item", "Please try again.");
+    });
+  }
+
+  const flushOnUnmount = useEffectEvent(() => {
+    saveName(draft.current.name);
+    saveNote(draft.current.note);
+  });
+
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      flushOnUnmount();
+    };
+  }, []);
 
   return (
     <>
@@ -295,25 +346,33 @@ function StandaloneDetails({ item, category, saving, onClose }: DetailsProps) {
       <Group>
         <TextInput
           value={name}
-          onChangeText={setName}
+          onChangeText={(value) => {
+            draft.current.name = value;
+            setName(value);
+          }}
           accessibilityLabel="Name"
           placeholder="Name"
           returnKeyType="done"
           editable={!saving}
           // No line height: on iOS it shifts single-line input text down.
           className="h-12 px-4 text-[17px] text-foreground placeholder:text-muted-foreground/70"
-          onEndEditing={() => {
-            if (!name.trim()) return setName(item.name ?? "");
-            if (name.trim() !== item.name)
-              save(
-                () => renameItem(item.id, name),
-                () => setName(item.name ?? ""),
-              );
+          onEndEditing={(event) => {
+            const value = event.nativeEvent.text;
+            draft.current.name = value;
+            if (!value.trim()) {
+              draft.current.name = initial.current.name;
+              setName(initial.current.name);
+              return;
+            }
+            saveName(value);
           }}
         />
         <TextInput
           value={note}
-          onChangeText={setNote}
+          onChangeText={(value) => {
+            draft.current.note = value;
+            setNote(value);
+          }}
           accessibilityLabel="Note"
           placeholder="Add a note"
           multiline
@@ -321,12 +380,10 @@ function StandaloneDetails({ item, category, saving, onClose }: DetailsProps) {
           returnKeyType="done"
           editable={!saving}
           className="min-h-12 px-4 py-3 text-[16px] text-muted-foreground placeholder:text-muted-foreground/70"
-          onEndEditing={() => {
-            if (note.trim() !== (item.spec ?? ""))
-              save(
-                () => setItemSpec(item.id, note),
-                () => setNote(item.spec ?? ""),
-              );
+          onEndEditing={(event) => {
+            const value = event.nativeEvent.text;
+            draft.current.note = value;
+            saveNote(value);
           }}
         />
       </Group>

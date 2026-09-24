@@ -52,18 +52,12 @@ describe("variantMeals", () => {
 describe("labels", () => {
   it("say the day the way the chat message does and count the shopping", () => {
     const on = new Date(2026, 8, 18);
-    expect(
-      mealLabel(
-        { id: "x", variant_id: v1, slot_date: "2026-09-18", meal: "dinner" },
-        on,
-      ),
-    ).toBe("Today · Dinner");
-    expect(
-      mealLabel(
-        { id: "x", variant_id: v1, slot_date: "2026-09-21", meal: "lunch" },
-        on,
-      ),
-    ).toBe("Monday · Lunch");
+    expect(mealLabel({ slot_date: "2026-09-18", meal: "dinner" }, on)).toBe(
+      "Today · Dinner",
+    );
+    expect(mealLabel({ slot_date: "2026-09-21", meal: "lunch" }, on)).toBe(
+      "Monday · Lunch",
+    );
     expect(shoppedLabel([])).toBe("Nothing to buy");
     expect(shoppedLabel([{ status: "purchased" }, { status: "active" }])).toBe(
       "1 of 2 shopped",

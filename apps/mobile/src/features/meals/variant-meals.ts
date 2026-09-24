@@ -52,7 +52,10 @@ export function variantMeals<M extends MealRow>(
 }
 
 /** "Friday · Dinner", "Today · Lunch". Same day wording as the chat message. */
-export function mealLabel(meal: MealRow, today: Date = new Date()): string {
+export function mealLabel(
+  meal: Pick<MealRow, "slot_date" | "meal">,
+  today: Date = new Date(),
+): string {
   const day = dayName(meal.slot_date ?? "", today);
   const slot = SLOT_LABEL[meal.meal as MealSlot] ?? meal.meal ?? "";
   return `${day.charAt(0).toUpperCase()}${day.slice(1)} · ${slot}`;

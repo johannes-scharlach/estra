@@ -80,12 +80,16 @@ export default function RootLayout() {
                       headerTransparent: true,
                       headerShadowVisible: false,
                       headerBackButtonDisplayMode: "minimal",
-                      headerTitleAlign: "center",
+                      headerTitleAlign:
+                        process.env.EXPO_OS === "ios" ? "center" : "left",
                     }}
                   />
                   <Stack.Screen
                     name="variant/versions"
-                    options={{ title: "Variants", headerBackButtonDisplayMode: "minimal" }}
+                    options={{
+                      title: "Variants",
+                      headerBackButtonDisplayMode: "minimal",
+                    }}
                   />
                   <Stack.Screen
                     name="variant/plan"

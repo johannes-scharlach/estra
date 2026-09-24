@@ -7,7 +7,10 @@ import { z } from "zod";
  */
 export const locales = ["en", "de"] as const;
 export type Locale = (typeof locales)[number];
-export const localeNames: Record<Locale, string> = { en: "English", de: "German" };
+export const localeNames: Record<Locale, string> = {
+  en: "English",
+  de: "German",
+};
 
 export const CATEGORIES = [
   "produce",
@@ -44,7 +47,7 @@ const SwapSchema = z.object({
     .string()
     .optional()
     .describe(
-      "swap prep, e.g. 'drained', 'thinly sliced' — jarred vs fresh differ here",
+      "Optional preparation for this swap, not part of item_name. When importing, preserve source ingredient-line prep here and leave instruction prep in the instructions. When creating, prefer prep in the steps; use this sparingly to clarify the measured quantity or a prepared state the instructions assume (e.g. 'drained'). Avoid repeating prep already explained in a step. Omit when absent or unnecessary; never write placeholders such as 'none' or 'N/A'.",
     ),
   category_id: z
     .enum(CATEGORIES)
@@ -65,13 +68,13 @@ const IngredientLineSchema = z.object({
     .string()
     .min(1)
     .describe(
-      'ingredient name WITHOUT quantity or prep, e.g. "bulgur", "sardines in olive oil", "garlic" (prep "thinly sliced" is separate)',
+      'ingredient name WITHOUT quantity or prep, e.g. "bulgur", "sardines in olive oil", "garlic". Keep purchase distinctions such as "canned tomatoes", "frozen spinach", or "coarse bulgur" in the name.',
     ),
   prep_note: z
     .string()
     .optional()
     .describe(
-      "prep for this line only, e.g. 'rough-chopped', 'thinly sliced', 'crumbled' — not part of item_name",
+      "Optional ingredient-line preparation, not part of item_name. When importing, preserve source ingredient-line prep here and leave instruction prep in the instructions. When creating, prefer prep in the steps; use this sparingly to clarify the measured quantity (e.g. 'thawed and squeezed dry') or a prepared state the instructions assume (e.g. 'finely diced' when the steps start with sauteing). Avoid repeating prep already explained in a step. Omit when absent or unnecessary; never write placeholders such as 'none' or 'N/A'.",
     ),
   category_id: z
     .enum(CATEGORIES)
@@ -83,7 +86,7 @@ const IngredientLineSchema = z.object({
     .array(SwapSchema)
     .optional()
     .describe(
-      "1-3 obvious 1:1 swaps for this line, each with its own qty/prep/category — e.g. bulgur -> couscous/orzo, sardines -> tuna; fresh bell pepper (produce, thinly sliced) -> jarred roasted peppers (spices, drained)",
+      "1-3 obvious 1:1 swaps for this line, each with its own quantity and category, and prep_note only when useful — e.g. bulgur -> couscous/orzo, sardines -> tuna; fresh bell pepper (produce) -> jarred roasted peppers (spices)",
     ),
 });
 

@@ -12,6 +12,7 @@ import { CompleteSetup } from "@/features/onboarding/complete";
 import { createDraft } from "@/features/onboarding/draft";
 import { OnboardingScreen } from "@/features/onboarding/onboarding-screen";
 import { useOnboarding } from "@/features/onboarding/provider";
+import { StartupScreen } from "@/features/onboarding/startup-screen";
 import { FormError } from "@/features/profile/form";
 import { supabase } from "@/lib/supabase";
 
@@ -56,34 +57,15 @@ export default function Welcome() {
     }
   }
 
-  if (!ready || !authReady) {
+  if (!ready || !authReady || (session && (!access.ready || access.error))) {
     return (
-      <OnboardingScreen title="Opening your setup…">
-        <FormError message={error ?? access.error} />
-        <Text className="text-muted-foreground">Just a moment.</Text>
-        {error || access.error ? (
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => {
-              if (error) retry();
-              if (access.error) access.retry();
-            }}
-          >
-            <Text className="font-medium text-primary">Try again</Text>
-          </Pressable>
-        ) : null}
-      </OnboardingScreen>
-    );
-  }
-
-  if (session && (!access.ready || access.error)) {
-    return (
-      <OnboardingScreen title="Loading your household…">
-        <FormError message={access.error} />
-        <Pressable accessibilityRole="button" onPress={access.retry}>
-          <Text className="font-medium text-primary">Retry</Text>
-        </Pressable>
-      </OnboardingScreen>
+      <StartupScreen
+        error={error ?? access.error}
+        onRetry={() => {
+          if (!ready) retry();
+          access.retry();
+        }}
+      />
     );
   }
 

@@ -114,7 +114,12 @@ export function Composer({
         </Text>
       ) : null}
       <View className="flex-row items-end gap-2 px-4 pt-2">
-        <View className="min-h-12 flex-1 flex-row items-end rounded-3xl border border-border bg-card pl-1 pr-4">
+        <View className="min-h-12 flex-1 flex-row items-end rounded-3xl bg-card pl-1 pr-4">
+          {/* Draw the border without adding height to the 48-point input row. */}
+          <View
+            pointerEvents="none"
+            className="absolute inset-0 rounded-3xl border border-border"
+          />
           <ImageAttachmentMenu
             onSelect={(source) => void addAttachments(source)}
             disabled={busy}
@@ -128,7 +133,8 @@ export function Composer({
             returnKeyType="send"
             submitBehavior="blurAndSubmit"
             onSubmitEditing={submit}
-            className="max-h-32 min-h-10 flex-1 py-2.5 text-base leading-5 text-foreground"
+            style={{ includeFontPadding: false, textAlignVertical: "center" }}
+            className="max-h-32 min-h-12 flex-1 py-3.5 text-base leading-5 text-foreground"
           />
         </View>
         {!text.trim() && !attachments.length && emptyAction ? (
@@ -140,14 +146,14 @@ export function Composer({
             accessibilityLabel="Send"
             accessibilityRole="button"
             className={cn(
-              "mb-0.5 size-9 items-center justify-center rounded-full bg-primary",
+              "size-12 items-center justify-center rounded-full bg-primary",
               !canSend && "opacity-30",
             )}
           >
             <SymbolView
               name={SEND_ICON}
               tintColor={iconColor}
-              size={16}
+              size={22}
               weight="bold"
             />
           </Pressable>

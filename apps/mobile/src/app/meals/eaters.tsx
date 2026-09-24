@@ -1,16 +1,12 @@
 import { useQuery } from "@powersync/react";
-import {
-  useLocalSearchParams,
-  useNavigation,
-  useRouter,
-  type NativeStackNavigationProp,
-} from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { View } from "react-native";
 
 import { CloseButton } from "@/components/close-button";
 import { PrimaryAction } from "@/components/action";
+import { SheetActions } from "@/components/sheet-actions";
 import { Text } from "@/components/ui/text";
 import { updatePlannedMealEaters } from "@/db/planned-meals";
 import { useAuth } from "@/db/provider";
@@ -24,6 +20,7 @@ import {
   EatersPicker,
 } from "@/features/meals/eaters-picker";
 import type { MealSlot } from "@/features/meals/slots";
+import { mealLabel } from "@/features/meals/variant-meals";
 
 type PersonRow = { id: string; name: string; user_id: string | null };
 
@@ -40,8 +37,6 @@ export default function EatersSheet() {
   }>();
   const { listId, date, slot, variantId } = params;
   const router = useRouter();
-  const navigation =
-    useNavigation<NativeStackNavigationProp<Record<string, never>>>();
   const { session } = useAuth();
   const { data: rows } = useQuery<PersonRow>(
     "SELECT id, name, user_id FROM household_people WHERE list_id = ? ORDER BY created_at, id",
@@ -61,15 +56,6 @@ export default function EatersSheet() {
   );
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [sliderReady, setSliderReady] = useState(false);
-
-  useEffect(
-    () =>
-      navigation.addListener("transitionEnd", (event) => {
-        if (!event.data.closing) setSliderReady(true);
-      }),
-    [navigation],
-  );
 
   async function save() {
     if (extraPortions === null) {
@@ -102,7 +88,9 @@ export default function EatersSheet() {
   return (
     <View collapsable={false}>
       <View className="flex-row items-center justify-between gap-4 px-6 pt-4">
-        <Text className="flex-1 text-lg font-semibold">Who&apos;s eating</Text>
+        <Text className="flex-1 text-lg font-semibold">
+          {mealLabel({ slot_date: date ?? null, meal: slot ?? null })}
+        </Text>
         <CloseButton onPress={() => router.back()} disabled={saving} />
       </View>
 
@@ -118,7 +106,6 @@ export default function EatersSheet() {
           setExtraPortions(value);
           setError(null);
         }}
-        sliderReady={sliderReady}
       />
 
       {error ? (
@@ -127,13 +114,13 @@ export default function EatersSheet() {
         </Text>
       ) : null}
 
-      <View className="mt-6 gap-2 px-6">
+      <SheetActions>
         <PrimaryAction
           label={saving ? "Applying…" : "Apply"}
           disabled={saving}
           onPress={() => void save()}
         />
-      </View>
+      </SheetActions>
     </View>
   );
 }

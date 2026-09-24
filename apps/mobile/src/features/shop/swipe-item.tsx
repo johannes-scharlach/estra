@@ -302,7 +302,11 @@ export function SwipeItem({
                   color: primaryColor,
                 },
               ].map(({ key, style, color }) => (
-                <Animated.View key={key} style={style} className="absolute">
+                <Animated.View
+                  key={key}
+                  style={style}
+                  className="absolute top-3 h-6 justify-center"
+                >
                   <SymbolView
                     name={{
                       ios: "arrow.left.arrow.right",

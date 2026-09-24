@@ -1,16 +1,10 @@
 import { useQuery } from "@powersync/react";
-import {
-  useLocalSearchParams,
-  useNavigation,
-  useRouter,
-  type NativeStackNavigationProp,
-} from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Pressable, View } from "react-native";
 
 import { CloseButton } from "@/components/close-button";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Text } from "@/components/ui/text";
 import { movePlannedMeal } from "@/db/planned-meals";
 import type { PlannedMeal, Variant } from "@/db/schema";
@@ -24,6 +18,7 @@ import {
 } from "@/features/meals/slots";
 import { useImportJobs } from "@/features/meals/use-import-jobs";
 import { PrimaryAction } from "@/components/action";
+import { SheetActions } from "@/components/sheet-actions";
 
 export default function MoveMealSheet() {
   const { listId, date, slot, variantId } = useLocalSearchParams<{
@@ -33,8 +28,6 @@ export default function MoveMealSheet() {
     variantId: string;
   }>();
   const router = useRouter();
-  const navigation =
-    useNavigation<NativeStackNavigationProp<Record<string, never>>>();
   const importJobs = useImportJobs();
   const strip = useMemo(() => stripDates(0), []);
   const todayKey = dateKey(strip.dates[0] ?? new Date());
@@ -44,15 +37,6 @@ export default function MoveMealSheet() {
   const [destinationSlot, setDestinationSlot] = useState<MealSlot>(slot);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [stripReady, setStripReady] = useState(false);
-
-  useEffect(
-    () =>
-      navigation.addListener("transitionEnd", (event) => {
-        if (!event.data.closing) setStripReady(true);
-      }),
-    [navigation],
-  );
 
   const { data: meals } = useQuery<PlannedMeal>(
     listId
@@ -114,19 +98,13 @@ export default function MoveMealSheet() {
         <CloseButton onPress={() => router.back()} disabled={saving} />
       </View>
 
-      {stripReady ? (
-        <DayStrip
-          className="mt-6"
-          dates={strip.dates}
-          todayIndex={strip.todayIndex}
-          selected={destinationDate}
-          onSelect={setDestinationDate}
-        />
-      ) : (
-        <View className="mt-6 h-18 flex-row items-center gap-2 px-6 py-2">
-          <Skeleton className="h-14 w-12 rounded-xl" />
-        </View>
-      )}
+      <DayStrip
+        className="mt-6"
+        dates={strip.dates}
+        todayIndex={strip.todayIndex}
+        selected={destinationDate}
+        onSelect={setDestinationDate}
+      />
 
       <View className="mt-6 gap-2 px-6">
         <Text variant="muted" className="text-xs uppercase tracking-widest">
@@ -176,13 +154,19 @@ export default function MoveMealSheet() {
         </Text>
       ) : null}
 
-      <View className="mt-6 gap-2 px-6">
+      <SheetActions>
         <PrimaryAction
-          label={saving ? "Moving…" : destination ? "Swap meals" : "Move meal"}
+          label={
+            saving
+              ? "Moving…"
+              : destination && !isSame
+                ? "Swap meals"
+                : "Move meal"
+          }
           disabled={saving || isSame || hasImport}
           onPress={() => void confirm()}
         />
-      </View>
+      </SheetActions>
     </View>
   );
 }

@@ -16,6 +16,7 @@ import {
   Pressable,
   Share,
   StyleSheet,
+  useWindowDimensions,
   View,
 } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
@@ -57,10 +58,13 @@ import {
   alternativesForLine,
   type Alternative,
 } from "@/features/shop/alternatives";
+import { prettyQuantity } from "@/features/shop/spec";
 import { tonalPair } from "@/features/variants/tonal";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 
 const HERO_HEIGHT = 320;
+// Two 22-point icons with 8-point padding on each side.
+const HEADER_ACTIONS_WIDTH = 76;
 /** How far above the composer the scroll-edge fade runs before it is full. */
 const FADE_RUN = 40;
 
@@ -71,7 +75,7 @@ const SHARE_ICON = {
 } as const;
 const MENU_ICON = {
   ios: "ellipsis.circle",
-  android: "more_horiz",
+  android: "more_vert",
   web: "more_horiz",
 } as const;
 // The list's state of each line, as a leading checklist column: the same
@@ -168,11 +172,6 @@ const OPEN_LINK_ICON = {
 } as const;
 
 type SwapDirection = "next" | "prev";
-
-/** "3-5 tins" → "3–5 tins": a range takes an en dash, not a hyphen. */
-function dashRanges(text: string): string {
-  return text.replace(/(\d)\s*-\s*(\d)/g, "$1–$2");
-}
 
 /** The first sentence of a blurb, for the clamped view; null if that is
  *  the whole blurb already. */
@@ -328,7 +327,7 @@ function IngredientRow({
                     : "font-semibold"
                 }
               >
-                {dashRanges(row.qtyText)}
+                {prettyQuantity(row.qtyText)}
               </Text>
             ) : null}
             {canSwap ? (
@@ -469,6 +468,21 @@ export default function VariantPage() {
   }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { width: windowWidth } = useWindowDimensions();
+  // Android's custom-title container can extend underneath headerRight. Bound
+  // it to the toolbar's 56-point back slot, action group and 16-point end inset.
+  const headerTitleMaxWidth =
+    process.env.EXPO_OS === "android"
+      ? Math.max(
+          0,
+          windowWidth -
+            insets.left -
+            insets.right -
+            56 -
+            HEADER_ACTIONS_WIDTH -
+            16,
+        )
+      : undefined;
   const scheme = useColorScheme();
   const { session } = useAuth();
   const foreground = useResolveClassNames("text-foreground").color;
@@ -884,11 +898,14 @@ export default function VariantPage() {
             />
           ),
           headerTitle: () => (
-            <Animated.View style={headerStyle} className="px-2">
+            <Animated.View
+              style={[headerStyle, { maxWidth: headerTitleMaxWidth }]}
+              className="min-w-0 shrink px-2"
+            >
               <Text
                 numberOfLines={1}
                 ellipsizeMode="tail"
-                className="text-center text-base font-semibold"
+                className={`text-base font-semibold ${process.env.EXPO_OS === "ios" ? "text-center" : "text-left"}`}
               >
                 {variant.name}
               </Text>
@@ -896,7 +913,10 @@ export default function VariantPage() {
           ),
           // Share stays a direct control; the menu holds the rare actions.
           headerRight: () => (
-            <View className="flex-row items-center">
+            <View
+              style={{ width: HEADER_ACTIONS_WIDTH }}
+              className="flex-row items-center"
+            >
               <Pressable
                 onPress={() => void onShare()}
                 hitSlop={8}
@@ -1270,7 +1290,7 @@ export default function VariantPage() {
                 onPress={meal ? openCook : openPlan}
                 accessibilityRole="button"
                 accessibilityLabel={meal ? "Cook" : "Add to plan"}
-                className="size-11 items-center justify-center rounded-full bg-primary active:opacity-70"
+                className="size-12 items-center justify-center rounded-full bg-primary active:opacity-70"
               >
                 <SymbolView
                   name={

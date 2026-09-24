@@ -255,7 +255,7 @@ function IngredientContent({
       <View className="flex-row items-baseline gap-3">
         <Text
           className={cn(
-            "shrink grow text-[17px] font-medium",
+            "min-w-0 flex-1 text-[17px] font-medium",
             checked && "text-muted-foreground line-through",
           )}
           numberOfLines={1}
@@ -265,7 +265,7 @@ function IngredientContent({
         {amount ? (
           <Text
             className={cn(
-              "text-[17px] text-muted-foreground",
+              "shrink-0 text-[17px] text-muted-foreground",
               checked && "line-through",
             )}
             style={{ fontVariant: ["tabular-nums"] }}

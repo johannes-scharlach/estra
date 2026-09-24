@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Text } from "@/components/ui/text";
 import { importRecipe } from "@/features/meals/import-adapters";
 import { PrimaryAction } from "@/components/action";
+import { SheetActions } from "@/components/sheet-actions";
 
 /** Native formSheet: detents, grabber, swipe-to-dismiss. Unmounts on close,
  *  so the URL draft is always fresh. Same pattern as variant/plan. */
@@ -70,13 +71,13 @@ export default function ImportRecipeSheet() {
         ) : null}
       </View>
 
-      <View className="mt-6 gap-2 px-6">
+      <SheetActions>
         <PrimaryAction
           label={importing ? "Importing…" : "Import"}
           onPress={() => void onImport()}
           disabled={importing || !url.trim()}
         />
-      </View>
+      </SheetActions>
     </View>
   );
 }

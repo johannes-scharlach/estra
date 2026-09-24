@@ -1,16 +1,10 @@
 import { useQuery } from "@powersync/react";
 import * as Crypto from "expo-crypto";
-import {
-  useLocalSearchParams,
-  useNavigation,
-  useRouter,
-  type NativeStackNavigationProp,
-} from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Pressable, View } from "react-native";
 
-import { Skeleton } from "@/components/ui/skeleton";
 import { CloseButton } from "@/components/close-button";
 import { Text } from "@/components/ui/text";
 import type { List, Variant } from "@/db/schema";
@@ -19,6 +13,7 @@ import { useAuth } from "@/db/provider";
 import { saveAndPlanMessage } from "@/features/chat/compose";
 import { queueMessage } from "@/features/chat/message-queue";
 import { PrimaryAction } from "@/components/action";
+import { SheetActions } from "@/components/sheet-actions";
 import { DayStrip } from "@/features/meals/day-strip";
 import { toEaters } from "@/features/meals/eaters";
 import {
@@ -46,8 +41,6 @@ type PersonRow = { id: string; name: string; user_id: string | null };
 export default function PlanVariantSheet() {
   const { id, dish } = useLocalSearchParams<{ id?: string; dish?: string }>();
   const router = useRouter();
-  const navigation =
-    useNavigation<NativeStackNavigationProp<Record<string, never>>>();
   const { session } = useAuth();
 
   const pending = !id;
@@ -82,18 +75,6 @@ export default function PlanVariantSheet() {
     [peopleRows, session],
   );
   const eaterIds = pickedEaterIds ?? people.map((p) => p.id);
-
-  // react-native-screens #3634: a ScrollView mounted while the formSheet
-  // presents gets its native frame mangled (fitToContents measuring pass).
-  // Mount the strip and slider only after the sheet transition settles.
-  const [ready, setReady] = useState(false);
-  useEffect(
-    () =>
-      navigation.addListener("transitionEnd", (e) => {
-        if (!e.data.closing) setReady(true);
-      }),
-    [navigation],
-  );
 
   async function onAdd() {
     if (extraPortions === null) {
@@ -186,19 +167,13 @@ export default function PlanVariantSheet() {
         </View>
       ) : null}
 
-      {ready ? (
-        <DayStrip
-          className="mt-6"
-          dates={strip.dates}
-          todayIndex={strip.todayIndex}
-          selected={selectedDate}
-          onSelect={setSelectedDate}
-        />
-      ) : (
-        <View className="mt-6 h-18 flex-row items-center gap-2 px-6 py-2">
-          <Skeleton className="h-14 w-12 rounded-xl" />
-        </View>
-      )}
+      <DayStrip
+        className="mt-6"
+        dates={strip.dates}
+        todayIndex={strip.todayIndex}
+        selected={selectedDate}
+        onSelect={setSelectedDate}
+      />
 
       <View className="mt-6 gap-2 px-6">
         <Text variant="muted" className="text-xs uppercase tracking-widest">
@@ -233,7 +208,6 @@ export default function PlanVariantSheet() {
           setExtraPortions(value);
           setError(null);
         }}
-        sliderReady={ready}
       />
 
       {error ? (
@@ -242,13 +216,13 @@ export default function PlanVariantSheet() {
         </Text>
       ) : null}
 
-      <View className="mt-6 gap-2 px-6">
+      <SheetActions>
         <PrimaryAction
           label={saving ? "Adding…" : pending ? "Save & plan" : "Add to plan"}
           onPress={() => void onAdd()}
           disabled={saving || (!pending && !effectiveListId)}
         />
-      </View>
+      </SheetActions>
     </View>
   );
 }

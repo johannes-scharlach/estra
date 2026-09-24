@@ -7,9 +7,9 @@ const FRACTIONS: Record<string, string> = {
 };
 
 /** "1 1/3 bunch" reads as "1⅓ bunch", "3-4 tbsp" as "3–4 tbsp". */
-function prettyQuantity(text: string) {
+export function prettyQuantity(text: string) {
   return text
-    .replace(/(\d)-(\d)/g, "$1–$2")
+    .replace(/(\d)\s*-\s*(\d)/g, "$1–$2")
     .replace(/(\d*)\s?\b([123])\/([234])\b/g, (match, whole, n, d) => {
       const glyph = FRACTIONS[`${n}/${d}`];
       return glyph ? `${whole}${glyph}` : match;

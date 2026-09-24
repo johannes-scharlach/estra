@@ -5,6 +5,7 @@ import { useQuery } from "@powersync/react";
 
 import { CloseButton } from "@/components/close-button";
 import { PrimaryAction } from "@/components/action";
+import { SheetActions } from "@/components/sheet-actions";
 import { Input } from "@/components/ui/input";
 import { Text } from "@/components/ui/text";
 import type { List } from "@/db/schema";
@@ -96,13 +97,13 @@ export default function ImportForSlotSheet() {
         ) : null}
       </View>
 
-      <View className="mt-6 gap-2 px-6">
+      <SheetActions>
         <PrimaryAction
           label={importing ? "Importing…" : "Import & plan"}
           onPress={() => void onImport()}
           disabled={importing || !url.trim() || !list}
         />
-      </View>
+      </SheetActions>
     </View>
   );
 }

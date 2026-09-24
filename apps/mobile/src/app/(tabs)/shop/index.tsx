@@ -254,7 +254,7 @@ function ListScreen({ list }: { list: List }) {
       removeClippedSubviews={false}
       contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
     >
-      <Text variant="muted" className="px-4 pb-1">
+      <Text variant="muted" className="px-4 pb-1 android:pt-3">
         {active.length === 0
           ? "Nothing to buy. Plan a meal or tap + to add an item."
           : `${active.length} to buy${checked.length ? ` · ${checked.length} checked` : ""}`}

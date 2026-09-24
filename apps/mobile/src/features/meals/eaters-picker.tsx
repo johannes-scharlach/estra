@@ -1,11 +1,10 @@
 import { Slider } from "@expo/ui/community/slider";
 import { SymbolView } from "expo-symbols";
 import { useState } from "react";
-import { Pressable, View } from "react-native";
+import { Platform, Pressable, View } from "react-native";
 import { useResolveClassNames } from "uniwind";
 
 import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Text } from "@/components/ui/text";
 
 import { formatExtraPortions, parseExtraPortions, type Eater } from "./eaters";
@@ -21,9 +20,6 @@ type Props = {
   onEaterIdsChange: (ids: string[]) => void;
   /** null while the typed extra is not a valid number. */
   onExtraPortionsChange: (value: number | null) => void;
-  /** react-native-screens #3634: native controls get a bad frame while a
-   *  fit-to-content sheet presents. The parent flips this after the transition. */
-  sliderReady: boolean;
 };
 
 /** Who from the household is eating, plus extra portions. Shared by the plan
@@ -34,10 +30,10 @@ export function EatersPicker({
   extraPortions,
   onEaterIdsChange,
   onExtraPortionsChange,
-  sliderReady,
 }: Props) {
   const primary = useResolveClassNames("text-primary").color;
   const muted = useResolveClassNames("text-muted-foreground").color;
+  const track = useResolveClassNames("bg-muted").backgroundColor;
   const [input, setInput] = useState(formatExtraPortions(extraPortions));
 
   function toggle(id: string) {
@@ -47,7 +43,7 @@ export function EatersPicker({
   }
 
   function setFromSlider(next: number) {
-    const rounded = Number(next.toFixed(2));
+    const rounded = Math.round(next * 4) / 4;
     setInput(formatExtraPortions(rounded));
     onExtraPortionsChange(rounded);
   }
@@ -100,18 +96,22 @@ export function EatersPicker({
             }}
           />
         </View>
-        {sliderReady ? (
-          <Slider
-            minimumValue={0}
-            maximumValue={SLIDER_MAX}
-            step={0.25}
-            value={Math.min(SLIDER_MAX, Math.max(0, extraPortions))}
-            onValueChange={setFromSlider}
-            style={{ width: "100%", height: 32 }}
-          />
-        ) : (
-          <Skeleton className="h-8 w-full rounded-full" />
-        )}
+        <Slider
+          minimumValue={0}
+          maximumValue={SLIDER_MAX}
+          // Android draws a dot per step; 32 of them is noise. Rounding in
+          // setFromSlider keeps the value on quarters either way.
+          step={Platform.OS === "ios" ? 0.25 : undefined}
+          value={Math.min(SLIDER_MAX, Math.max(0, extraPortions))}
+          onValueChange={setFromSlider}
+          // Compose falls back to Material's default blue without these.
+          {...(Platform.OS === "android" && {
+            minimumTrackTintColor: primary,
+            maximumTrackTintColor: track,
+            thumbTintColor: primary,
+          })}
+          style={{ width: "100%", height: 32 }}
+        />
         <View className="flex-row justify-between">
           <Text variant="muted" className="text-xs tabular-nums">
             0
