@@ -567,8 +567,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      accept_household_invite: {
+        Args: { code: string; person_id?: string; person_name?: string }
+        Returns: string
+      }
       is_list_member: { Args: { target_list_id: string }; Returns: boolean }
       item_name_key: { Args: { name: string }; Returns: string }
+      preview_household_invite: { Args: { code: string }; Returns: Json }
+      reset_household_invite: {
+        Args: { target_list_id: string }
+        Returns: string
+      }
       uuid_for_item: {
         Args: { item_name: string; target_list_id: string }
         Returns: string

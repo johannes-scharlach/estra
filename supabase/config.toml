@@ -392,6 +392,11 @@ inspector_port = 8093
 # The Deno major version to use.
 deno_version = 2
 
+# The handler verifies the caller with auth.getUser(), supporting both legacy
+# and asymmetric signing keys instead of the gateway's legacy JWT check.
+[functions.join-list]
+verify_jwt = false
+
 # [edge_runtime.secrets]
 # secret_key = "env(SECRET_VALUE)"
 

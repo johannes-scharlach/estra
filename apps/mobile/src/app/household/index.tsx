@@ -111,6 +111,10 @@ export default function ProfileScreen() {
             title="Add a person"
             onPress={() => router.push("/household/person" as never)}
           />
+          <SettingsRow
+            title="Invite to household"
+            onPress={() => router.push("/household/invite" as never)}
+          />
         </SettingsSection>
         <SettingsSection title="Cooking">
           <SettingsRow
