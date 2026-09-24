@@ -62,7 +62,7 @@ export default function EatersSheet() {
       setError(EXTRA_PORTIONS_ERROR);
       return;
     }
-    if (!listId || !date || !slot || !variantId || saving) return;
+    if (!listId || !date || !slot || saving) return;
     setSaving(true);
     setError(null);
     try {
@@ -70,7 +70,7 @@ export default function EatersSheet() {
         listId,
         date,
         slot,
-        variantId,
+        variantId || null,
         eaterIds,
         extraPortions,
       );

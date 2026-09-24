@@ -10,8 +10,6 @@ import {
 } from "react";
 import {
   ActivityIndicator,
-  Modal,
-  Pressable,
   ScrollView,
   useWindowDimensions,
   View,
@@ -19,10 +17,9 @@ import {
 import { GestureDetector } from "react-native-gesture-handler";
 import Animated from "react-native-reanimated";
 
-import { Button } from "@/components/ui/button";
 import { Text } from "@/components/ui/text";
 import { useAuth } from "@/db/provider";
-import type { List, PlannedMeal, Variant as DbVariant } from "@/db/schema";
+import type { PlannedMeal, Variant as DbVariant } from "@/db/schema";
 import { clearPlannedMeal, setPlannedMeal } from "@/db/planned-meals";
 import {
   DayContent,
@@ -35,11 +32,12 @@ import {
   addDays,
   dateKey,
   stripDates,
-  SLOT_LABEL,
   type MealSlot,
 } from "@/features/meals/slots";
 import { usePanSwipeDay } from "@/features/meals/use-pan-swipe-day";
 import { useImportJobs } from "@/features/meals/use-import-jobs";
+import { useActiveList } from "@/features/onboarding/access";
+import { useRecipeChoices } from "@/features/cookbook/use-recipe-choices";
 
 export default function Meals() {
   const [{ dates, todayIndex }] = useState(stripDates);
@@ -50,16 +48,10 @@ export default function Meals() {
     Record<string, DisplayPlannedMeal | null>
   >({});
   const importJobs = useImportJobs();
-  const [cookbookSlot, setCookbookSlot] = useState<{
-    slot: MealSlot;
-    date: string;
-  } | null>(null);
+  const { choices } = useRecipeChoices();
   const { width } = useWindowDimensions();
 
-  const { data: lists } = useQuery<List>(
-    "SELECT * FROM lists ORDER BY created_at LIMIT 1",
-  );
-  const list = lists[0] ?? null;
+  const list = useActiveList();
 
   const { data: planned } = useQuery<PlannedMeal>(
     list
@@ -88,13 +80,18 @@ export default function Meals() {
     () => new Map(variants.map((v) => [v.id, v])),
     [variants],
   );
-  // contenders are variants (ADR 8: variant is the cookable entity)
+  // Recently added recipe groups, each represented by its newest variant.
   const contendersBySlot = useMemo((): Record<MealSlot, DisplayRecipe[]> => {
-    const all: DisplayRecipe[] = variants
-      .filter((v): v is DbVariant & { name: string } => !!v.name)
-      .map((v) => ({ id: v.id, name: v.name, totalTime: v.total_time }));
+    const all: DisplayRecipe[] = choices
+      .slice(0, 10)
+      .map(({ variant: v }) => ({
+        id: v.id,
+        recipeId: v.recipe_id!,
+        name: v.name ?? "…",
+        totalTime: v.total_time,
+      }));
     return { lunch: all, dinner: all, treat: all };
-  }, [variants]);
+  }, [choices]);
 
   const todayKey = dateKey(new Date());
   const selDate = useMemo(
@@ -153,13 +150,16 @@ export default function Meals() {
     const k = `${date}:${slot}`;
     if (k in pending) return pending[k] ?? null;
     const row = planned.find((p) => p.slot_date === date && p.meal === slot);
-    if (!row || !row.variant_id) return null;
-    const v = variantById.get(row.variant_id);
+    if (!row) return null;
+    const v = row.variant_id ? variantById.get(row.variant_id) : null;
     const eaterIds = parseEaterIds(row.eater_ids);
     const extraPortions = row.extra_portions ?? 0;
     return {
-      id: row.variant_id,
-      name: v?.name ?? "…",
+      id: row.variant_id ?? row.id,
+      variantId: row.variant_id,
+      shoppingReviewedVariantId: row.shopping_reviewed_variant_id,
+      recipeId: row.recipe_id,
+      name: row.name ?? v?.name ?? "…",
       totalTime: v?.total_time ?? null,
       eaterIds,
       extraPortions,
@@ -172,7 +172,7 @@ export default function Meals() {
     for (const [k, p] of Object.entries(pending)) {
       const [date, slot] = k.split(":") as [string, MealSlot];
       const row = planned.find((r) => r.slot_date === date && r.meal === slot);
-      if ((p === null && !row?.variant_id) || (p && row?.variant_id === p.id)) {
+      if ((p === null && !row) || (p && row?.variant_id === p.variantId)) {
         // eslint-disable-next-line react-hooks/set-state-in-effect -- clearing optimistic pending once PowerSync catches up
         setPending((prev) => {
           const next = { ...prev };
@@ -202,6 +202,8 @@ export default function Meals() {
       ...prev,
       [k]: {
         ...recipe,
+        variantId: recipe.id,
+        shoppingReviewedVariantId: null,
         eaterIds,
         extraPortions: 0,
         eatersLabel: eatersLabel({ people, eaterIds, extraPortions: 0 }),
@@ -281,7 +283,7 @@ export default function Meals() {
         listId: list.id,
         date,
         slot,
-        variantId: recipe.id,
+        variantId: recipe.variantId ?? "",
         eaterIds: JSON.stringify(recipe.eaterIds),
         extraPortions: String(recipe.extraPortions),
       },
@@ -292,6 +294,7 @@ export default function Meals() {
     date: string,
     slot: MealSlot,
     recipe: DisplayPlannedMeal | null,
+    repeat = false,
   ) {
     if (!list) return;
     router.push({
@@ -300,7 +303,8 @@ export default function Meals() {
         listId: list.id,
         date,
         slot,
-        variantId: recipe?.id,
+        variantId: recipe?.variantId ?? "",
+        mode: repeat ? "repeat" : "move",
       },
     });
   }
@@ -323,10 +327,22 @@ export default function Meals() {
           onChange={(slot) => void changeMeal(key, slot)}
           onSkip={(slot) => void skipMeal(key, slot)}
           onMove={(slot, r) => moveMeal(key, slot, r)}
+          onRepeat={(slot, r) => moveMeal(key, slot, r, true)}
           onHide={(slot) => void onHideOpen(key, slot)}
           onSetOpen={(slot, open) => setOpen(key, slot, open)}
           onImport={(slot) => openImport(key, slot)}
-          onCookbook={(slot) => setCookbookSlot({ slot, date: key })}
+          onCookbook={(slot) =>
+            router.push({
+              pathname: "/meals/pick",
+              params: { slot, date: key },
+            })
+          }
+          onWriteIn={(slot) =>
+            router.push({
+              pathname: "/meals/write",
+              params: { slot, date: key },
+            })
+          }
         />
       </View>
     );
@@ -378,71 +394,6 @@ export default function Meals() {
           </Animated.View>
         </GestureDetector>
       </ScrollView>
-
-      {/* Pick from cookbook for a specific slot */}
-      <Modal
-        visible={!!cookbookSlot}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setCookbookSlot(null)}
-      >
-        <Pressable
-          className="flex-1 items-center justify-center bg-black/40 px-6"
-          onPress={() => setCookbookSlot(null)}
-        >
-          <Pressable
-            onPress={() => {}}
-            className="w-full max-h-[70%] overflow-hidden rounded-2xl border border-border bg-card"
-          >
-            <View className="border-b border-border/40 p-4">
-              <Text variant="large">
-                Cookbook → {cookbookSlot ? SLOT_LABEL[cookbookSlot.slot] : ""}
-              </Text>
-              <Text variant="muted">
-                {variants.length
-                  ? "Tap to plan"
-                  : "No variants yet — import one first."}
-              </Text>
-            </View>
-            <ScrollView contentContainerClassName="gap-2 p-3">
-              {variants.map((r) => (
-                <Pressable
-                  key={r.id}
-                  onPress={() => {
-                    if (cookbookSlot)
-                      void onPlan(cookbookSlot.date, cookbookSlot.slot, {
-                        id: r.id,
-                        name: r.name ?? "…",
-                        totalTime: r.total_time,
-                      });
-                    setCookbookSlot(null);
-                  }}
-                  className="rounded-xl border border-border p-3"
-                >
-                  <Text className="font-medium">{r.name ?? "…"}</Text>
-                  {r.description ? (
-                    <Text variant="muted" className="text-sm" numberOfLines={2}>
-                      {r.description}
-                    </Text>
-                  ) : null}
-                </Pressable>
-              ))}
-              {variants.length === 0 ? (
-                <Button
-                  variant="outline"
-                  onPress={() => {
-                    if (cookbookSlot)
-                      openImport(cookbookSlot.date, cookbookSlot.slot);
-                    setCookbookSlot(null);
-                  }}
-                >
-                  <Text>Import a recipe</Text>
-                </Button>
-              ) : null}
-            </ScrollView>
-          </Pressable>
-        </Pressable>
-      </Modal>
     </>
   );
 }

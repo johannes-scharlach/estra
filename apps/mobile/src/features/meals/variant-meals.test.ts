@@ -58,7 +58,7 @@ describe("labels", () => {
     expect(mealLabel({ slot_date: "2026-09-21", meal: "lunch" }, on)).toBe(
       "Monday · Lunch",
     );
-    expect(shoppedLabel([])).toBe("Nothing to buy");
+    expect(shoppedLabel([])).toBe("No shopping items added");
     expect(shoppedLabel([{ status: "purchased" }, { status: "active" }])).toBe(
       "1 of 2 shopped",
     );

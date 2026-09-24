@@ -19,7 +19,13 @@ import {
   plannedMealId,
   setPlannedMeal,
 } from "./plan.js";
-import { CookRecipeSchema } from "./recipe-schema.js";
+import {
+  AddToCookbookSchema,
+  CATEGORIES,
+  CookRecipeSchema,
+} from "./recipe-schema.js";
+import { addMealShoppingItems } from "./meal-shopping.js";
+import { assertListMemberUntilCommit } from "./list-authorization.js";
 import { createRecipe, insertVariant, variantUrl } from "./variants.js";
 
 /**
@@ -37,6 +43,25 @@ export function buildChatTools(
   },
 ) {
   return {
+    addMealShoppingItems: tool({
+      description: "Add requested shopping items to this conversation's planned meal, including a written-in meal with no recipe. Preserves existing and purchased items; does not save a recipe. Use when the user asks to add items, not merely when suggesting them.",
+      inputSchema: z.object({
+        items: z.array(z.object({
+          name: z.string().trim().min(1).max(200),
+          spec: z.string().max(300).optional().describe("Quantity or shopping note, e.g. 1 head or 200g"),
+          categoryId: z.enum(CATEGORIES).optional(),
+        })).min(1).max(50),
+      }),
+      execute: async ({ items }) => {
+        const plannedMealId = context.chat.planned_meal_id;
+        const expectedContentId = context.chat.initial_meal_content_id;
+        if (!plannedMealId || !expectedContentId) return { error: "Open a planned meal's shopping chat to add items to it." };
+        return inTransaction(async (client) => {
+          await assertListMemberUntilCommit(client, userId, listId);
+          return addMealShoppingItems(client, { listId, plannedMealId, expectedContentId, items });
+        });
+      },
+    }),
     searchVariants: tool({
       description:
         "Search saved variants by literal text in names, descriptions, ingredients and steps. Results include matching excerpts, creation date, yield and recorded sizing. Scope to a recipeId to browse its versions; an empty query lists newest first. Use readVariant for full content.",
@@ -74,7 +99,7 @@ export function buildChatTools(
 
     planMeal: tool({
       description:
-        "Put a saved recipe on the calendar. Its ingredients land on the shopping list automatically; the result says which. Replaces whatever was in that slot. Save first if the recipe is not in the cookbook yet. Pass the eaters and extra you sized the recipe for.",
+        "Put a saved recipe on the calendar. Adds no shopping items: the user chooses what to buy separately. Replaces whatever was in that slot. Save first if the recipe is not in the cookbook yet. Pass the eaters and extra you sized the recipe for.",
       inputSchema: z.object({
         variantId: z.uuid(),
         date: z.iso.date().describe("YYYY-MM-DD in the user's local time"),
@@ -100,7 +125,9 @@ export function buildChatTools(
         ) {
           return {
             error:
-              "Use updateRecipe to revise this conversation's meal; it preserves bought items and updates the meal automatically.",
+              context.chat.recipe_id
+                ? "Use updateRecipe to revise this conversation's meal; it preserves bought items and updates the meal automatically."
+                : "This written meal is already planned. Use addMealShoppingItems for shopping; it needs no recipe.",
           };
         }
         try {
@@ -139,28 +166,50 @@ export function buildChatTools(
 
     addToCookbook: tool({
       description:
-        "Save the complete recipe to the user's cookbook. Call only when the user explicitly asks to keep it. Returns a url to share as a Markdown link on the recipe name.",
-      inputSchema: CookRecipeSchema,
-      execute: async (recipe) => {
-        const saved = await inTransaction(async (client) => {
-          const recipeId = await createRecipe(client, userId);
-          return insertVariant(client, {
-            recipeId,
-            variantId: randomUUID(),
-            recipe,
+        "Save the complete recipe to the user's cookbook. Call only when the user explicitly asks to keep it. Include recipeIngredient as a structured array with quantity, ingredient name, shopping category, and shopping_hint for every ingredient; contentMarkdown and recipeInstructions[].ingredients do not replace it. shopping_hint is a suggestion to check for everyday basics at home, not a claim about inventory or a supermarket aisle. Use contentMarkdown only for useful recipe-specific context not covered by structured fields (such as serving ideas or adaptations), never to repeat ingredients or steps. If you actually sized it for known household eaters, include sizedFor with their household IDs and extra portions; omit when unknown. Returns a url to share as a Markdown link on the recipe name.",
+      inputSchema: AddToCookbookSchema,
+      execute: async ({ sizedFor, ...recipe }) => {
+        try {
+          const saved = await inTransaction(async (client) => {
+            if (sizedFor) {
+              await assertListMemberUntilCommit(client, userId, listId);
+              const people = await client.query<{ id: string }>(
+                "SELECT id FROM household_people WHERE list_id = $1",
+                [listId],
+              );
+              if (
+                sizedFor.eater_ids.some(
+                  (id) => !people.rows.some((person) => person.id === id),
+                )
+              ) {
+                throw new UnknownHouseholdPersonError();
+              }
+            }
+
+            const recipeId = await createRecipe(client, userId);
+            return insertVariant(client, {
+              recipeId,
+              variantId: randomUUID(),
+              recipe,
+              sizedFor,
+            });
           });
-        });
-        return {
-          variantId: saved.variantId,
-          name: recipe.name,
-          url: variantUrl(saved.variantId),
-        };
+          return {
+            variantId: saved.variantId,
+            name: recipe.name,
+            url: variantUrl(saved.variantId),
+          };
+        } catch (error) {
+          if (error instanceof UnknownHouseholdPersonError)
+            return { error: error.message };
+          throw error;
+        }
       },
     }),
 
     updateRecipe: tool({
       description:
-        "Apply an explicitly requested change by writing the complete recipe as a new variant. For this chat's associated upcoming meal, also updates that meal and its unbought shopping items, preserving bought items. Returns a link and the actual shopping changes.",
+        "Apply an explicitly requested change by writing the complete recipe as a new variant. For this chat's associated upcoming meal, also updates that meal and previously chosen unbought shopping items, preserving bought items. Never adds new ingredients to shopping; the user chooses those separately. Returns a link and the actual shopping changes.",
       inputSchema: z.object({
         variantId: z.uuid().describe("id of the version being changed"),
         recipe: CookRecipeSchema,

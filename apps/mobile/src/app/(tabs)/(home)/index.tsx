@@ -19,6 +19,11 @@ import { ImageAttachmentMenu } from "@/features/chat/image-attachment-menu";
 import { ImageAttachmentStrip } from "@/features/chat/image-attachment-strip";
 import { queueMessage } from "@/features/chat/message-queue";
 import { SeededDeck } from "@/features/chat/seeded-deck";
+import {
+  useActiveList,
+  useHouseholdAccess,
+} from "@/features/onboarding/access";
+import { HouseholdAvatars } from "@/features/profile/household-avatars";
 
 const HISTORY_ICON = {
   ios: "clock.arrow.circlepath",
@@ -48,6 +53,8 @@ export default function Home() {
   const router = useRouter();
   const iconColor = useResolveClassNames("text-foreground").color;
   const mutedColor = useResolveClassNames("text-muted-foreground").color;
+  const { listId } = useHouseholdAccess();
+  const list = useActiveList();
 
   const [entry, setEntry] = useState<"ingredients" | "dish">("ingredients");
   const [draft, setDraft] = useState("");
@@ -113,7 +120,18 @@ export default function Home() {
     <View className="flex-1 bg-background">
       <Stack.Screen
         options={{
-          title: "Home",
+          title: list?.name ?? "Home",
+          headerLeft: () => (
+            <Pressable
+              onPress={() => router.push("/household" as never)}
+              hitSlop={8}
+              accessibilityLabel="Household and account"
+              accessibilityRole="button"
+              className="p-1"
+            >
+              <HouseholdAvatars listId={listId} />
+            </Pressable>
+          ),
           headerRight: () => (
             <Pressable
               onPress={() => router.push("/chats/history")}
@@ -204,7 +222,11 @@ export default function Home() {
                       accessibilityRole="button"
                       className="absolute bottom-0 right-0 top-0 w-12 items-center justify-center active:opacity-60"
                     >
-                      <SymbolView name={ADD_ICON} tintColor={iconColor} size={22} />
+                      <SymbolView
+                        name={ADD_ICON}
+                        tintColor={iconColor}
+                        size={22}
+                      />
                     </Pressable>
                   ) : (
                     <View className="absolute bottom-0 right-0 top-0 w-12 items-center justify-center">

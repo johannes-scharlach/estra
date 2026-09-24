@@ -1,14 +1,13 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
 import { View } from "react-native";
-import { useQuery } from "@powersync/react";
 
 import { CloseButton } from "@/components/close-button";
 import { PrimaryAction } from "@/components/action";
 import { SheetActions } from "@/components/sheet-actions";
 import { Input } from "@/components/ui/input";
 import { Text } from "@/components/ui/text";
-import type { List } from "@/db/schema";
+
 import {
   dateKey,
   MONTH_SHORT,
@@ -17,6 +16,7 @@ import {
   type MealSlot,
 } from "@/features/meals/slots";
 import { useImportJobs } from "@/features/meals/use-import-jobs";
+import { useActiveList } from "@/features/onboarding/access";
 
 function dayLabel(date: string | undefined): string {
   if (!date) return "";
@@ -40,10 +40,7 @@ export default function ImportForSlotSheet() {
   const [importing, setImporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const { data: lists } = useQuery<List>(
-    "SELECT * FROM lists ORDER BY created_at LIMIT 1",
-  );
-  const list = lists[0] ?? null;
+  const list = useActiveList();
 
   function onImport() {
     const trimmed = url.trim();

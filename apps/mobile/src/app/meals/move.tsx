@@ -6,7 +6,7 @@ import { Pressable, View } from "react-native";
 
 import { CloseButton } from "@/components/close-button";
 import { Text } from "@/components/ui/text";
-import { movePlannedMeal } from "@/db/planned-meals";
+import { movePlannedMeal, repeatPlannedMeal } from "@/db/planned-meals";
 import type { PlannedMeal, Variant } from "@/db/schema";
 import { DayStrip } from "@/features/meals/day-strip";
 import {
@@ -21,12 +21,14 @@ import { PrimaryAction } from "@/components/action";
 import { SheetActions } from "@/components/sheet-actions";
 
 export default function MoveMealSheet() {
-  const { listId, date, slot, variantId } = useLocalSearchParams<{
+  const { listId, date, slot, variantId, mode } = useLocalSearchParams<{
     listId: string;
     date: string;
     slot: MealSlot;
     variantId: string;
+    mode?: string;
   }>();
+  const repeating = mode === "repeat";
   const router = useRouter();
   const importJobs = useImportJobs();
   const strip = useMemo(() => stripDates(0), []);
@@ -53,7 +55,7 @@ export default function MoveMealSheet() {
   );
   const destinationName = destination?.variant_id
     ? variants.find((variant) => variant.id === destination.variant_id)?.name
-    : null;
+    : destination?.name;
   const isSame = destinationDate === date && destinationSlot === slot;
   const hasImport = listId
     ? !!importJobs.getForSlot({
@@ -68,18 +70,18 @@ export default function MoveMealSheet() {
       !listId ||
       !date ||
       !slot ||
-      !variantId ||
       saving ||
       isSame ||
       hasImport
+      || (repeating && !!destination)
     )
       return;
     setSaving(true);
     setError(null);
     try {
-      await movePlannedMeal(
+      await (repeating ? repeatPlannedMeal : movePlannedMeal)(
         listId,
-        { date, slot, variantId },
+        { date, slot, variantId: variantId || null },
         { date: destinationDate, slot: destinationSlot },
       );
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -94,7 +96,7 @@ export default function MoveMealSheet() {
   return (
     <View collapsable={false}>
       <View className="flex-row items-center justify-between gap-4 px-6 pt-4">
-        <Text className="flex-1 text-lg font-semibold">Move meal</Text>
+        <Text className="flex-1 text-lg font-semibold">{repeating ? "Plan again" : "Move meal"}</Text>
         <CloseButton onPress={() => router.back()} disabled={saving} />
       </View>
 
@@ -140,7 +142,7 @@ export default function MoveMealSheet() {
           <View className="gap-1">
             <Text className="font-medium">This slot already has a meal</Text>
             <Text variant="muted">
-              {destinationName ?? "Planned meal"} will move to the original slot.
+              {repeating ? `${destinationName ?? "A meal"} is planned here. Choose an empty slot.` : `${destinationName ?? "Planned meal"} will move to the original slot.`}
             </Text>
           </View>
         ) : (
@@ -158,12 +160,13 @@ export default function MoveMealSheet() {
         <PrimaryAction
           label={
             saving
-              ? "Moving…"
+              ? "Saving…"
+              : repeating ? "Plan again"
               : destination && !isSame
                 ? "Swap meals"
                 : "Move meal"
           }
-          disabled={saving || isSame || hasImport}
+          disabled={saving || isSame || hasImport || (repeating && !!destination)}
           onPress={() => void confirm()}
         />
       </SheetActions>

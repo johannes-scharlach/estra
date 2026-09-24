@@ -33,6 +33,7 @@ export function MealCardMenu({
   onEditEaters,
   onChange,
   onMove,
+  onRepeat,
   onSkip,
 }: MealCardMenuProps) {
   const muted = useResolveClassNames("text-muted-foreground").color;
@@ -67,6 +68,12 @@ export function MealCardMenu({
         anchor={anchor}
         onDismiss={() => setAnchor(null)}
         actions={[
+          {
+            id: "repeat",
+            title: "Plan again…",
+            icon: { ios: "calendar.badge.plus", android: "event_repeat" },
+            onSelect: onRepeat,
+          },
           {
             id: "eaters",
             title: eatersLabel,

@@ -85,7 +85,7 @@ const variants = new Table({
   content_markdown: column.text,
   recipe_category: column.text,
   recipe_cuisine: column.text,
-  /** JSON array of {qty_text, item_name, prep_note, category_id, swaps:[{qty_text,item_name,prep_note,category_id}]} */
+  /** JSON array of {qty_text, item_name, prep_note, category_id, shopping_hint?, swaps:[{qty_text,item_name,prep_note,category_id}]} */
   ingredient_lines: column.text,
   instructions: column.text,
   /** JSON {eater_ids, extra_portions} the adjust route sized this for; null as imported. */
@@ -99,11 +99,17 @@ const planned_meals = new Table(
     list_id: column.text,
     recipe_id: column.text,
     variant_id: column.text,
+    /** A written-in meal has a name and no recipe/variant. */
+    name: column.text,
+    /** Identifies the meal occupying the slot; preserved on moves and edits. */
+    content_id: column.text,
     slot_date: column.text,
     meal: column.text,
     // JSON array of household_people ids; text locally like variants.ingredient_lines.
     eater_ids: column.text,
     extra_portions: column.real,
+    /** The recipe variant whose shopping was last reviewed by anyone in the household. */
+    shopping_reviewed_variant_id: column.text,
     created_at: column.text,
     updated_at: column.text,
   },
@@ -145,6 +151,7 @@ const chats = new Table(
     initial_variant_id: column.text,
     planned_meal_id: column.text,
     created_by: column.text,
+    initial_meal_content_id: column.text,
     title: column.text,
     created_at: column.text,
     updated_at: column.text,

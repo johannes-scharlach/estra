@@ -15,7 +15,7 @@ const item = (id: string, name: string, status = "active"): ShoppingItem => ({
   category_id: null,
 });
 
-test("a rewrite replaces unbought ingredients and preserves bought facts and matching row identities", () => {
+test("a rewrite updates chosen ingredients without adding unchosen ones, preserving purchases and row identities", () => {
   const sardines = item("fish", "sardines", "purchased");
   const rice = item("grain", " Rice ");
   const result = shoppingRevision(
@@ -26,10 +26,6 @@ test("a rewrite replaces unbought ingredients and preserves bought facts and mat
     ],
   );
   assert.deepEqual(result.bought, [sardines]);
-  assert.deepEqual(
-    result.added.map((line) => line.item_name),
-    ["tuna"],
-  );
   assert.deepEqual(
     result.removed.map((row) => row.name),
     ["parsley"],
@@ -45,7 +41,13 @@ test("an exact bought ingredient is not added again or rewritten with new purcha
     [{ item_name: "rice", qty_text: "400g" }],
   );
   assert.deepEqual(result.bought, [bought]);
-  assert.deepEqual(result.added, []);
   assert.deepEqual(result.kept, []);
   assert.deepEqual(result.removed, []);
+});
+
+test("rewriting a meal with no shopping choices leaves its shopping list empty", () => {
+  assert.deepEqual(shoppingRevision([], [
+    { item_name: "pasta", qty_text: "200g" },
+    { item_name: "olive oil", qty_text: "1 tbsp" },
+  ]), { bought: [], kept: [], removed: [] });
 });

@@ -43,11 +43,6 @@ export default function TabsLayout() {
         <NativeTabs.Trigger.Label>Cookbook</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf="book.fill" md="menu_book" />
       </NativeTabs.Trigger>
-
-      <NativeTabs.Trigger name="more" role="more">
-        <NativeTabs.Trigger.Label>More</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon sf="ellipsis" md="more_horiz" />
-      </NativeTabs.Trigger>
     </NativeTabs>
   );
 }

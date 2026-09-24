@@ -16,15 +16,19 @@ import {
   type MealSlot,
 } from "@/features/meals/slots";
 import type { ImportJobs } from "@/features/meals/import-jobs";
+import { useToday } from "@/hooks/use-today";
 
 const PLUS_ICON = { ios: "plus", android: "add" } as const;
 
 export type DisplayRecipe = {
   id: string;
+  recipeId: string | null;
   name: string;
   totalTime: string | null;
 };
 export type DisplayPlannedMeal = DisplayRecipe & {
+  variantId: string | null;
+  shoppingReviewedVariantId: string | null;
   eaterIds: string[];
   extraPortions: number;
   /** Rendered once here so the card and its menu agree. */
@@ -44,10 +48,12 @@ type Props = {
   onChange: (slot: MealSlot) => void;
   onSkip: (slot: MealSlot) => void;
   onMove: (slot: MealSlot, recipe: DisplayPlannedMeal | null) => void;
+  onRepeat: (slot: MealSlot, recipe: DisplayPlannedMeal | null) => void;
   onHide: (slot: MealSlot) => void;
   onSetOpen: (slot: MealSlot, open: boolean) => void;
   onImport: (slot: MealSlot) => void;
   onCookbook: (slot: MealSlot) => void;
+  onWriteIn: (slot: MealSlot) => void;
 };
 
 /** Header + slot list for a single day. Pure render of its date's data. */
@@ -64,12 +70,15 @@ export function DayContent({
   onChange,
   onSkip,
   onMove,
+  onRepeat,
   onHide,
   onSetOpen,
   onImport,
   onCookbook,
+  onWriteIn,
 }: Props) {
   const mutedColor = useResolveClassNames("text-muted-foreground").color;
+  const today = useToday();
   const dateStr = dateKey(date);
 
   return (
@@ -136,17 +145,26 @@ export function DayContent({
             <MealSection
               key={slot}
               title={SLOT_LABEL[slot]}
+              date={dateStr}
+              slot={slot}
               plannedMealId={plannedMealId(list.id, dateStr, slot)}
               recipe={recipe}
-              contenders={contenders[slot].slice(0, 20)}
+              showShoppingPrompt={
+                !!recipe?.variantId &&
+                recipe.shoppingReviewedVariantId !== recipe.variantId &&
+                dateStr >= today
+              }
+              contenders={contenders[slot]}
               onPlan={(r) => onPlan(slot, r)}
               onEditEaters={() => onEditEaters(slot, recipe)}
               onChange={() => onChange(slot)}
               onSkip={() => onSkip(slot)}
               onMove={() => onMove(slot, recipe)}
+              onRepeat={() => onRepeat(slot, recipe)}
               onHide={() => onHide(slot)}
               onImport={() => onImport(slot)}
               onCookbook={() => onCookbook(slot)}
+              onWriteIn={() => onWriteIn(slot)}
             />
           );
         })}

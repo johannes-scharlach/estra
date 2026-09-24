@@ -14,7 +14,10 @@ export type Swap = {
   category_id?: string;
 };
 
-export type IngredientLine = Swap & { swaps?: Swap[] };
+export type IngredientLine = Swap & {
+  swaps?: Swap[];
+  shopping_hint?: "check_at_home" | "likely_purchase";
+};
 
 /** The projection of a `list_items` row this package needs. */
 export type MealItem = {

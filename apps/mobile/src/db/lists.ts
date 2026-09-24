@@ -1,25 +1,55 @@
-import * as Crypto from 'expo-crypto';
-import { estraUuidV5 } from "@/lib/estra-uuid";
+import {
+  newPerson,
+  newProfile,
+  personSchema,
+  type Household,
+} from "@estra/profile";
+import * as Crypto from "expo-crypto";
 
-import { powersync } from './system';
+import { insertList, insertPerson, insertProfile } from "./household-writes";
+import { powersync } from "./system";
 
 /**
- * Create a list and add the creator as its first member, atomically.
- * The member id is deterministic (uuidv5 of list:user) so the same
- * bootstrap running twice converges instead of duplicating membership.
+ * A new household, started as a copy of the one you came from: its Profile,
+ * and you as the one person. The others stay behind; they can be invited.
+ * One local commit, so the app never sees a list without its Profile.
  */
-export async function createList(name: string, userId: string | undefined) {
-  if (!userId) return;
+export async function createHousehold(
+  name: string,
+  userId: string,
+  from: Household | null,
+): Promise<string> {
   const listId = Crypto.randomUUID();
+  const you = from?.people.find((p) => p.user_id === userId);
+  const person = personSchema.parse({
+    ...(you ?? { ...newPerson(""), name: "Me" }),
+    id: Crypto.randomUUID(),
+    user_id: userId,
+  });
   const now = new Date().toISOString();
   await powersync.writeTransaction(async (tx) => {
-    await tx.execute(
-      `INSERT INTO lists (id, name, invite_code, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)`,
-      [listId, name, Crypto.randomUUID().replace(/-/g, '').slice(0, 12), userId, now, now],
-    );
-    await tx.execute(
-      `INSERT INTO list_members (id, list_id, user_id, joined_at) VALUES (?, ?, ?, ?)`,
-      [estraUuidV5(`${listId}:${userId}`), listId, userId, now],
-    );
+    await insertList(tx, {
+      id: listId,
+      name: listName(name),
+      inviteCode: Crypto.randomUUID().replace(/-/g, "").slice(0, 12),
+      userId,
+      now,
+    });
+    await insertProfile(tx, listId, from?.profile ?? newProfile(), now);
+    await insertPerson(tx, listId, person, now);
   });
+  return listId;
+}
+
+export async function renameList(listId: string, name: string) {
+  await powersync.execute(
+    "UPDATE lists SET name = ?, updated_at = ? WHERE id = ?",
+    [listName(name), new Date().toISOString(), listId],
+  );
+}
+
+function listName(name: string) {
+  const trimmed = name.trim();
+  if (!trimmed) throw new Error("Enter a name.");
+  return trimmed;
 }

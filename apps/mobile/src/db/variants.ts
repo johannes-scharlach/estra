@@ -94,7 +94,7 @@ export async function getVariant(
 /**
  * Wait for a variant to arrive in local SQLite. Server-side imports insert
  * into Postgres; planning against the new variant needs the row synced down
- * first (setPlannedMeal projects its ingredient_lines into list_items).
+ * first so setPlannedMeal can validate the chosen variant.
  */
 export async function waitForVariant(
   id: string,

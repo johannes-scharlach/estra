@@ -65,7 +65,7 @@ export function mealLabel(
 export function shoppedLabel(
   items: readonly { status: string | null }[],
 ): string {
-  if (items.length === 0) return "Nothing to buy";
+  if (items.length === 0) return "No shopping items added";
   const bought = items.filter((i) => i.status === "purchased").length;
   if (bought === items.length) return "Shopped";
   return `${bought} of ${items.length} shopped`;

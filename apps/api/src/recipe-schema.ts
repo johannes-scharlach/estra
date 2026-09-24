@@ -82,6 +82,12 @@ const IngredientLineSchema = z.object({
     .describe(
       "REQUIRED: aisle where you BUY the raw item before prepping (produce/bakery/deli/dairy/meat/breakfast/grains/spices/snacks/frozen/beverages/care/household/pets/home/other). Ignore prep_note when picking. Omit ONLY for non-purchasable like leftovers. Use most specific aisle, 'other' only as last resort.",
     ),
+  shopping_hint: z
+    .enum(["check_at_home", "likely_purchase"])
+    .optional()
+    .describe(
+      "REQUIRED for new recipes: check_at_home only for everyday cooking basics that a household might already have, such as small amounts of salt, oil, water, or common dried seasonings; otherwise likely_purchase. This is a shopping-review suggestion, not a claim about actual inventory. Judge the ingredient in context, not by its supermarket aisle. Older recipes may omit this field; they default to likely_purchase.",
+    ),
   swaps: z
     .array(SwapSchema)
     .optional()
@@ -94,42 +100,67 @@ export const RecipeSchema = z.object({
   name: z
     .string()
     .min(1)
-    .describe('dish title as grandma wrote it, e.g. "Chicken Traybake"'),
+    .describe('the full recipe name, e.g. "Chicken Traybake"'),
   description: z
     .string()
     .min(1)
+    .describe("a short, appetizing summary of the dish"),
+  locale: z
+    .enum(locales)
     .describe(
-      'one or two plain sentences a friend would say: what the dish is, how it eats, when it fits — e.g. "Garlicky chickpeas and greens on toast. A 20-minute dinner that leans on the pantry." No stacked adjectives, no "vibrant"/"delightful", no selling.',
+      "the short language code (en or de), without a regional variant; match the language used in the recipe",
     ),
-  locale: z.enum(locales).describe("content language, en or de"),
   totalTime: z
     .string()
     .min(1)
-    .describe('e.g. "45 minutes", "1 hour 20 minutes"'),
-  recipeYield: z.string().min(1).describe('e.g. "4 servings", "2 portions"'),
+    .describe(
+      'wall-clock time from the first thing the cook does until the food is ready. Account for parallel work; do not add every step duration together. Examples: "45 minutes", "1 hour 20 minutes"',
+    ),
+  recipeYield: z
+    .string()
+    .min(1)
+    .describe(
+      'who the recipe feeds, e.g. "4 servings" or "2 adults and 2 kids". Decide the yield first and make every ingredient quantity fit it.',
+    ),
   contentMarkdown: z
     .string()
     .optional()
-    .describe("rich Markdown with Ingredients, Steps, Prep, Vibe sections"),
+    .describe(
+      "Use only for useful, recipe-specific context that has no dedicated field, such as toddler tasks, the vibe, serving ideas, or adaptations. Do not include ingredients or step-by-step instructions; those belong in recipeIngredient and recipeInstructions. Omit when there is no useful extra context.",
+    ),
   recipeIngredient: z
     .array(IngredientLineSchema)
     .min(1)
-    .describe("structured ingredient lines, each with embedded 1:1 swaps"),
+    .describe(
+      "REQUIRED structured ingredient lines, one per ingredient, with quantity, ingredient name, shopping category, and embedded 1:1 swaps when useful. This is required even when ingredient details also appear in the source text.",
+    ),
   recipeInstructions: z
     .array(
       z.object({
         name: z
           .string()
           .min(1)
-          .describe('step group title, e.g. "Marinate the tofu"'),
+          .describe(
+            'a crisp, short title for the cooking action, e.g. "Marinate the tofu"',
+          ),
         ingredients: z
           .array(z.string())
-          .describe("ingredient names referenced in this step"),
-        text: z.string().min(1).describe("full instruction text"),
-        tip: z.string().optional().describe("optional chef tip"),
+          .describe(
+            "specific measured ingredients used in this step (e.g. '1/2 lemon, juiced'). Include only ingredients used together in this action; split unrelated jobs into separate steps.",
+          ),
+        text: z
+          .string()
+          .min(1)
+          .describe("clear, detailed instructions for this cooking action"),
+        tip: z
+          .string()
+          .optional()
+          .describe("an actionable cook-specific tip; omit if none adds value"),
       }),
     )
-    .describe("step-by-step instructions grouped by phase"),
+    .describe(
+      "ordered cooking steps. Keep each step to an action in one place; give concurrent jobs separate steps and say what each runs alongside.",
+    ),
   recipeCategory: z.string().optional().describe('e.g. "Dinner", "Lunch"'),
   recipeCuisine: z
     .string()
@@ -149,3 +180,21 @@ export type RecipeInput = z.infer<typeof RecipeSchema>;
 /** A recipe the assistant or the adjust route writes: provenance is ours. */
 export const CookRecipeSchema = RecipeSchema.omit({ from: true });
 export type CookRecipeInput = z.infer<typeof CookRecipeSchema>;
+
+const SizedForSchema = z.object({
+  eater_ids: z
+    .array(z.uuid())
+    .describe("household person IDs this recipe was actually sized for"),
+  extra_portions: z
+    .number()
+    .min(0)
+    .multipleOf(0.01)
+    .describe("extra adult portions beyond the named eaters; use 0 for none"),
+});
+
+/** A new cookbook recipe can record the household sizing used to write it. */
+export const AddToCookbookSchema = CookRecipeSchema.extend({
+  sizedFor: SizedForSchema.optional().describe(
+    "Include only when the recipe was actually sized for specific household people and extra portions. Use their IDs from the household context; omit if the sizing is not known.",
+  ),
+});

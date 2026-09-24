@@ -27,6 +27,7 @@ import { z } from "zod";
 import { ASSISTANT_SYSTEM_PROMPT } from "../assistant-prompt.js";
 import type { AppBindings } from "../auth.js";
 import { buildChatTools } from "../chat-tools.js";
+import { chatToolErrorText } from "../chat-tool-errors.js";
 import { pool } from "../db.js";
 import { env } from "../env.js";
 import { readChatMeal, readChatVariant } from "../chat-variants.js";
@@ -34,6 +35,7 @@ import { AppError } from "../errors.js";
 import {
   orderRecipeSeed,
   RecipeContextSchema,
+  MealContextSchema,
   recipeChatPrompt,
   recipeSeed,
   type RecipeChat,
@@ -59,13 +61,13 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 /**
  * The plan is Estra's own shape, so its guidance lives here rather than in
  * the shared prompt: a calendar of lunch / dinner / treat slots per day, and
- * a shopping list derived from what is planned.
+ * a shopping list of explicitly chosen ingredients.
  */
 const PLAN_PROMPT = `## The plan
 
 Helping draft a meal plan is a conversation, not permission to save recipes or fill calendar slots. Start from the user's selected dates, meals, notes and any photo; offer a starting point they can shape. Keep draft ideas in the conversation and only save or schedule meals when the user asks you to. Never treat your own suggestions as the user's choices.
 
-The household keeps a plan: a calendar with a lunch, dinner and treat slot per day, and a shopping list that derives itself from what is planned. Read it with readPlan before answering anything about the week. When the user asks to plan a dish, the recipe has to be in the cookbook first — save it with addToCookbook if it is not, then planMeal; both in one go, never asking them to say it twice. A move or a skipped night is one sentence from the user, never a form: unplanMeal and planMeal do the bookkeeping, and you say what moved. When a meal is planned, mention in a few words what will land on the shopping list, so they can strike what they already have — and never ask them to track quantities or keep an inventory. If you are unsure whether something is still around, ask the way one home cook asks another: "is the chard all used up?"
+The household keeps a plan: a calendar with a lunch, dinner and treat slot per day. Read it with readPlan before answering anything about the week. Meals can be saved recipes or simply written-in names, such as bread and cheese or leftover lasagne. A written meal is already a complete plan and needs no cookbook entry. Planning any meal adds no shopping items: the user separately chooses what to buy, meal by meal. When the user asks to save and plan a new recipe, use addToCookbook then planMeal in one go. In a conversation about a written meal, use readPlannedMeal and addMealShoppingItems to help with shopping without changing the meal into a recipe. Only add shopping items when the user asks for them, and mention actual shopping changes briefly. Never ask them to track quantities or keep an inventory. If you are unsure whether something is still around, ask the way one home cook asks another: "is the chard all used up?"
 
 A planned meal is who from the household is eating plus extra portions. One extra portion is one adult helping that belongs to nobody: guests, leftovers, or just more food. When the user says who is eating ("me" is the current user) and how much extra, size the recipe you save for exactly those people and that extra, say so in its yield, and pass the same eaterIds and extraPortions to planMeal. When they do not say, everyone in the household eats and there is no extra.`;
 
@@ -177,6 +179,7 @@ chats.post("/:id/messages", async (c) => {
       localTime?: unknown;
       localDate?: unknown;
       recipeContext?: unknown;
+      mealContext?: unknown;
     }>()
     .catch(() => ({
       listId: undefined,
@@ -184,6 +187,7 @@ chats.post("/:id/messages", async (c) => {
       localTime: undefined,
       localDate: undefined,
       recipeContext: undefined,
+      mealContext: undefined,
     }));
   if (typeof body.listId !== "string" || !UUID.test(body.listId)) {
     return c.json(
@@ -223,6 +227,19 @@ chats.post("/:id/messages", async (c) => {
     );
   }
   const start = recipeContext?.success ? recipeContext.data : null;
+  const mealContext =
+    body.mealContext === undefined
+      ? null
+      : MealContextSchema.safeParse(body.mealContext);
+  if ((mealContext && !mealContext.success) || (mealContext && start)) {
+    return c.json(
+      { error: { code: "INVALID_REQUEST", message: "Invalid meal context" } },
+      400,
+    );
+  }
+  const startMealId = mealContext?.success
+    ? mealContext.data.plannedMealId
+    : start?.plannedMealId;
 
   // The pool bypasses RLS, so membership is checked here, not by Postgres.
   const member = await pool.query(
@@ -270,17 +287,17 @@ chats.post("/:id/messages", async (c) => {
       [chatId],
     );
     const existing = await client.query<RecipeChat>(
-      "SELECT list_id, recipe_id, initial_variant_id, planned_meal_id FROM chats WHERE id = $1",
+      "SELECT list_id, recipe_id, initial_variant_id, planned_meal_id, initial_meal_content_id FROM chats WHERE id = $1",
       [chatId],
     );
     if (existing.rowCount === 0) {
       const variant = start
         ? await readChatVariant(client, listId, start.variantId)
         : null;
-      const meal = start?.plannedMealId
-        ? await readChatMeal(client, listId, start.plannedMealId)
+      const meal = startMealId
+        ? await readChatMeal(client, listId, startMealId)
         : null;
-      if (meal && meal.variant_id !== start?.variantId) {
+      if (meal && meal.variant_id !== (start?.variantId ?? null)) {
         throw new AppError(
           "PLANNED_MEAL_CHANGED",
           "The meal now uses a different version. Open that version to start its chat.",
@@ -292,9 +309,10 @@ chats.post("/:id/messages", async (c) => {
         recipe_id: variant?.recipeId ?? null,
         initial_variant_id: variant?.variantId ?? null,
         planned_meal_id: meal?.id ?? null,
+        initial_meal_content_id: meal?.content_id ?? null,
       };
       await client.query(
-        "INSERT INTO chats (id, list_id, created_by, title, recipe_id, initial_variant_id, planned_meal_id) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+        "INSERT INTO chats (id, list_id, created_by, title, recipe_id, initial_variant_id, planned_meal_id, initial_meal_content_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
         [
           chatId,
           listId,
@@ -303,6 +321,7 @@ chats.post("/:id/messages", async (c) => {
           chat.recipe_id,
           chat.initial_variant_id,
           chat.planned_meal_id,
+          chat.initial_meal_content_id,
         ],
       );
       if (variant && start) {
@@ -339,6 +358,14 @@ chats.post("/:id/messages", async (c) => {
                 },
               ]
             : []),
+        ]);
+      } else if (meal) {
+        initialRecipeRead = recipeSeed(randomUUID(), [
+          {
+            tool: "readPlannedMeal",
+            input: { plannedMealId: meal.id },
+            output: meal,
+          },
         ]);
       }
     } else if (existing.rows[0]?.list_id !== listId) {
@@ -386,9 +413,10 @@ chats.post("/:id/messages", async (c) => {
       [chatId, HISTORY_LIMIT],
     );
     await client.query("COMMIT");
-    history = chat.recipe_id
-      ? orderRecipeSeed(rows.rows.reverse())
-      : rows.rows.reverse();
+    history =
+      chat.recipe_id || chat.planned_meal_id
+        ? orderRecipeSeed(rows.rows.reverse())
+        : rows.rows.reverse();
   } catch (e) {
     await client.query("ROLLBACK");
     if (e instanceof AppError)
@@ -465,6 +493,7 @@ chats.post("/:id/messages", async (c) => {
       >({
         stream: result.stream,
         sendFinish: false,
+        onError: chatToolErrorText,
       });
       for await (const chunk of ui) writer.write(chunk);
 
@@ -481,8 +510,14 @@ chats.post("/:id/messages", async (c) => {
       try {
         await pool.query(
           `INSERT INTO chat_messages (id, chat_id, list_id, role, parts)
-           VALUES ($1, $2, $3, 'assistant', $4::jsonb)`,
-          [assistantId, chatId, listId, JSON.stringify(responseMessage.parts)],
+           VALUES ($1, $2, $3, 'assistant', $4::jsonb)
+           ON CONFLICT (id) DO UPDATE SET parts = EXCLUDED.parts`,
+          [
+            responseMessage.id,
+            chatId,
+            listId,
+            JSON.stringify(responseMessage.parts),
+          ],
         );
         const title = sketchTitle(responseMessage);
         await pool.query(

@@ -122,7 +122,7 @@ export function adjustPrompt({ meal, variant, items, eaters }: AdjustContext): s
   return [
     "You are adjusting a saved recipe to the meal it is planned for. Return the complete recipe in the same JSON shape.",
     "",
-    `Keep the language (locale "${variant.locale}"), the voice, the structure and the order of steps, and every detail you are not told to change. Keep the dish name unless a swap replaces an ingredient the name mentions; then rename the dish to match. The name, description, step names, step text and contentMarkdown must all agree with the ingredient lines you return: nothing may still name an ingredient that was swapped out.`,
+    `Keep the language (locale "${variant.locale}"), the voice, the structure and the order of steps, and every detail you are not told to change. Keep the dish name unless a swap replaces an ingredient the name mentions; then rename the dish to match. The name, description and instructions must agree with the ingredient lines you return: nothing may still name an ingredient that was swapped out. contentMarkdown is only for useful context not covered by the structured fields; do not put ingredients or steps there, and update contextual notes if a swap makes them inaccurate.`,
     "",
     `Eating: ${who.length ? who.join("; ") : "the household"}${extraPortions}.`,
     `The recipe as written says it serves: "${variant.recipe_yield ?? "unknown"}". Scale every amount for exactly these eaters and extra. A child eats less than an adult; a teenager about as much.`,
@@ -188,7 +188,7 @@ export async function saveAdjusted(opts: {
       sizedFor: { eater_ids: context.meal.eater_ids, extra_portions: context.meal.extra_portions },
     });
     const repointed = await client.query(
-      "UPDATE planned_meals SET variant_id = $1, updated_at = now() WHERE id = $2 AND variant_id = $3",
+      "UPDATE planned_meals SET variant_id = $1, shopping_reviewed_variant_id = NULL, updated_at = now() WHERE id = $2 AND variant_id = $3",
       [variantId, plannedMealId, oldVariantId],
     );
     if (!repointed.rowCount) throw new PlannedMealChangedError();

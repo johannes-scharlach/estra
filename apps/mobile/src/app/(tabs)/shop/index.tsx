@@ -14,11 +14,9 @@ import Animated from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useResolveClassNames } from "uniwind";
 
-import { Button } from "@/components/ui/button";
 import { Text } from "@/components/ui/text";
+import { Button } from "@/components/ui/button";
 import { applySwap, setItemStatus } from "@/db/items";
-import { createList } from "@/db/lists";
-import { useAuth } from "@/db/provider";
 import type { List } from "@/db/schema";
 import {
   alternativesForItem,
@@ -36,6 +34,8 @@ import {
 } from "@/features/shop/shop-item-row";
 import { SwapSession } from "@/features/shop/swap-session";
 import { sentenceCase } from "@/features/shop/text";
+import { useActiveList } from "@/features/onboarding/access";
+import { useToday } from "@/hooks/use-today";
 
 const HIGHLIGHT_MS = 4500;
 type Held = Browse & { hold: HeldPosition };
@@ -45,24 +45,12 @@ type Entry = { key: string } & (
 );
 
 export default function Shop() {
-  const { session } = useAuth();
   const router = useRouter();
   const iconColor = useResolveClassNames("text-foreground").color;
-  const { data: lists } = useQuery<List>(
-    "SELECT * FROM lists ORDER BY created_at",
-  );
-  const list = lists[0];
+  const list = useActiveList();
 
-  if (!list) {
-    return (
-      <View className="flex-1 items-center justify-center gap-3 bg-background p-6">
-        <Text variant="muted">No lists yet.</Text>
-        <Button onPress={() => void createList("Home", session?.user.id)}>
-          <Text>Create one</Text>
-        </Button>
-      </View>
-    );
-  }
+  // The app only opens once a household is active; this covers the rebind.
+  if (!list) return <View className="flex-1 bg-background" />;
   return (
     <>
       <Stack.Screen
@@ -96,6 +84,7 @@ export default function Shop() {
 
 function ListScreen({ list }: { list: List }) {
   const router = useRouter();
+  const today = useToday();
   const insets = useSafeAreaInsets();
   // Sessions are imperative and never read during render; `browsing` holds
   // what the rows need to show for each one.
@@ -256,9 +245,14 @@ function ListScreen({ list }: { list: List }) {
     >
       <Text variant="muted" className="px-4 pb-1 android:pt-3">
         {active.length === 0
-          ? "Nothing to buy. Plan a meal or tap + to add an item."
+          ? "Nothing on the list. Choose ingredients from your meals or tap + to add an item."
           : `${active.length} to buy${checked.length ? ` · ${checked.length} checked` : ""}`}
       </Text>
+      <View className="px-4 pt-3">
+        <Button variant="outline" onPress={() => router.push("/shop/meals")}>
+          <Text>Choose ingredients from meals</Text>
+        </Button>
+      </View>
       {entries.map((entry, index) => {
         if (entry.kind === "header") {
           return (
@@ -277,6 +271,7 @@ function ListScreen({ list }: { list: List }) {
           <ShopItemRow
             key={entry.key}
             item={entry.item}
+            today={today}
             browse={browsing.get(entry.item.id)}
             highlighted={
               highlighted === entry.item.id || selected === entry.item.id

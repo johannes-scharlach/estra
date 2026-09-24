@@ -8,11 +8,11 @@ import { Pressable, View } from "react-native";
 import { CloseButton } from "@/components/close-button";
 import { Text } from "@/components/ui/text";
 import type { List, Variant } from "@/db/schema";
-import { setPlannedMeal } from "@/db/planned-meals";
+import { plannedMealId, setPlannedMeal } from "@/db/planned-meals";
 import { useAuth } from "@/db/provider";
 import { saveAndPlanMessage } from "@/features/chat/compose";
 import { queueMessage } from "@/features/chat/message-queue";
-import { PrimaryAction } from "@/components/action";
+import { Action, PrimaryAction } from "@/components/action";
 import { SheetActions } from "@/components/sheet-actions";
 import { DayStrip } from "@/features/meals/day-strip";
 import { toEaters } from "@/features/meals/eaters";
@@ -27,6 +27,7 @@ import {
   stripDates,
   type MealSlot,
 } from "@/features/meals/slots";
+import { useActiveList } from "@/features/onboarding/access";
 
 type PersonRow = { id: string; name: string; user_id: string | null };
 
@@ -64,7 +65,8 @@ export default function PlanVariantSheet() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const strip = useMemo(() => stripDates(0), []);
-  const effectiveListId = selectedListId ?? lists[0]?.id ?? null;
+  const activeList = useActiveList();
+  const effectiveListId = selectedListId ?? activeList?.id ?? null;
 
   const { data: peopleRows } = useQuery<PersonRow>(
     "SELECT id, name, user_id FROM household_people WHERE list_id = ? ORDER BY created_at, id",
@@ -76,7 +78,7 @@ export default function PlanVariantSheet() {
   );
   const eaterIds = pickedEaterIds ?? people.map((p) => p.id);
 
-  async function onAdd() {
+  async function onAdd(reviewIngredients = false) {
     if (extraPortions === null) {
       setError(EXTRA_PORTIONS_ERROR);
       return;
@@ -112,7 +114,11 @@ export default function PlanVariantSheet() {
         extraPortions,
       });
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      router.back();
+      if (reviewIngredients) {
+        router.replace({ pathname: "/meals/shopping", params: { id: plannedMealId(effectiveListId, selectedDate, selectedMeal) } });
+      } else {
+        router.back();
+      }
     } catch (e) {
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       setError(e instanceof Error ? e.message : "Could not add to plan");
@@ -222,6 +228,9 @@ export default function PlanVariantSheet() {
           onPress={() => void onAdd()}
           disabled={saving || (!pending && !effectiveListId)}
         />
+        {!pending ? (
+          <Action label="Plan & choose ingredients" onPress={() => void onAdd(true)} disabled={saving || !effectiveListId} />
+        ) : null}
       </SheetActions>
     </View>
   );

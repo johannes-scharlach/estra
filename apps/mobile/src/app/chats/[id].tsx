@@ -8,7 +8,7 @@ import {
   useLocalSearchParams,
   useRouter,
 } from "expo-router";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, View } from "react-native";
 import {
   KeyboardAwareScrollView,
@@ -17,9 +17,12 @@ import {
 } from "react-native-keyboard-controller";
 
 import { Text } from "@/components/ui/text";
-import type { Chat, ChatMessage, List, Variant } from "@/db/schema";
+import type { Chat, ChatMessage, Variant } from "@/db/schema";
 import { waitForListMembership } from "@/db/list-readiness";
+import { waitForPlannedMeal } from "@/db/meal-readiness";
 import { attachUploadedImage, type ChatTurn } from "@/features/chat/chat-turn";
+import { activitySteps, type ActivityStep } from "@/features/chat/activity";
+import { ActivityView } from "@/features/chat/activity-view";
 import { Composer } from "@/features/chat/composer";
 import { AssistantMessage, UserMessage } from "@/features/chat/message";
 import {
@@ -31,6 +34,7 @@ import {
   type ImageAttachment,
 } from "@/features/chat/image-attachment";
 import {
+  messageText,
   parseParts,
   streamReply,
   suggestionsOf,
@@ -38,10 +42,13 @@ import {
   type AssistantUIMessage,
   type Parts,
 } from "@/features/chat/stream";
-import { Waiting } from "@/features/chat/waiting";
 import { latestRecipeResult } from "@/features/chat/recipe-results";
+import { useActiveList } from "@/features/onboarding/access";
 
 type Shown = { id: string; role: string; parts: Parts };
+
+const TRANSCRIPT_TOP = 12;
+const TRANSCRIPT_BOTTOM = 16;
 
 /**
  * The conversation: pushed from the Home entry (or the history sheet), no
@@ -56,15 +63,12 @@ export default function ChatScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const chatId = id ?? "";
 
-  const { data: lists } = useQuery<List>(
-    "SELECT * FROM lists ORDER BY created_at LIMIT 1",
-  );
-  const list = lists[0] ?? null;
+  const list = useActiveList();
 
   const { data: chats } = useQuery<Chat>("SELECT * FROM chats WHERE id = ?", [
     chatId,
   ]);
-  const { data: rows } = useQuery<ChatMessage>(
+  const { data: rows, isLoading: messagesLoading } = useQuery<ChatMessage>(
     "SELECT * FROM chat_messages WHERE chat_id = ? ORDER BY created_at, id",
     [chatId],
   );
@@ -74,6 +78,10 @@ export default function ChatScreen() {
   // echo; the focus effect below sends it.
   const [queuedMsg] = useState(() => peekQueuedMessage(chatId));
   const conversationListId = chats[0]?.list_id ?? queuedMsg?.listId ?? list?.id;
+  const [anchor, setAnchor] = useState<{ id: string; y: number | null } | null>(
+    queuedMsg ? { id: queuedMsg.messageId, y: null } : null,
+  );
+  const pendingScroll = useRef(queuedMsg?.messageId ?? null);
 
   const [pending, setPending] = useState<AssistantUIMessage[]>(() =>
     // Local echo of the queued message minus its images (the file parts
@@ -81,6 +89,7 @@ export default function ChatScreen() {
     queuedMsg ? [userMessage(queuedMsg.text, queuedMsg.messageId, [])] : [],
   );
   const [inFlight, setInFlight] = useState<AssistantUIMessage | null>(null);
+  const [orphanedActivity, setOrphanedActivity] = useState<ActivityStep[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<{
     text: string;
@@ -98,7 +107,10 @@ export default function ChatScreen() {
           title: queuedMsg.text.slice(0, 80) || null,
           recipe_id: queuedMsg.recipeContext?.recipeId ?? null,
           initial_variant_id: queuedMsg.recipeContext?.variantId ?? null,
-          planned_meal_id: queuedMsg.recipeContext?.plannedMealId ?? null,
+          planned_meal_id:
+            queuedMsg.mealContext?.plannedMealId ??
+            queuedMsg.recipeContext?.plannedMealId ??
+            null,
         } as Chat)
       : null);
 
@@ -111,8 +123,14 @@ export default function ChatScreen() {
   async function runTurn(turn: ChatTurn) {
     if (!conversationListId || busyRef.current) return;
     busyRef.current = true;
+    let lastReply: AssistantUIMessage | null = null;
     await Promise.resolve();
+    if (anchor?.id !== turn.message.id) {
+      pendingScroll.current = turn.message.id;
+      setAnchor({ id: turn.message.id, y: null });
+    }
     setInFlight(null);
+    setOrphanedActivity([]);
     setError(null);
     setBusy(true);
     try {
@@ -121,6 +139,12 @@ export default function ChatScreen() {
         turn.message,
       ]);
       await waitForListMembership(conversationListId);
+      if (queuedMsg?.mealContext) {
+        await waitForPlannedMeal(
+          conversationListId,
+          queuedMsg.mealContext.plannedMealId,
+        );
+      }
       while (turn.attachments.length) {
         const file = await uploadImageAttachment(
           conversationListId,
@@ -135,12 +159,16 @@ export default function ChatScreen() {
         listId: conversationListId,
         message: turn.message,
         recipeContext: queuedMsg?.recipeContext,
+        mealContext: queuedMsg?.mealContext,
       })) {
+        lastReply = reply;
         setInFlight(reply);
       }
     } catch (e) {
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      // An empty in-flight reply must not linger over the error.
+      // Keep tool activity visible even when a failed stream's partial reply
+      // cannot safely remain in the transcript.
+      setOrphanedActivity(activitySteps(lastReply?.parts ?? [], false));
       setInFlight(null);
       setError({
         text: e instanceof Error ? e.message : "Something went wrong",
@@ -209,6 +237,28 @@ export default function ChatScreen() {
 
   const scrollRef = useRef<KeyboardAwareScrollViewRef>(null);
   const settled = useRef(false);
+  const contentHeight = useRef(0);
+  const [viewportHeight, setViewportHeight] = useState(0);
+
+  const scrollToTurn = useCallback(() => {
+    if (
+      !anchor ||
+      anchor.y === null ||
+      pendingScroll.current !== anchor.id ||
+      messagesLoading ||
+      !viewportHeight
+    )
+      return;
+
+    const y = Math.max(0, anchor.y - TRANSCRIPT_TOP);
+    // Wait for the reserved space to reach native layout before scrolling.
+    if (contentHeight.current < y + viewportHeight - 1) return;
+    scrollRef.current?.scrollTo({ y, animated: settled.current });
+    pendingScroll.current = null;
+    settled.current = true;
+  }, [anchor, messagesLoading, viewportHeight]);
+
+  useEffect(scrollToTurn, [scrollToTurn]);
 
   return (
     <View className="flex-1 bg-background">
@@ -234,7 +284,7 @@ export default function ChatScreen() {
             accessibilityRole="link"
           >
             <Text variant="muted" className="text-xs">
-              {latestRecipe ? "Latest version from this chat" : "Started from"}
+              {latestRecipe ? "Latest variant from this chat" : "Started from"}
             </Text>
             <Text numberOfLines={1} className="font-medium text-primary">
               {linkedName} →
@@ -246,48 +296,98 @@ export default function ChatScreen() {
         <KeyboardAwareScrollView
           ref={scrollRef}
           className="flex-1"
-          contentContainerClassName="pb-4"
+          contentContainerStyle={{ paddingBottom: TRANSCRIPT_BOTTOM }}
           contentInsetAdjustmentBehavior="automatic"
           keyboardDismissMode="interactive"
           keyboardShouldPersistTaps="handled"
-          onContentSizeChange={() => {
-            // Open at the bottom of an existing chat; follow the reply as
-            // it streams. Otherwise leave the reader where they are.
-            if (!settled.current && shown.length) {
+          onLayout={(e) => setViewportHeight(e.nativeEvent.layout.height)}
+          onScrollBeginDrag={() => {
+            pendingScroll.current = null;
+            settled.current = true;
+          }}
+          onContentSizeChange={(_, height) => {
+            contentHeight.current = height;
+            scrollToTurn();
+            // History opens at the bottom. Sending only scrolls once, to
+            // the user message; streaming never moves the reader.
+            if (
+              !settled.current &&
+              !anchor &&
+              !messagesLoading &&
+              shown.length
+            ) {
               settled.current = true;
               scrollRef.current?.scrollToEnd({ animated: false });
-            } else if (busy) {
-              scrollRef.current?.scrollToEnd({ animated: true });
             }
           }}
         >
-          <View className="gap-5 pt-3">
+          <View
+            className="gap-5"
+            style={{
+              paddingTop: TRANSCRIPT_TOP,
+              // Keep a viewport beneath the turn's start, even after a
+              // short reply finishes. Longer replies consume the space.
+              minHeight:
+                anchor?.y != null
+                  ? Math.max(0, anchor.y - TRANSCRIPT_TOP) +
+                    viewportHeight -
+                    TRANSCRIPT_BOTTOM
+                  : undefined,
+            }}
+          >
             {shown.map((m) =>
               m.role === "user" ? (
-                <UserMessage key={m.id} parts={m.parts} />
-              ) : (
-                <AssistantMessage
+                <View
                   key={m.id}
-                  parts={m.parts}
-                  streaming={busy && m.id === inFlight?.id}
-                  showRecipeResults={!!chat?.recipe_id}
-                  onIdea={(idea) =>
-                    void send(`Tell me more about ${idea.title}.`)
-                  }
-                  onSavePlan={
-                    !busy && m.id === last?.id
-                      ? (dish) =>
-                          router.push({
-                            pathname: "/variant/plan",
-                            params: { dish },
-                          } as never)
-                      : undefined
-                  }
-                />
+                  onLayout={(e) => {
+                    const { y } = e.nativeEvent.layout;
+                    setAnchor((current) =>
+                      current?.id === m.id && current.y !== y
+                        ? { id: m.id, y }
+                        : current,
+                    );
+                  }}
+                >
+                  <UserMessage parts={m.parts} />
+                </View>
+              ) : (
+                <View key={m.id}>
+                  {(busy && m.id === inFlight?.id) ||
+                  activitySteps(m.parts, false).length > 0 ? (
+                    <ActivityView
+                      steps={activitySteps(
+                        m.parts,
+                        busy && m.id === inFlight?.id,
+                      )}
+                      busy={busy && m.id === inFlight?.id}
+                      writing={messageText(m.parts).length > 0}
+                    />
+                  ) : null}
+                  <AssistantMessage
+                    parts={m.parts}
+                    streaming={busy && m.id === inFlight?.id}
+                    showRecipeResults={!!chat?.recipe_id}
+                    onIdea={(idea) =>
+                      void send(`Tell me more about ${idea.title}.`)
+                    }
+                    onSavePlan={
+                      !busy && m.id === last?.id
+                        ? (dish) =>
+                            router.push({
+                              pathname: "/variant/plan",
+                              params: { dish },
+                            } as never)
+                        : undefined
+                    }
+                  />
+                </View>
               ),
             )}
-            {busy && (!inFlight || inFlight.parts.length === 0) ? (
-              <Waiting />
+            {busy && !inFlight ? (
+              <ActivityView steps={[]} busy writing={false} />
+            ) : null}
+            {!busy && orphanedActivity.length ? (
+              <ActivityView steps={orphanedActivity} busy={false} />
             ) : null}
             {error ? (
               <Text

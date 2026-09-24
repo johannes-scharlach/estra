@@ -3,6 +3,9 @@
 Date: 2026-09-22
 Status: Accepted
 
+Shopping amendment: [ADR 16](0016-intentional-meal-shopping.md) removes automatic
+additions on planning and rewriting. Previously chosen items still update.
+
 ## Decision
 
 - The variant page has a composer beside a compact Cook / Plan action.

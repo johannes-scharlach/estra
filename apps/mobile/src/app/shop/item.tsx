@@ -39,6 +39,8 @@ import { tonalPair } from "@/features/variants/tonal";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { capitalize } from "@/features/shop/text";
 import { Action } from "@/components/action";
+import { useToday } from "@/hooks/use-today";
+import { mealAge } from "@/features/shop/meal-age";
 
 /** Row shape: the list item plus its meal provenance, if any. */
 type ItemRow = ListItem & {
@@ -63,7 +65,7 @@ export default function ShopItemSheet() {
 
   const { data: rows, isLoading } = useQuery<ItemRow>(
     `SELECT i.*, pm.slot_date AS slot_date, pm.meal AS meal,
-            v.name AS variant_name, v.ingredient_lines AS ingredient_lines,
+            COALESCE(v.name, pm.name) AS variant_name, v.ingredient_lines AS ingredient_lines,
             c.name AS category_name
        FROM list_items i
        LEFT JOIN planned_meals pm ON pm.id = i.planned_meal_id
@@ -215,6 +217,8 @@ type DetailsProps = {
 
 /** Meal items show what the recipe asks for, prep included, and lead back to it. */
 function MealDetails({ item, category, saving, onClose }: DetailsProps) {
+  const today = useToday();
+  const age = item.status === "active" ? mealAge(item.slot_date, today) : null;
   const mutedColor = useResolveClassNames("text-muted-foreground").color;
   const dark = useColorScheme() === "dark";
   const { amount, note } = splitSpec(item.spec);
@@ -232,26 +236,33 @@ function MealDetails({ item, category, saving, onClose }: DetailsProps) {
         ) : null}
       </HeaderRow>
       <Group>
-        {item.variant_id ? (
+        {item.planned_meal_id ? (
           <Link
-            href={{
-              pathname: "/variant/[id]",
-              params: {
-                id: item.variant_id,
-                plannedMealId: item.planned_meal_id ?? undefined,
-              },
-            }}
+            href={
+              item.variant_id
+                ? {
+                    pathname: "/variant/[id]",
+                    params: {
+                      id: item.variant_id,
+                      plannedMealId: item.planned_meal_id ?? undefined,
+                    },
+                  }
+                : {
+                    pathname: "/meals/written",
+                    params: { id: item.planned_meal_id },
+                  }
+            }
             dismissTo={Platform.OS === "ios"}
             asChild
           >
             <Pressable
               disabled={saving}
-              accessibilityHint="Opens the recipe"
+              accessibilityHint="Opens the planned meal"
               className="min-h-12 flex-row items-center gap-3 px-4 py-3 active:bg-accent"
             >
               <View className="flex-1 gap-0.5">
                 <Text className="text-base" numberOfLines={2}>
-                  {item.variant_name ?? "Recipe"}
+                  {item.variant_name ?? "Meal"}
                 </Text>
                 {when ? (
                   // Same dot as the List row, so the colour means this recipe.
@@ -259,10 +270,16 @@ function MealDetails({ item, category, saving, onClose }: DetailsProps) {
                     <View
                       className="size-2 rounded-full"
                       style={{
-                        backgroundColor: tonalPair(item.variant_id, dark)[1],
+                        backgroundColor: tonalPair(
+                          item.variant_id ?? item.planned_meal_id,
+                          dark,
+                        )[1],
                       }}
                     />
-                    <Text variant="muted">For {when}</Text>
+                    <Text variant="muted">
+                      For {when}
+                      {age ? ` · ${age}` : ""}
+                    </Text>
                   </View>
                 ) : null}
               </View>
@@ -276,6 +293,11 @@ function MealDetails({ item, category, saving, onClose }: DetailsProps) {
         ) : null}
         {category}
       </Group>
+      {age ? (
+        <Text>
+          This meal is in the past. Check whether you still want to buy this.
+        </Text>
+      ) : null}
     </>
   );
 }

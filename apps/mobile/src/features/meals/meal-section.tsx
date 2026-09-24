@@ -1,6 +1,6 @@
 import { SymbolView } from "expo-symbols";
 import { LinearGradient } from "expo-linear-gradient";
-import { Link } from "expo-router";
+import { Link, router } from "expo-router";
 import { Pressable, ScrollView, View } from "react-native";
 import Animated from "react-native-reanimated";
 import { useResolveClassNames } from "uniwind";
@@ -11,25 +11,33 @@ import { MealCardMenu } from "@/features/meals/meal-card-menu";
 import { useMealSelectionTransition } from "@/features/meals/use-meal-selection-transition";
 import { tonalPair } from "@/features/variants/tonal";
 import { useColorScheme } from "@/hooks/use-color-scheme";
+import type { DisplayRecipe, DisplayPlannedMeal } from "./day-content";
+import type { MealSlot } from "./slots";
 
-type Recipe = { id: string; name: string; totalTime: string | null };
+type Recipe = DisplayRecipe;
 
 type Props = {
   title: string;
+  date: string;
+  slot: MealSlot;
   /** Deterministic slot id; the recipe page uses it to know which meal it is about. */
   plannedMealId: string;
   /** Planned recipe, or null when the slot is still open. */
-  recipe: (Recipe & { eatersLabel: string }) | null;
+  recipe: DisplayPlannedMeal | null;
+  /** Only true for an unreviewed recipe planned for today or later. */
+  showShoppingPrompt: boolean;
   contenders: Recipe[];
   onPlan: (recipe: Recipe) => void;
   onEditEaters: () => void;
   onChange: () => void;
   onSkip: () => void;
   onMove: () => void;
+  onRepeat: () => void;
   /** Open slot's × — hides the slot behind "+ Select …". */
   onHide: () => void;
   onImport: () => void;
   onCookbook: () => void;
+  onWriteIn: () => void;
 };
 
 const X_ICON = { ios: "xmark", android: "close" } as const;
@@ -45,17 +53,22 @@ const CHECK_ICON = {
  */
 export function MealSection({
   title,
+  date,
+  slot,
   plannedMealId,
   recipe,
+  showShoppingPrompt,
   contenders,
   onPlan,
   onEditEaters,
   onChange,
   onSkip,
   onMove,
+  onRepeat,
   onHide,
   onImport,
   onCookbook,
+  onWriteIn,
 }: Props) {
   const muted = useResolveClassNames("text-muted-foreground").color;
   const dark = useColorScheme() === "dark";
@@ -127,15 +140,34 @@ export function MealSection({
 
       <View ref={contentRef} collapsable={false}>
         {recipe ? (
+          <View className={showShoppingPrompt ? "relative mx-6 pb-6" : "relative mx-6"}>
+          {showShoppingPrompt ? (
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => router.push({ pathname: "/meals/shopping", params: { id: plannedMealId } })}
+              className="absolute bottom-0 left-2 right-2 h-12 items-center justify-end rounded-b-xl border border-border bg-muted pb-1"
+              style={{ zIndex: 1 }}
+            >
+              <Text className="text-sm font-medium">Choose what to buy</Text>
+            </Pressable>
+          ) : null}
           <Animated.View
             entering={cardEnter}
-            className="mx-6 overflow-hidden rounded-xl border border-border bg-card"
+            className="overflow-hidden rounded-xl border border-border bg-card"
+            style={{ zIndex: 2 }}
           >
             <Link
-              href={{
-                pathname: "/variant/[id]",
-                params: { id: recipe.id, plannedMealId },
-              }}
+              href={
+                recipe.variantId
+                  ? {
+                      pathname: "/variant/[id]",
+                      params: { id: recipe.variantId, plannedMealId },
+                    }
+                  : {
+                      pathname: "/meals/written",
+                      params: { id: plannedMealId },
+                    }
+              }
               asChild
             >
               <Pressable>
@@ -181,10 +213,12 @@ export function MealSection({
                 onEditEaters={onEditEaters}
                 onChange={onChange}
                 onMove={onMove}
+                onRepeat={onRepeat}
                 onSkip={onSkip}
               />
             </Animated.View>
           </Animated.View>
+          </View>
         ) : (
           <View className="gap-3">
             <ScrollView
@@ -200,6 +234,18 @@ export function MealSection({
                   onPress={(event) =>
                     selectContender(c.id, event, () => onPlan(c))
                   }
+                  onLongPress={() =>
+                    router.push({
+                      pathname: "/variant/versions",
+                      params: {
+                        recipeId: c.recipeId ?? "",
+                        id: c.id,
+                        date,
+                        slot,
+                      },
+                    })
+                  }
+                  accessibilityHint="Long press for other variants"
                   className="w-40 overflow-hidden rounded-xl border border-border bg-card"
                 >
                   <View className="h-24">
@@ -225,13 +271,25 @@ export function MealSection({
                   </View>
                 </Pressable>
               ))}
+              <Pressable
+                accessibilityRole="button"
+                onPress={onCookbook}
+                className="w-40 min-h-36 items-center justify-center gap-3 rounded-xl border border-border bg-card p-4"
+              >
+                <SymbolView
+                  name={{ ios: "book", android: "menu_book" }}
+                  size={28}
+                  tintColor={muted}
+                />
+                <Text className="text-center font-medium">Browse cookbook</Text>
+              </Pressable>
             </ScrollView>
             <View className="flex-row gap-3 px-6">
               <Button variant="outline" className="flex-1" onPress={onImport}>
-                <Text>Import</Text>
+                <Text>Import recipe</Text>
               </Button>
-              <Button variant="outline" className="flex-1" onPress={onCookbook}>
-                <Text>From cookbook</Text>
+              <Button variant="outline" className="flex-1" onPress={onWriteIn}>
+                <Text>Write in a meal</Text>
               </Button>
             </View>
           </View>

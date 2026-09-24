@@ -3,6 +3,9 @@
 Date: 2026-09-08
 Status: Accepted
 
+Shopping amendment: [ADR 16](0016-intentional-meal-shopping.md) removes automatic
+ingredient additions. Import still saves and plans atomically.
+
 Importing a URL for a meal slot is one operation. The API saves the recipe,
 variant, planned meal, and meal-derived shopping items in one Postgres
 transaction, reusing the existing server planning function. The client does

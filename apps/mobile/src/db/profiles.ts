@@ -7,7 +7,7 @@ import {
   type HouseholdPerson,
 } from "@estra/profile";
 import { powersync } from "./system";
-import { insertPerson } from "./household-person-writes";
+import { insertPerson } from "./household-writes";
 
 export function decodeHousehold(
   row: Record<string, unknown>,

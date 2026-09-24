@@ -18,6 +18,7 @@ export function MealCardMenu({
   onEditEaters,
   onChange,
   onMove,
+  onRepeat,
   onSkip,
 }: MealCardMenuProps) {
   const muted = useResolveClassNames("text-muted-foreground").color;
@@ -27,6 +28,7 @@ export function MealCardMenu({
       key={recipeId}
       style={{ position: "absolute", right: 6, top: 6 }}
       actions={[
+        { id: "repeat", title: "Plan again…", image: "calendar.badge.plus" },
         {
           id: "eaters",
           title: eatersLabel,
@@ -57,7 +59,8 @@ export function MealCardMenu({
         },
       ]}
       onPressAction={({ nativeEvent: { event } }) => {
-        if (event === "eaters") onEditEaters();
+        if (event === "repeat") onRepeat();
+        else if (event === "eaters") onEditEaters();
         else if (event === "change") onChange();
         else if (event === "move") onMove();
         else if (event === "remove") onSkip();

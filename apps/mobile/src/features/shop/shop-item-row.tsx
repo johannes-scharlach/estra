@@ -25,6 +25,7 @@ import { cn } from "@/lib/utils";
 import { slotWhen } from "@/features/meals/slots";
 import { tonalPair } from "@/features/variants/tonal";
 import { useColorScheme } from "@/hooks/use-color-scheme";
+import { mealAge } from "./meal-age";
 
 const CHECK_DELAY_MS = 380;
 export const ROW_LAYOUT = LinearTransition.springify()
@@ -46,6 +47,7 @@ export type Browse = { options: Alternative[]; selected: Alternative };
 
 export function ShopItemRow({
   item,
+  today,
   browse,
   highlighted,
   divider,
@@ -54,6 +56,7 @@ export function ShopItemRow({
   onOpen,
 }: {
   item: ShopRow;
+  today: string;
   browse: Browse | undefined;
   highlighted: boolean;
   divider: boolean;
@@ -63,12 +66,16 @@ export function ShopItemRow({
 }) {
   const mutedColor = useResolveClassNames("text-muted-foreground").color;
   const dark = useColorScheme() === "dark";
+  const age = item.status === "active" ? mealAge(item.slot_date, today) : null;
   // Meal rows say which meal, not the recipe's full name: a dot in the
   // recipe's tonal hue plus "Tue dinner". The sheet carries the name.
-  const source = item.variant_id
+  const source = item.planned_meal_id
     ? {
-        when: slotWhen(item.slot_date, item.meal),
-        color: tonalPair(item.variant_id, dark)[1],
+        when: [slotWhen(item.slot_date, item.meal), age]
+          .filter(Boolean)
+          .join(" · "),
+        past: !!age,
+        color: tonalPair(item.variant_id ?? item.planned_meal_id, dark)[1],
       }
     : null;
   const primaryColor = useResolveClassNames("text-primary").color;
@@ -172,7 +179,7 @@ export function ShopItemRow({
             accessible
             onAccessibilityTap={open}
             accessibilityRole="button"
-            accessibilityLabel={`${name}${spec ? `, ${spec}` : ""}`}
+            accessibilityLabel={`${name}${spec ? `, ${spec}` : ""}${source ? `, ${source.past ? "Past meal, " : ""}${source.when}` : ""}`}
             accessibilityHint={
               next || previous
                 ? "Swipe left for the next substitute, right for the previous. Tap for details."
@@ -243,7 +250,7 @@ function IngredientContent({
 }: {
   name: string;
   spec: string | null;
-  source: { when: string; color: string } | null;
+  source: { when: string; color: string; past: boolean } | null;
   checked?: boolean;
 }) {
   // Meal specs are ours ("qty, prep"): the amount goes right, prep stays on
@@ -285,7 +292,11 @@ function IngredientContent({
           ) : null}
           <Text
             variant="muted"
-            className={cn("text-[13px]", checked && "line-through")}
+            className={cn(
+              "text-[13px]",
+              source?.past && !checked && "font-medium text-foreground",
+              checked && "line-through",
+            )}
             numberOfLines={1}
           >
             {detail}

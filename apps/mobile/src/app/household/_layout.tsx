@@ -1,7 +1,7 @@
 import { Stack } from "expo-router";
 import { useReducedMotion } from "react-native-reanimated";
 
-export default function ProfileLayout() {
+export default function HouseholdLayout() {
   const reduced = useReducedMotion();
   return (
     <Stack
@@ -10,12 +10,20 @@ export default function ProfileLayout() {
         headerBackButtonDisplayMode: "minimal",
       }}
     >
-      <Stack.Screen
-        name="index"
-        options={{ title: "Household Profile", presentation: "pageSheet" }}
-      />
+      {/* The header lives on the root stack's "household" screen: only there
+          does the system back chevron have somewhere to go. */}
+      <Stack.Screen name="index" options={{ headerShown: false }} />
       <Stack.Screen
         name="[section]"
+        options={{
+          presentation: "formSheet",
+          sheetAllowedDetents: [0.5, 1],
+          sheetGrabberVisible: true,
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="switch"
         options={{
           presentation: "formSheet",
           sheetAllowedDetents: [0.5, 1],

@@ -8,5 +8,6 @@ export type MealCardMenuProps = {
   onEditEaters: () => void;
   onChange: () => void;
   onMove: () => void;
+  onRepeat: () => void;
   onSkip: () => void;
 };

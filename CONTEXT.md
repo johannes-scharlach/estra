@@ -11,7 +11,7 @@ A named dish as grandma wrote it — the title in the book (e.g. "Chicken Trayba
 _Avoid_: Dish, meal
 
 **Variant**:
-A complete, cookable version of a Recipe with its own ingredient lines and instructions. The first Variant is the original as imported; every Swap chooses or creates another Variant. The Variant is identified by its set of Swaps, so the same Swaps always give the same Variant.
+A complete, cookable form of a Recipe with its own ingredients, quantities and instructions. Variants are alternative ways to make the Recipe; a newer Variant does not supersede the others.
 _Avoid_: Version, fork
 
 **IngredientLine**:

@@ -23,6 +23,7 @@ export async function* streamReply(opts: {
   listId: string;
   message: AssistantUIMessage;
   recipeContext?: QueuedMessage["recipeContext"];
+  mealContext?: QueuedMessage["mealContext"];
 }): AsyncGenerator<AssistantUIMessage> {
   const { data } = await supabase.auth.getSession();
   const token = data.session?.access_token;
@@ -43,6 +44,7 @@ export async function* streamReply(opts: {
         localTime: `${new Date().toString()} (${Intl.DateTimeFormat().resolvedOptions().timeZone})`,
         localDate: dateKey(new Date()),
         recipeContext: opts.recipeContext,
+        mealContext: opts.mealContext,
       },
     }),
   });
@@ -94,16 +96,4 @@ export function messageText(parts: Parts): string {
 export function suggestionsOf(parts: Parts): string[] {
   const part = parts.find((p) => p.type === "data-suggestions");
   return part && part.type === "data-suggestions" ? part.data : [];
-}
-
-/** Whether a tool call is still running, and which. Tool parts are
- *  otherwise invisible: the assistant's own words carry the result. */
-export function runningTool(parts: Parts): string | null {
-  for (const p of parts) {
-    if (!p.type.startsWith("tool-")) continue;
-    const state = (p as { state?: string }).state;
-    if (state === "input-streaming" || state === "input-available")
-      return p.type.slice("tool-".length);
-  }
-  return null;
 }

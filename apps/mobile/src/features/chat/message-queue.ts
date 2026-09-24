@@ -10,6 +10,7 @@ import type { ImageAttachment } from "./image-attachment";
 export type QueuedMessage = {
   chatId?: string;
   listId?: string;
+  mealContext?: { plannedMealId: string };
   recipeContext?: {
     variantId: string;
     recipeId: string;

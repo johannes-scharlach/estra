@@ -63,9 +63,9 @@ export default function RootLayout() {
                     options={{ headerShown: false }}
                   />
                   <Stack.Screen
-                    name="profile"
+                    name="household"
                     options={{
-                      headerShown: false,
+                      title: "Household",
                       headerBackButtonDisplayMode: "minimal",
                     }}
                   />
@@ -127,16 +127,43 @@ export default function RootLayout() {
                       headerShown: false,
                     }}
                   />
-                  {/* pageSheet, not formSheet: the picker scrolls, and inside a
-                formSheet the detent measuring pass mangles ScrollView frames
-                (react-native-screens #3634). Same pattern as shop/add. */}
+                  <Stack.Screen
+                    name="meals/write"
+                    options={{
+                      presentation: "formSheet",
+                      sheetAllowedDetents: "fitToContents",
+                      sheetGrabberVisible: true,
+                      headerShown: false,
+                    }}
+                  />
+                  <Stack.Screen
+                    name="meals/written"
+                    options={{
+                      title: "Meal",
+                      headerBackButtonDisplayMode: "minimal",
+                    }}
+                  />
+                  <Stack.Screen
+                    name="meals/shopping"
+                    options={{
+                      title: "Choose what to buy",
+                      headerBackButtonDisplayMode: "minimal",
+                    }}
+                  />
+                  <Stack.Screen
+                    name="shop/meals"
+                    options={{
+                      title: "Shop for meals",
+                      headerBackButtonDisplayMode: "minimal",
+                    }}
+                  />
                   <Stack.Screen
                     name="meals/pick"
                     options={{
-                      presentation: "pageSheet",
+                      presentation: "card",
                       headerShown: true,
                       title: "From cookbook",
-                      contentStyle: { backgroundColor: "transparent" },
+                      headerBackButtonDisplayMode: "minimal",
                     }}
                   />
                   <Stack.Screen

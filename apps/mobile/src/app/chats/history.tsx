@@ -4,8 +4,9 @@ import { Platform, Pressable, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Text } from "@/components/ui/text";
-import type { Chat, List } from "@/db/schema";
+import type { Chat } from "@/db/schema";
 import { MONTH_SHORT, WEEKDAY_LONG } from "@/features/meals/slots";
+import { useActiveList } from "@/features/onboarding/access";
 
 function when(iso: string | null): string {
   if (!iso) return "";
@@ -27,10 +28,8 @@ export default function ChatHistorySheet() {
     listId?: string;
   }>();
 
-  const { data: lists } = useQuery<List>(
-    "SELECT * FROM lists ORDER BY created_at LIMIT 1",
-  );
-  const effectiveListId = listId ?? lists[0]?.id;
+  const list = useActiveList();
+  const effectiveListId = listId ?? list?.id;
   const { data: chats } = useQuery<Chat>(
     effectiveListId
       ? recipeId

@@ -32,6 +32,11 @@ gate on completion.
   people. Concurrent edits to the same field use normal sync conflict behavior.
 - Draft storage must be independent of the PowerSync cache cleared on sign-out.
 - Invitations and linking other accounts remain future work.
+- A User can belong to several households. The active one is a device-local
+  choice (`useActiveList`), falling back to the earliest list. Screens read it
+  from there, never with their own `lists` query. A new household starts as
+  a copy of the active one's Profile plus the creator's person; the other
+  people stay behind.
 - Stored preset keys support future localization; localization is out of scope.
 
 Full behavior: `docs/specs/0003-profile-onboarding.md`.

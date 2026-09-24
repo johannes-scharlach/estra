@@ -1,7 +1,7 @@
 import { itemNameKey, mealDelta, mealSync } from "@estra/meals";
 import { useQuery } from "@powersync/react";
 import * as Crypto from "expo-crypto";
-import { Stack, useLocalSearchParams, useRouter } from "expo-router";
+import { Stack, useIsPreview, useLocalSearchParams, useRouter } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
 import { LinearGradient } from "expo-linear-gradient";
@@ -39,7 +39,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Text } from "@/components/ui/text";
 import { applySwap, setItemStatus } from "@/db/items";
 import { useAuth } from "@/db/provider";
-import type { List, ListItem, PlannedMeal, Variant, Recipe } from "@/db/schema";
+import type { ListItem, PlannedMeal, Variant, Recipe } from "@/db/schema";
 import { parseVariant } from "@/db/variants";
 import { Composer } from "@/features/chat/composer";
 import { adjustRecipeMessage } from "@/features/chat/compose";
@@ -61,6 +61,7 @@ import {
 import { prettyQuantity } from "@/features/shop/spec";
 import { tonalPair } from "@/features/variants/tonal";
 import { useColorScheme } from "@/hooks/use-color-scheme";
+import { useActiveList } from "@/features/onboarding/access";
 
 const HERO_HEIGHT = 320;
 // Two 22-point icons with 8-point padding on each side.
@@ -462,6 +463,7 @@ function SectionRow({
 }
 
 export default function VariantPage() {
+  const isPreview = useIsPreview();
   const { id, plannedMealId } = useLocalSearchParams<{
     id: string;
     plannedMealId?: string;
@@ -495,9 +497,7 @@ export default function VariantPage() {
   const actionColor = useResolveClassNames("text-primary-foreground").color;
   const reducedMotion = useReducedMotion();
   const [composerHeight, setComposerHeight] = useState(96);
-  const { data: lists } = useQuery<List>(
-    "SELECT * FROM lists ORDER BY created_at LIMIT 1",
-  );
+  const list = useActiveList();
 
   const scrollY = useSharedValue(0);
   const scrollHandler = useAnimatedScrollHandler((event) => {
@@ -576,7 +576,7 @@ export default function VariantPage() {
   );
   const recipe = recipes[0];
 
-  // Every meal on this recipe: this version's, and its siblings' (spec 0004).
+  // Every meal on this recipe: this variant's, and its siblings' (spec 0004).
   const { data: meals, isLoading: mealsLoading } = useQuery<PlannedMeal>(
     "SELECT * FROM planned_meals WHERE variant_id = ? OR recipe_id = ?",
     [id ?? "", recipeId],
@@ -773,7 +773,7 @@ export default function VariantPage() {
     [ingredientLines, meal, delta],
   );
 
-  const conversationListId = meal?.list_id ?? lists[0]?.id;
+  const conversationListId = meal?.list_id ?? list?.id;
   const startChat = (text: string, attachments: ImageAttachment[] = []) => {
     if (!variant || !recipeId || !conversationListId) return;
     const chatId = Crypto.randomUUID();
@@ -808,7 +808,9 @@ export default function VariantPage() {
   if (isLoading || mealsLoading || !mealReady) {
     return (
       <View className="flex-1 bg-background">
-        <Stack.Screen options={{ title: "", headerTransparent: true }} />
+        {!isPreview && (
+          <Stack.Screen options={{ title: "", headerTransparent: true }} />
+        )}
         <Skeleton style={{ height: HERO_HEIGHT }} className="w-full" />
         <View className="gap-3 p-6">
           <Skeleton className="h-8 w-3/4" />
@@ -822,7 +824,7 @@ export default function VariantPage() {
   if (!variant || parseFailed) {
     return (
       <View className="flex-1 items-center justify-center bg-background p-6">
-        <Stack.Screen options={{ title: "Not found" }} />
+        {!isPreview && <Stack.Screen options={{ title: "Not found" }} />}
         <Text variant="h3" className="mb-2">
           {parseFailed ? "Couldn't display recipe" : "Recipe not found"}
         </Text>
@@ -887,7 +889,8 @@ export default function VariantPage() {
 
   return (
     <View className="flex-1 bg-background">
-      <Stack.Screen
+      {/* Stack.Screen reads navigation state, which is unavailable in a Link preview. */}
+      {!isPreview && <Stack.Screen
         options={{
           title: variant.name ?? "Recipe",
           headerTintColor: foreground as string | undefined,
@@ -937,7 +940,7 @@ export default function VariantPage() {
                     title: "Chat history",
                     image: "bubble.left.and.bubble.right",
                   },
-                  { id: "variants", title: "Variants", image: "square.stack" },
+                  { id: "variants", title: "Other variants", image: "square.stack" },
                   ...(meal
                     ? [
                         {
@@ -978,7 +981,7 @@ export default function VariantPage() {
             </View>
           ),
         }}
-      />
+      />}
 
       <Animated.ScrollView
         onScroll={scrollHandler}
@@ -1092,8 +1095,8 @@ export default function VariantPage() {
             >
               <Text variant="muted" className="text-base">
                 {sibling.id === plannedMealId
-                  ? `${mealLabel(sibling)} now uses another version`
-                  : `Another version is planned for ${mealLabel(sibling)}`}
+                  ? `${mealLabel(sibling)} now uses another variant`
+                  : `Another variant is planned for ${mealLabel(sibling)}`}
               </Text>
               <SymbolView
                 name={CHEVRON_ICON}
@@ -1179,6 +1182,11 @@ export default function VariantPage() {
                   </Text>
                 ) : null}
               </View>
+              {meal ? (
+                <Button variant="outline" className="mb-3" onPress={() => router.push({ pathname: "/meals/shopping", params: { id: meal.id } })}>
+                  <Text>Choose what to buy</Text>
+                </Button>
+              ) : null}
               <View>
                 {rows.map((row, idx) => (
                   <IngredientRow

@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import { itemNameKey, type SizedFor } from "@estra/meals";
 import type { Client, PoolClient } from "pg";
 
@@ -152,8 +151,10 @@ export async function readChatMeal(
   const meal = (
     await client.query<{
       id: string;
-      recipe_id: string;
-      variant_id: string;
+      recipe_id: string | null;
+      variant_id: string | null;
+      name: string | null;
+      content_id: string;
       slot_date: string;
       meal: string;
       eater_ids: string[];
@@ -188,7 +189,6 @@ export async function readChatMeal(
 async function reviseShopping(
   client: PoolClient,
   plannedMealId: string,
-  listId: string,
   variantId: string,
   recipe: CookRecipeInput,
 ) {
@@ -215,22 +215,6 @@ async function reviseShopping(
       ],
     );
   }
-  for (const line of revision.added) {
-    await client.query(
-      `INSERT INTO list_items (id, list_id, name, name_key, spec, category_id, status, planned_meal_id, variant_id)
-       VALUES ($1, $2, $3, $4, $5, $6, 'active', $7, $8)`,
-      [
-        randomUUID(),
-        listId,
-        line.item_name,
-        itemNameKey(line.item_name),
-        ingredientSpec(line),
-        line.category_id ?? null,
-        plannedMealId,
-        variantId,
-      ],
-    );
-  }
   await client.query(
     "UPDATE list_items SET variant_id = $1 WHERE planned_meal_id = $2",
     [variantId, plannedMealId],
@@ -238,7 +222,7 @@ async function reviseShopping(
   const label = (line: { qty_text: string | null; item_name: string }) =>
     [line.qty_text, line.item_name].filter(Boolean).join(" ");
   return {
-    added: revision.added.map(label),
+    added: [] as string[],
     removed: revision.removed.map((item) => item.name),
     updated: revision.kept
       .filter(({ item, line }) => item.spec !== ingredientSpec(line))
@@ -310,13 +294,12 @@ export async function writeChatVariant(opts: {
       ).rows[0];
       if (meal) {
         await client.query(
-          "UPDATE planned_meals SET variant_id = $1, updated_at = now() WHERE id = $2",
+          "UPDATE planned_meals SET variant_id = $1, shopping_reviewed_variant_id = NULL, updated_at = now() WHERE id = $2",
           [variantId, meal.id],
         );
         shopping = await reviseShopping(
           client,
           meal.id,
-          opts.listId,
           variantId,
           opts.recipe,
         );

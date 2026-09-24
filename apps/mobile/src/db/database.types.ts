@@ -96,6 +96,7 @@ export type Database = {
       }
       chats: {
         Row: {
+          initial_meal_content_id: string | null
           created_at: string
           created_by: string | null
           id: string
@@ -107,6 +108,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          initial_meal_content_id?: string | null
           created_at?: string
           created_by?: string | null
           id?: string
@@ -118,6 +120,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          initial_meal_content_id?: string | null
           created_at?: string
           created_by?: string | null
           id?: string
@@ -398,40 +401,49 @@ export type Database = {
       }
       planned_meals: {
         Row: {
+          content_id: string
           created_at: string
           id: string
           list_id: string
           meal: string
           eater_ids: Json
           extra_portions: number
-          recipe_id: string
+          name: string | null
+          recipe_id: string | null
           slot_date: string
+          shopping_reviewed_variant_id: string | null
           updated_at: string
-          variant_id: string
+          variant_id: string | null
         }
         Insert: {
+          content_id?: string
           created_at?: string
           id?: string
           list_id: string
           meal?: string
           eater_ids?: Json
           extra_portions?: number
-          recipe_id: string
+          name?: string | null
+          recipe_id?: string | null
           slot_date: string
+          shopping_reviewed_variant_id?: string | null
           updated_at?: string
-          variant_id: string
+          variant_id?: string | null
         }
         Update: {
+          content_id?: string
           created_at?: string
           id?: string
           list_id?: string
           meal?: string
           eater_ids?: Json
           extra_portions?: number
-          recipe_id?: string
+          name?: string | null
+          recipe_id?: string | null
           slot_date?: string
+          shopping_reviewed_variant_id?: string | null
           updated_at?: string
-          variant_id?: string
+          variant_id?: string | null
         }
         Relationships: [
           {
@@ -451,6 +463,13 @@ export type Database = {
           {
             foreignKeyName: "planned_meals_variant_id_fkey"
             columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "variants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "planned_meals_shopping_reviewed_variant_id_fkey"
+            columns: ["shopping_reviewed_variant_id"]
             isOneToOne: false
             referencedRelation: "variants"
             referencedColumns: ["id"]

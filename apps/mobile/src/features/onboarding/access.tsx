@@ -1,19 +1,26 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useQuery } from "@powersync/react";
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
+  useMemo,
   useState,
   type ReactNode,
 } from "react";
 import { useAuth } from "@/db/provider";
+import type { List } from "@/db/schema";
 import { powersync } from "@/db/system";
 import { supabase } from "@/lib/supabase";
 
+type Household = { id: string; name: string };
 type Access = {
   ready: boolean;
   complete: boolean;
   listId: string | null;
+  households: Household[];
+  switchHousehold: (listId: string) => void;
   error: string | null;
   retry: () => void;
 };
@@ -21,6 +28,8 @@ const Context = createContext<Access>({
   ready: false,
   complete: false,
   listId: null,
+  households: [],
+  switchHousehold: () => {},
   error: null,
   retry: () => {},
 });
@@ -28,19 +37,51 @@ export function useHouseholdAccess() {
   return useContext(Context);
 }
 
+/** The household the app is showing: one list, chosen on this device. */
+export function useActiveList(): List | null {
+  const { listId } = useHouseholdAccess();
+  const { data } = useQuery<List>("SELECT * FROM lists WHERE id = ?", [listId]);
+  return data.find((l) => l.id === listId) ?? null;
+}
+
+// A device preference, not account data: the earliest household is the
+// fallback whenever the stored one is missing or no longer yours.
+const ACTIVE_KEY = "estra.active-list.v1";
+
 export function HouseholdAccessProvider({ children }: { children: ReactNode }) {
   const { session, ready, epoch, syncReady, syncError, retrySync } = useAuth();
   const userId = session?.user.id ?? null;
   const { data } = useQuery<{
     id: string;
+    name: string;
     user_id: string;
     profile_id: string | null;
   }>(
-    "SELECT l.id, m.user_id, p.id AS profile_id FROM lists l JOIN list_members m ON m.list_id = l.id LEFT JOIN household_profiles p ON p.id = l.id WHERE m.user_id = ? ORDER BY l.created_at, l.id LIMIT 1",
+    "SELECT l.id, l.name, m.user_id, p.id AS profile_id FROM lists l JOIN list_members m ON m.list_id = l.id LEFT JOIN household_profiles p ON p.id = l.id WHERE m.user_id = ? ORDER BY l.created_at, l.id",
     [userId],
   );
+  const [preferred, setPreferred] = useState<string | null | undefined>();
+  useEffect(() => {
+    AsyncStorage.getItem(ACTIVE_KEY)
+      .then(setPreferred)
+      .catch(() => setPreferred(null));
+  }, []);
+  const switchHousehold = useCallback((listId: string) => {
+    setPreferred(listId);
+    AsyncStorage.setItem(ACTIVE_KEY, listId).catch(() => {});
+  }, []);
   // Watched queries may still carry their previous result while rebinding.
-  const local = data.find((row) => row.user_id === userId);
+  const mine = useMemo(
+    () => data.filter((row) => row.user_id === userId),
+    [data, userId],
+  );
+  // A list without a Profile can't be shown, so it can't be switched to.
+  const households = useMemo(
+    () => mine.filter((row) => row.profile_id),
+    [mine],
+  );
+  const local =
+    mine.find((row) => row.id === preferred && row.profile_id) ?? mine[0];
   const [lookup, setLookup] = useState<{
     epoch: number;
     listId: string | null;
@@ -121,7 +162,8 @@ export function HouseholdAccessProvider({ children }: { children: ReactNode }) {
       clearTimeout(timeout);
     };
   }, [ready, syncReady, epoch, userId, local?.profile_id, attempt]);
-  const complete = !!userId && syncReady && !!local?.profile_id;
+  const complete =
+    !!userId && syncReady && preferred !== undefined && !!local?.profile_id;
   const checked = lookup?.epoch === epoch ? lookup : null;
   return (
     <Context.Provider
@@ -129,6 +171,8 @@ export function HouseholdAccessProvider({ children }: { children: ReactNode }) {
         ready: ready && (!userId || complete || (!!checked && syncReady)),
         complete,
         listId: complete ? local.id : (checked?.listId ?? null),
+        households,
+        switchHousehold,
         error: syncError ?? checked?.error ?? null,
         retry: () => {
           setLookup(null);
