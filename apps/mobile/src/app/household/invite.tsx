@@ -1,14 +1,17 @@
+import { useRouter } from "expo-router";
 import { useState } from "react";
-import { Alert, Share } from "react-native";
-import { Button } from "@/components/ui/button";
+import { Alert, Pressable, ScrollView, Share, View } from "react-native";
+import { PrimaryAction } from "@/components/action";
+import { CloseButton } from "@/components/close-button";
 import { Text } from "@/components/ui/text";
 import { householdInviteCode } from "@/features/invitations/api";
 import { invitationUrl } from "@/features/invitations/links";
 import { useActiveList } from "@/features/onboarding/access";
-import { FormError, FormScreen } from "@/features/profile/form";
+import { FormError } from "@/features/profile/form";
 import { env } from "@/lib/env";
 
 export default function InviteHousehold() {
+  const router = useRouter();
   const list = useActiveList();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -36,28 +39,41 @@ export default function InviteHousehold() {
     }
   }
   return (
-    <FormScreen>
-      <Text variant="h2">Invite to {list?.name ?? "your household"}</Text>
-      <Text className="text-muted-foreground">
-        Send one link to your family chat. Everyone can use it to join and
-        choose themselves from your household’s people.
-      </Text>
-      <Text className="text-muted-foreground">
-        Anyone with the link can join. It stays valid until you reset it.
-      </Text>
+    <ScrollView
+      contentInsetAdjustmentBehavior="automatic"
+      contentContainerClassName="gap-6 px-6 pb-6 pt-4"
+    >
+      <View className="flex-row items-center justify-between gap-4">
+        <Text className="flex-1 text-lg font-semibold">
+          Invite to {list?.name ?? "your household"}
+        </Text>
+        <CloseButton onPress={() => router.back()} disabled={busy} />
+      </View>
+      <View className="gap-2">
+        <Text>Send one link to your family chat so everyone can join.</Text>
+        <Text className="text-sm text-muted-foreground">
+          Anyone with the link can join. Reset it any time to stop new joins.
+        </Text>
+      </View>
       <FormError message={error} />
       {reset
         ? (
-          <Text>
+          <Text
+            className="text-sm text-muted-foreground"
+            accessibilityLiveRegion="polite"
+          >
             The old link no longer works. Existing members keep their access.
           </Text>
         )
         : null}
-      <Button disabled={busy || !list} onPress={() => void share()}>
-        <Text>{busy ? "Preparing…" : "Share invite link"}</Text>
-      </Button>
-      <Button
-        variant="outline"
+      <PrimaryAction
+        label={busy ? "Preparing…" : "Share invite link"}
+        disabled={busy || !list}
+        onPress={() => void share()}
+      />
+      <Pressable
+        accessibilityRole="button"
+        className="min-h-11 items-center justify-center self-center px-4 disabled:opacity-50"
         disabled={busy || !list}
         onPress={() =>
           Alert.alert(
@@ -69,8 +85,8 @@ export default function InviteHousehold() {
             }],
           )}
       >
-        <Text>Reset link</Text>
-      </Button>
-    </FormScreen>
+        <Text className="text-sm text-muted-foreground">Reset link</Text>
+      </Pressable>
+    </ScrollView>
   );
 }
