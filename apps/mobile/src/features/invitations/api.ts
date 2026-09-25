@@ -16,25 +16,42 @@ export class InvitationError extends Error {
 }
 
 async function request(body: Record<string, unknown>): Promise<unknown> {
-  const { data, error } = await supabase.functions.invoke("join-list", {
-    body,
-  });
-  if (error instanceof FunctionsHttpError) {
-    const response = error.context as Response;
-    const detail = await response.json().catch(() => null);
-    throw new InvitationError(
-      typeof detail?.error === "string"
+  try {
+    const { data, error } = await supabase.functions.invoke("join-list", {
+      body,
+    });
+    if (error instanceof FunctionsHttpError) {
+      const response = error.context as Response;
+      const detail = await response.json().catch(() => null);
+      // Gateway failures never reach our handler and use `message`, not
+      // `error`. Preserve their status so these failures remain diagnosable.
+      const fallback = typeof detail?.message === "string"
+        ? detail.message
+        : "Invitation service request failed";
+      const message = typeof detail?.error === "string"
         ? detail.error
-        : "Could not load the invitation. Try again.",
-      response.status,
-    );
+        : `${fallback} (HTTP ${response.status})`;
+      throw new InvitationError(message, response.status);
+    }
+    if (error) {
+      throw new Error(
+        "Could not reach Estra. Check your connection and try again.",
+        { cause: error },
+      );
+    }
+    return data;
+  } catch (error) {
+    // Do not log the request body: it contains the bearer code or a name.
+    console.error("Household invitation request failed", {
+      function: "join-list",
+      action: body.action,
+      ...(error instanceof InvitationError
+        ? { status: error.status }
+        : { cause: error instanceof Error ? error.cause ?? error : error }),
+      message: error instanceof Error ? error.message : String(error),
+    });
+    throw error;
   }
-  if (error) {
-    throw new Error(
-      "Could not reach Estra. Check your connection and try again.",
-    );
-  }
-  return data;
 }
 
 export async function previewInvitation(code: string) {

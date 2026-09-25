@@ -55,6 +55,7 @@ Deno.serve(async (req) => {
     return error ? failure(error) : json({ list_id: data });
   } catch (error) {
     if (error instanceof Response) return error;
+    console.error('Unexpected household invitation failure', error);
     return json({ error: 'Unexpected error' }, 500);
   }
 });
@@ -62,7 +63,12 @@ Deno.serve(async (req) => {
 function failure(error: { code: string; message: string }) {
   const status =
     ({ PT400: 400, PT404: 404, PT409: 409, '42501': 403 } as Record<string, number>)[error.code];
-  if (!status) console.error('Household invitation failed', error.code);
+  if (!status) {
+    console.error('Household invitation database failure', {
+      code: error.code,
+      message: error.message,
+    });
+  }
   return json(
     { error: status ? error.message : 'Could not update the invitation. Try again.' },
     status ?? 500,
