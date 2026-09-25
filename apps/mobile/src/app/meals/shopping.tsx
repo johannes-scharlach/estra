@@ -1,3 +1,4 @@
+import { Button, Host, Text as NativeText } from "@expo/ui";
 import { useQuery } from "@powersync/react";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { SymbolView } from "expo-symbols";
@@ -6,15 +7,20 @@ import { ActivityIndicator, Pressable, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useResolveClassNames } from "uniwind";
 
-import { PrimaryAction } from "@/components/action";
 import { Text } from "@/components/ui/text";
 import { saveMealShoppingReview } from "@/db/meal-shopping";
 import type { ListItem, PlannedMeal } from "@/db/schema";
 import { parseIngredientLines } from "@/db/variants";
-import { optionsForLine, shoppingReview } from "@/features/meals/shopping-review";
+import {
+  optionsForLine,
+  shoppingReview,
+} from "@/features/meals/shopping-review";
 import { mealLabel } from "@/features/meals/variant-meals";
 
-type Meal = PlannedMeal & { recipe_name: string | null; ingredient_lines: string | null };
+type Meal = PlannedMeal & {
+  recipe_name: string | null;
+  ingredient_lines: string | null;
+};
 
 export default function MealShopping() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -30,24 +36,46 @@ export default function MealShopping() {
   const meal = meals[0];
   const parsed = useMemo(() => {
     try {
-      return meal?.ingredient_lines ? parseIngredientLines(meal.ingredient_lines) : null;
+      return meal?.ingredient_lines
+        ? parseIngredientLines(meal.ingredient_lines)
+        : null;
     } catch {
       return null;
     }
   }, [meal]);
 
-  if (isLoading || itemsLoading) return <ActivityIndicator className="flex-1" />;
+  if (isLoading || itemsLoading)
+    return <ActivityIndicator className="flex-1" />;
   if (!meal || !parsed) {
     return (
-      <ScrollView contentInsetAdjustmentBehavior="automatic" className="flex-1 bg-background" contentContainerStyle={{ padding: 24 }}>
-        <Text>{meal ? "The recipe hasn't synced yet. Open its ingredients again shortly." : "This meal is no longer planned."}</Text>
+      <ScrollView
+        contentInsetAdjustmentBehavior="automatic"
+        className="flex-1 bg-background"
+        contentContainerStyle={{ padding: 24 }}
+      >
+        <Text>
+          {meal
+            ? "The recipe hasn't synced yet. Open its ingredients again shortly."
+            : "This meal is no longer planned."}
+        </Text>
       </ScrollView>
     );
   }
-  return <IngredientReview key={`${meal.content_id}:${meal.variant_id}`} meal={meal} lines={parsed} items={items} />;
+  return (
+    <IngredientReview
+      key={`${meal.content_id}:${meal.variant_id}`}
+      meal={meal}
+      lines={parsed}
+      items={items}
+    />
+  );
 }
 
-function IngredientReview({ meal, lines, items }: {
+function IngredientReview({
+  meal,
+  lines,
+  items,
+}: {
   meal: Meal;
   lines: ReturnType<typeof parseIngredientLines>;
   items: ListItem[];
@@ -58,15 +86,25 @@ function IngredientReview({ meal, lines, items }: {
   const muted = useResolveClassNames("text-muted-foreground").color;
   const review = shoppingReview(lines, items);
   const alreadyReviewed = meal.shopping_reviewed_variant_id === meal.variant_id;
-  const [selected, setSelected] = useState(() => new Set(
-    review.filter((entry) => entry.item || (!alreadyReviewed && !entry.atHome)).map((entry) => entry.index),
-  ));
-  const [optionIndexes, setOptionIndexes] = useState(() =>
-    Object.fromEntries(review.map((entry) => [entry.index, entry.optionIndex])) as Record<number, number>,
+  const [selected, setSelected] = useState(
+    () =>
+      new Set(
+        review
+          .filter((entry) => entry.item || (!alreadyReviewed && !entry.atHome))
+          .map((entry) => entry.index),
+      ),
+  );
+  const [optionIndexes, setOptionIndexes] = useState(
+    () =>
+      Object.fromEntries(
+        review.map((entry) => [entry.index, entry.optionIndex]),
+      ) as Record<number, number>,
   );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const toAdd = review.filter((entry) => selected.has(entry.index) && !entry.item);
+  const toAdd = review.filter(
+    (entry) => selected.has(entry.index) && !entry.item,
+  );
 
   async function save() {
     if (saving || !meal.list_id || !meal.content_id || !meal.variant_id) return;
@@ -87,29 +125,43 @@ function IngredientReview({ meal, lines, items }: {
       });
       router.back();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Couldn't save shopping choices. Try again.");
+      setError(
+        e instanceof Error
+          ? e.message
+          : "Couldn't save shopping choices. Try again.",
+      );
       setSaving(false);
     }
   }
 
   return (
-    <View className="flex-1 bg-background">
     <ScrollView
       className="flex-1 bg-background"
       contentInsetAdjustmentBehavior="automatic"
-      contentContainerStyle={{ padding: 24, gap: 24 }}
+      contentContainerStyle={{
+        padding: 24,
+        paddingBottom: insets.bottom + 24,
+        gap: 24,
+      }}
     >
       <View className="gap-1">
         <Text variant="h3">{meal.recipe_name}</Text>
         <Text variant="muted">{mealLabel(meal)}</Text>
-        <Text variant="muted">Choose what to buy, and pick a swap if you prefer an alternative. Changes apply to this meal’s shopping items.</Text>
+        <Text variant="muted">
+          Choose what to buy, and pick a swap if you prefer an alternative.
+          Changes apply to this meal’s shopping items.
+        </Text>
       </View>
       {[false, true].map((atHome) => {
         const entries = review.filter((entry) => entry.atHome === atHome);
         return (
           <View key={String(atHome)} className="gap-2">
-            <Text className="font-semibold">{atHome ? "Probably at home" : "Likely purchases"}</Text>
-            {entries.length === 0 ? <Text variant="muted">No ingredients in this section.</Text> : null}
+            <Text className="font-semibold">
+              {atHome ? "Probably at home" : "Likely purchases"}
+            </Text>
+            {entries.length === 0 ? (
+              <Text variant="muted">No ingredients in this section.</Text>
+            ) : null}
             {entries.map(({ index, line, item, optionIndex }) => {
               const checked = selected.has(index);
               const options = optionsForLine(line);
@@ -119,26 +171,64 @@ function IngredientReview({ meal, lines, items }: {
                 <View key={index} className="border-b border-border py-3">
                   <Pressable
                     accessibilityRole="checkbox"
-                    accessibilityState={{ checked, disabled: saving || item?.status === "purchased" }}
-                    accessibilityLabel={[chosen.qty_text, chosen.item_name, item ? item.status === "purchased" ? "Bought" : "Already on the list" : null].filter(Boolean).join(" ")}
+                    accessibilityState={{
+                      checked,
+                      disabled: saving || item?.status === "purchased",
+                    }}
+                    accessibilityLabel={[
+                      chosen.qty_text,
+                      chosen.item_name,
+                      item
+                        ? item.status === "purchased"
+                          ? "Bought"
+                          : "Already on the list"
+                        : null,
+                    ]
+                      .filter(Boolean)
+                      .join(" ")}
                     disabled={saving || item?.status === "purchased"}
-                    onPress={() => setSelected((current) => {
-                      const next = new Set(current);
-                      if (next.has(index)) next.delete(index);
-                      else next.add(index);
-                      return next;
-                    })}
+                    onPress={() =>
+                      setSelected((current) => {
+                        const next = new Set(current);
+                        if (next.has(index)) next.delete(index);
+                        else next.add(index);
+                        return next;
+                      })
+                    }
                     className="min-h-11 flex-row items-center gap-3"
                   >
                     <SymbolView
-                      name={checked ? { ios: "checkmark.circle.fill", android: "check_circle" } : { ios: "circle", android: "radio_button_unchecked" }}
-                      tintColor={checked && item?.status !== "purchased" ? primary : muted}
+                      name={
+                        checked
+                          ? {
+                              ios: "checkmark.circle.fill",
+                              android: "check_circle",
+                            }
+                          : { ios: "circle", android: "radio_button_unchecked" }
+                      }
+                      tintColor={
+                        checked && item?.status !== "purchased"
+                          ? primary
+                          : muted
+                      }
                       size={24}
                     />
                     <View className="flex-1 gap-0.5">
-                      <Text>{[chosen.qty_text, chosen.item_name].filter(Boolean).join(" ")}</Text>
-                      {chosen.prep_note ? <Text variant="muted">{chosen.prep_note}</Text> : null}
-                      {item ? <Text variant="muted">{item.status === "purchased" ? "Bought" : "Already on the list"}</Text> : null}
+                      <Text>
+                        {[chosen.qty_text, chosen.item_name]
+                          .filter(Boolean)
+                          .join(" ")}
+                      </Text>
+                      {chosen.prep_note ? (
+                        <Text variant="muted">{chosen.prep_note}</Text>
+                      ) : null}
+                      {item ? (
+                        <Text variant="muted">
+                          {item.status === "purchased"
+                            ? "Bought"
+                            : "Already on the list"}
+                        </Text>
+                      ) : null}
                     </View>
                   </Pressable>
                   {options.length > 1 ? (
@@ -149,16 +239,36 @@ function IngredientReview({ meal, lines, items }: {
                           <Pressable
                             key={`${index}:${option.item_name}`}
                             accessibilityRole="radio"
-                            accessibilityState={{ checked: active, disabled: saving || item?.status === "purchased" }}
+                            accessibilityState={{
+                              checked: active,
+                              disabled: saving || item?.status === "purchased",
+                            }}
                             disabled={saving || item?.status === "purchased"}
                             onPress={() => {
-                              setOptionIndexes((current) => ({ ...current, [index]: choice }));
-                              setSelected((current) => new Set(current).add(index));
+                              setOptionIndexes((current) => ({
+                                ...current,
+                                [index]: choice,
+                              }));
+                              setSelected((current) =>
+                                new Set(current).add(index),
+                              );
                             }}
-                            className={active ? "rounded-full border border-primary bg-primary/10 px-3 py-1.5" : "rounded-full border border-border px-3 py-1.5"}
+                            className={
+                              active
+                                ? "rounded-full border border-primary bg-primary/10 px-3 py-1.5"
+                                : "rounded-full border border-border px-3 py-1.5"
+                            }
                           >
-                            <Text className={active ? "text-primary" : "text-muted-foreground"}>
-                              {choice === 0 ? `Original · ${option.item_name}` : option.item_name}
+                            <Text
+                              className={
+                                active
+                                  ? "text-primary"
+                                  : "text-muted-foreground"
+                              }
+                            >
+                              {choice === 0
+                                ? `Original · ${option.item_name}`
+                                : option.item_name}
                             </Text>
                           </Pressable>
                         );
@@ -171,15 +281,27 @@ function IngredientReview({ meal, lines, items }: {
           </View>
         );
       })}
+      <View className="gap-3">
+        {error ? (
+          <Text selectable className="text-destructive">
+            {error}
+          </Text>
+        ) : null}
+        <Host matchContents={{ vertical: true }} ignoreSafeArea="all">
+          <Button disabled={saving} onPress={() => void save()}>
+            <NativeText
+              style={{ width: "100%", paddingVertical: 12 }}
+              textStyle={{ textAlign: "center" }}
+            >
+              {saving
+                ? "Saving…"
+                : toAdd.length
+                  ? `Add ${toAdd.length} ${toAdd.length === 1 ? "item" : "items"}`
+                  : "Save choices"}
+            </NativeText>
+          </Button>
+        </Host>
+      </View>
     </ScrollView>
-    <View className="gap-3 border-t border-border px-6 pt-3" style={{ paddingBottom: Math.max(insets.bottom, 12) }}>
-      {error ? <Text selectable className="text-destructive">{error}</Text> : null}
-      <PrimaryAction
-        label={saving ? "Saving…" : toAdd.length ? `Add ${toAdd.length} ${toAdd.length === 1 ? "item" : "items"} to shopping list` : "Save choices"}
-        disabled={saving}
-        onPress={() => void save()}
-      />
-    </View>
-    </View>
   );
 }

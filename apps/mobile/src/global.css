@@ -42,6 +42,8 @@
        --color-border: #E3DAD2;
        --color-input: #E3DAD2;
        --color-ring: #492F40;
+       /* Tappable text and glyphs; primary is too dark to read as a tint at text size. */
+       --color-link: #8A4F74;
     }
 
     @variant dark {
@@ -64,6 +66,7 @@
        --color-border: #7E6F75;
        --color-input: #7E6F75;
        --color-ring: #EBC7B3;
+       --color-link: #EBC7B3;
     }
   }
 }

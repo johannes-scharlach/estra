@@ -28,7 +28,7 @@ export type DisplayRecipe = {
 };
 export type DisplayPlannedMeal = DisplayRecipe & {
   variantId: string | null;
-  shoppingReviewedVariantId: string | null;
+  shoppingReviewed: boolean;
   eaterIds: string[];
   extraPortions: number;
   /** Rendered once here so the card and its menu agree. */
@@ -99,24 +99,40 @@ export function DayContent({
           const job = importJobs.getForSlot(target);
           if (job) {
             return (
-              <View key={slot} className="gap-3 px-6" accessibilityLiveRegion="polite">
+              <View
+                key={slot}
+                className="gap-3 px-6"
+                accessibilityLiveRegion="polite"
+              >
                 <Text variant="muted">{SLOT_LABEL[slot]}</Text>
                 {job.status === "error" ? (
                   <>
-                    <Text className="text-destructive">{job.error.message}</Text>
+                    <Text className="text-destructive">
+                      {job.error.message}
+                    </Text>
                     {job.error.retryable ? (
-                      <Button variant="outline" onPress={() => void importJobs.retry(target)}>
+                      <Button
+                        variant="outline"
+                        onPress={() => void importJobs.retry(target)}
+                      >
                         <Text>Retry</Text>
                       </Button>
                     ) : null}
-                    <Button variant="ghost" onPress={() => importJobs.dismiss(target)}>
+                    <Button
+                      variant="ghost"
+                      onPress={() => importJobs.dismiss(target)}
+                    >
                       <Text>Dismiss</Text>
                     </Button>
                   </>
                 ) : (
                   <View className="flex-row items-center gap-3">
                     <ActivityIndicator />
-                    <Text>{job.status === "syncing" ? "Syncing meal…" : "Importing & planning…"}</Text>
+                    <Text>
+                      {job.status === "syncing"
+                        ? "Syncing meal…"
+                        : "Importing & planning…"}
+                    </Text>
                   </View>
                 )}
               </View>
@@ -132,11 +148,7 @@ export function DayContent({
                 onPress={() => onSetOpen(slot, true)}
                 className="flex-row items-center gap-2 px-6"
               >
-                <SymbolView
-                  name={PLUS_ICON}
-                  tintColor={mutedColor}
-                  size={16}
-                />
+                <SymbolView name={PLUS_ICON} tintColor={mutedColor} size={16} />
                 <Text className="text-muted-foreground">Select {slot}</Text>
               </Pressable>
             );
@@ -148,11 +160,10 @@ export function DayContent({
               date={dateStr}
               slot={slot}
               plannedMealId={plannedMealId(list.id, dateStr, slot)}
+              listId={list.id}
               recipe={recipe}
               showShoppingPrompt={
-                !!recipe?.variantId &&
-                recipe.shoppingReviewedVariantId !== recipe.variantId &&
-                dateStr >= today
+                !!recipe && !recipe.shoppingReviewed && dateStr >= today
               }
               contenders={contenders[slot]}
               onPlan={(r) => onPlan(slot, r)}

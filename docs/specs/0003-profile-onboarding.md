@@ -34,9 +34,9 @@ The Profile is a household's cooking setup belonging to a list. A list represent
 12. As a cook without restrictions, I want a quick None action, so that I can move on.
 13. As a cook, I want to see myself in the household without adding myself again, so that household size is correct.
 14. As a cook, I want to add, edit, and remove other household members, so that setup matches who regularly eats with me.
-15. As a cook, I want each member's age group, diet, restrictions, and meal attendance recorded, so that shared meals fit their needs.
+15. As a cook, I want each member's age group, diet, and meal attendance recorded, so that shared meals fit their needs.
 16. As a solo cook, I want to continue without adding anyone else, so that setup works for one person.
-17. As a cook, I want to describe which meals I cook at home, including weekday/weekend differences, so that help reflects my normal week.
+17. As a cook, I want to choose the meals we usually have at home, including an It varies option where I can explain the detail, so that help reflects my normal week.
 18. As a cook, I want to describe usual shops and how practical they are to visit, so that sourcing advice fits my routine.
 19. As a cook, I want to select equipment and add unlisted equipment, so that suggested methods are feasible.
 20. As a cook, I want to describe usual pantry and fresh staples, so that help understands my habits without demanding an inventory.
@@ -72,10 +72,17 @@ The Profile is a household's cooking setup belonging to a list. A list represent
 | Profile lookup failed                   | Show retry; a network error does not establish that Profile is absent.                                                   |
 | Verified, final save pending/failed     | Retain draft and retry Profile save using authenticated session.                                                         |
 
-- Wizard order: **name → goals → diet → restrictions → household → groceries → kitchen → pantry → fresh → email → code**.
-- Suggested chapter labels, matching prototype: The Cook (name/goals), The Diet (diet/restrictions), The Kitchen (household through fresh), The Setup (email/code).
-- Back preserves entered answers. Show progress and a labeled primary action. Optional cooking steps allow Next without adding information.
-- Selecting a preset diet advances immediately. Selecting None on restrictions clears that field and advances. Other multi-select steps advance explicitly.
+- Wizard order: **name → goals → diet → household → restrictions → groceries → kitchen → pantry → fresh → email → code**.
+- Suggested chapter labels, matching prototype: The Cook (name/goals), The Diet (diet), The Kitchen (household through fresh), The Setup (email/code).
+- Setup questions share one route with native horizontal paging. Progress and
+  Previous/Continue stay fixed; swiping is optional. Previous and Android Back
+  revisit questions without discarding answers. The first question has no
+  Previous; Android Back returns to Welcome. Resume directly at the saved question.
+- Forward paging respects required answers. Sending email, verifying, and finishing
+  are explicit actions, never triggered by a swipe. Optional cooking questions
+  allow Continue without adding information.
+- Selection never auto-advances. Continue or a deliberate forward swipe advances cooking questions.
+- Household restrictions use one free-text note. When it is empty, the primary action reads `No restrictions`.
 - Household add/edit is a nested screen or sheet. Hide parent wizard navigation while editing a person. Save commits that person; cancel/back discards that person's uncommitted edit.
 - Completion requires successful authentication and durable local PowerSync writes for the list, creator's list membership, and Profile. Only then clear the associated onboarding draft and navigate to Estra's existing cooking entry point. Upload proceeds through normal PowerSync behavior; server acknowledgement is not a separate completion gate.
 - Profile lookup and routing refer to the current list using Estra's existing list-selection behavior. An empty local query before initial sync does not establish that a returning User has no list or Profile. If a current list exists without a Profile, complete its missing setup rather than creating another list.
@@ -84,28 +91,29 @@ The Profile is a household's cooking setup belonging to a list. A list represent
 
 One list has at most one Profile. New-household onboarding creates the list, adds the verified User as a list member, and creates its Profile. A list may temporarily have no Profile while setup is incomplete.
 
-Approved persisted model: `household_profiles.id` is both its primary key and a foreign key to `lists.id`. Store goals, equipment, pantry, fresh staples, meal routine, and shopping notes in separate columns so section edits do not replace unrelated data. `household_people` stores people as separate rows referencing the Profile via `list_id`. Both tables have creation/update timestamps. Authorize reads/writes and sync through list membership. Auth identity/email remains outside cooking data.
+Approved persisted model: `household_profiles.id` is both its primary key and a foreign key to `lists.id`. Store goals, equipment, pantry, fresh staples, household restrictions, meal routine, and shopping notes in separate columns so section edits do not replace unrelated data. `household_people` stores people as separate rows referencing the Profile via `list_id`. Both tables have creation/update timestamps. Authorize reads/writes and sync through list membership. Auth identity/email remains outside cooking data.
 
 Household people and list members are distinct. A household person has a stable locally generated ID even before account creation, and an optional User link; a linked User must be a member of that list and may identify at most one person within its Profile. The draft's `onboarding_person_id` identifies whose details the opening steps edit. During finalization, link that person to the verified User. All other people remain unlinked. Leaving a list clears the User link and retains the person; deleting the list deletes its Profile and people. Invitations and UI for linking other accounts are out of scope.
 
 The following keys and meanings describe the portable cooking payload. Target language may express them as native types. No migration of existing Hobs data is required.
 
-| Field                   | Type / meaning                                                       | New-wizard default            |
-| ----------------------- | -------------------------------------------------------------------- | ----------------------------- |
-| `goals`                 | Preset booleans plus `other` custom-string array                     | All false; empty `other`      |
-| `household_people`      | Separate rows for everyone, including onboarding person              | Onboarding person only        |
-| `meals_at_home`         | Free-text usual meal routine                                         | `Dinners.`                    |
-| `main_supermarket`      | Free-text primary shop                                               | Empty string                  |
-| `other_shops`           | Free text including access/effort/context                            | Empty string                  |
-| `kitchen_equipment`     | Preset booleans plus `other` custom-string array                     | Oven/stove true; empty `other` |
-| `pantry`                | Preset booleans plus `other` custom-string array                     | All true; empty `other`       |
-| `fresh_ingredients`     | Preset booleans plus `other` custom-string array                     | All true; empty `other`       |
+| Field               | Type / meaning                                                | New-wizard default             |
+| ------------------- | ------------------------------------------------------------- | ------------------------------ |
+| `goals`             | Preset booleans plus `other` custom-string array              | All false; empty `other`       |
+| `household_people`  | Separate rows for everyone, including onboarding person       | Onboarding person only         |
+| `restrictions`      | Free-text household allergies, restrictions, and dislikes     | Empty string                   |
+| `meals_at_home`     | Q meal-routine preset; It varies may include free-text detail | `Dinner`                       |
+| `main_supermarket`  | Free-text primary shop                                        | Empty string                   |
+| `other_shops`       | Free text including access/effort/context                     | Empty string                   |
+| `kitchen_equipment` | Preset booleans plus `other` custom-string array              | Oven/stove true; empty `other` |
+| `pantry`            | Preset booleans plus `other` custom-string array              | All true; empty `other`        |
+| `fresh_ingredients` | Preset booleans plus `other` custom-string array              | All true; empty `other`        |
 
-Name, diet, custom diet description, and restrictions entered in the opening wizard steps belong to the creator's household person, not duplicate top-level Profile fields. Goals, normal meals, shops, equipment, pantry, and fresh staples are household-wide. Ask normal meals in the household step.
+Name, diet, and custom diet description entered in the opening wizard steps belong to the creator's household person, not duplicate top-level Profile fields. Restrictions, goals, normal meals, shops, equipment, pantry, and fresh staples are household-wide. Ask restrictions after the household is defined and normal meals in the household step.
 
 Defaults are visible, editable starting selections. Do not silently switch pantry selections when diet changes. A selected broad category never overrides explicit dietary restrictions.
 
-Each selection object uses stable preset keys with boolean values and an `other` string array, for example `{"save-time": true, "other": ["Feel comfortable cooking with my children"]}`. Missing preset keys mean false; missing `other` means empty. Meal routine is write-in, supporting descriptions such as "Weekday dinners, lunches and dinners on weekends." An absent routine defaults to "Dinners." Explicit empty text remains empty. No guest-state modeling is needed.
+Each selection object uses stable preset keys with boolean values and an `other` string array, for example `{"save-time": true, "other": ["Feel comfortable cooking with my children"]}`. Missing preset keys mean false; missing `other` means empty. Meal routine uses the presets Dinner, Lunch and dinner, All meals, and It varies. Selecting It varies reveals a free-text detail for a pattern such as "Weekday dinners, lunches and dinners on weekends." An absent routine defaults to "Dinner". No guest-state modeling is needed.
 
 **Goal keys and labels**
 
@@ -133,20 +141,19 @@ Each selection object uses stable preset keys with boolean values and an `other`
 
 Choosing a standard diet clears stale custom-diet text. Choosing other requires a nonblank description before continuing.
 
-**Restriction shortcuts:** Gluten-free, Dairy-free, Nut allergy, Low carb. Shortcuts add/remove their text in the free-text field while preserving other entered details. None clears it. Empty means no restrictions supplied; no separate allergy taxonomy or severity model is required.
+**Household restrictions:** A single free-text field records allergies, restrictions, and dislikes for everyone the household cooks for. Empty means no restrictions supplied; no separate allergy taxonomy or severity model is required.
 
 **Household person**
 
-| Field          | Meaning                                                       | Add-person default |
-| -------------- | ------------------------------------------------------------- | ------------------ |
-| `id`           | Stable person identifier; names are not identifiers           | Generated locally  |
-| `userId`       | Optional linked User who is a member of this list             | Absent until creator is verified; other people remain unlinked |
-| `name`         | Trimmed nonempty name                                         | Empty input        |
-| `ageGroup`     | `Adult`, `Teen`, `Child`, `Toddler`, `Infant`                 | `Adult`            |
-| `diet`         | Stable standard diet key, using same standard choices as cook | `flexitarian`      |
-| `dietOther`    | Custom description when diet is `other`; required for creator's custom diet | Absent |
-| `restrictions` | Free text                                                     | Empty string       |
-| `mealTimes`    | Free-text usual attendance, e.g. weekday dinners and weekends | `Always`           |
+| Field       | Meaning                                                                     | Add-person default                                             |
+| ----------- | --------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| `id`        | Stable person identifier; names are not identifiers                         | Generated locally                                              |
+| `userId`    | Optional linked User who is a member of this list                           | Absent until creator is verified; other people remain unlinked |
+| `name`      | Trimmed nonempty name                                                       | Empty input                                                    |
+| `ageGroup`  | `Adult`, `Teen`, `Child`, `Toddler`, `Infant`                               | `Adult`                                                        |
+| `diet`      | Stable standard diet key, using same standard choices as cook               | `flexitarian`                                                  |
+| `dietOther` | Custom description when diet is `other`; required for creator's custom diet | Absent                                                         |
+| `mealTimes` | Free-text usual attendance, e.g. weekday dinners and weekends               | `Always`                                                       |
 
 Show the creator as a distinct read-only You entry in the household step, using their person record. Before authentication, the draft identifies that person by stable ID; afterward, derive You from the current User's link. The creator defaults to Adult; no age question for the creator is required. Edit their details through the opening wizard fields. Store and count them exactly once among the household people. Support multiple other people, including people sharing a name. Other-person diet choices remain the standard diets; the creator's custom diet is retained on their person record. Database fields use snake_case (`user_id`, `age_group`, `diet_other`, `meal_times`).
 
@@ -198,7 +205,7 @@ Goals, equipment, pantry, and fresh categories each support adding/removing cust
 
 ### Profile viewing and editing
 
-- Display all cooking fields in readable sections: household people and their diets/restrictions, goals/normal meals, shops, equipment, pantry, fresh staples. Identify the current User's linked person as You.
+- Display all cooking fields in readable sections: household restrictions, people and their diets/attendance, goals/normal meals, shops, equipment, pantry, fresh staples. Identify the current User's linked person as You.
 - Reuse option keys and interpretation across onboarding and editing, but use a settings-style section editor rather than replaying wizard.
 - Begin edits from saved values. Save persists section changes while preserving unrelated fields; Cancel leaves saved Profile untouched. Support removals and explicit empty values.
 - Show saving/error states. Failed save retains edit draft and allows retry; do not close editor or claim success before persistence succeeds.
@@ -210,16 +217,16 @@ Goals, equipment, pantry, and fresh categories each support adding/removing cust
 
 Derive context on demand from saved structured Profile; do not store an independently editable/cached prompt as a second source of truth. Use destination project's existing assistant request boundary. This scope adds profile context, not a new Cooking Assistant implementation.
 
-Use the Conversation's list-specific Profile, not a personal Profile selected by the caller. Identify the current User through their optional person link; do not infer a link from a name or add an unlinked caller to the serving count. Integrate profile edits with the existing PowerSync-to-assistant request path so subsequent requests use the edited data, accounting for pending uploads rather than assuming local saves have already reached the server.
+Use the Conversation's list-specific Profile, not a personal Profile selected by the caller. Identify the current User through their optional person link; do not infer a link from a name or add an unlinked caller to the serving count. The server reads the Profile from Postgres on every turn; the request carries no household snapshot (ADR 12). A local edit still uploading when a message is sent reaches the assistant one turn late, which is accepted.
 
-Include all relevant cooking data, rather than a shortened summary: cook identity, diet/custom explanation, selected/custom goals, restrictions, every household member and their details, meals cooked at home, selected/custom equipment, shopping context, and selected/custom staple categories.
+Include all relevant cooking data, rather than a shortened summary: cook identity, diet/custom explanation, household restrictions, selected/custom goals, every household member and their details, meals cooked at home, selected/custom equipment, shopping context, and selected/custom staple categories.
 
 Interpretation rules:
 
 1. Respect explicit dietary restrictions and allergies. Do not repeatedly ask for facts already present.
 2. Flexitarian is plant-forward, welcomes meat-free meals, and still regularly eats meat and fish; it is not vegetarian.
 3. All household people form the serving baseline, including the creator exactly once. Use attendance and current request to determine who is eating. A one-off request can change attendance or servings without changing saved Profile.
-4. Interpret the free-text meal routine as stated, including weekday/weekend differences. Dinners is the new-wizard default, not a restriction on what the User may describe. The current request can override the usual routine.
+4. Interpret the selected meal routine as stated, including an It varies detail. Dinner is the new-wizard default. The current request can override the usual routine.
 5. Selected equipment and custom equipment are available. Do not assume an unlisted appliance; provide a feasible alternative or ask when necessary. All equipment false with no custom items means none declared, not an implicit stove/oven.
 6. Pantry/fresh selections describe categories the cook tends to keep, not current inventory or a shopping list. Do not assert they currently have a specific ingredient just because its category is selected.
 7. UI examples help Users recognize categories; pass clean category labels to assistant so examples do not repeatedly bias dish choices.
@@ -234,9 +241,9 @@ Test externally observable behavior, not widget structure, reducer internals, or
 ### Manual acceptance: User flow → persisted list and Profile
 
 1. Fresh launch shows primary Get started and secondary Sign in. Full wizard reaches email only after cooking setup; no auth dependency is needed before that point.
-2. Complete flow with custom diet/goals/equipment/staples, restrictions, multiple household members, shop notes, and weekday/weekend meal differences. Verify saved data equals choices; email/code are not cooking fields.
+2. Complete flow with custom diet/goals/equipment/staples, restrictions, multiple household members, shop notes, and an It varies meal-routine detail. Verify saved data equals choices; email/code are not cooking fields.
 3. Defaults-only cooking flow after entering name works. Solo cook is counted once; defaults are visible and removable.
-4. Back/forward preserves changes; diet selection advances; None clears restrictions; nested person cancel does not append/update someone.
+4. Back/forward preserves changes; diet selection waits for Continue; household restrictions survive; nested person cancel does not append/update someone.
 5. Restart mid-wizard and switch out for email: saved answers and step survive. Restart code screen restores no stored OTP.
 6. Wrong/expired code and send failure retain draft. Editing email resets code; resend permits completion.
 7. Successful verification followed by failed local save is recoverable without re-verifying. Repeated completion and restart after local commit still produce one list, creator membership, and Profile. Upload interruption uses normal PowerSync retry behavior.
@@ -249,7 +256,7 @@ Test externally observable behavior, not widget structure, reducer internals, or
 ### Deterministic boundary: Profile → assistant context
 
 - Cover selected and custom fields, all member details, empty optional fields, and absent normal-meals default.
-- Assert flexitarian includes meat/fish, household excludes duplicate cook, free-text meal routine survives intact, and explicit no-equipment does not invent appliances.
+- Assert flexitarian includes meat/fish, household excludes duplicate cook, an It varies meal-routine detail survives intact, and explicit no-equipment does not invent appliances.
 - Assert category output uses clean category labels and states usual-stock semantics rather than current inventory. Shop notes and restrictions survive intact.
 - Assert saved profile edits are read for next assistant request.
 - Prefer semantic assertions over full prompt snapshots. These tests verify supplied context; they do not prove model obedience. A small manual assistant smoke check can confirm representative restricted-diet and limited-equipment requests.

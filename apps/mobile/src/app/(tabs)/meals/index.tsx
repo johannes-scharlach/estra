@@ -19,7 +19,8 @@ import Animated from "react-native-reanimated";
 
 import { Text } from "@/components/ui/text";
 import { useAuth } from "@/db/provider";
-import type { PlannedMeal, Variant as DbVariant } from "@/db/schema";
+import type { Variant as DbVariant } from "@/db/schema";
+import { MEALS_WITH_SHOPPING, type ShoppingMeal } from "@/db/shopping-meals";
 import { clearPlannedMeal, setPlannedMeal } from "@/db/planned-meals";
 import {
   DayContent,
@@ -53,11 +54,9 @@ export default function Meals() {
 
   const list = useActiveList();
 
-  const { data: planned } = useQuery<PlannedMeal>(
-    list
-      ? "SELECT * FROM planned_meals WHERE list_id = ?"
-      : "SELECT * FROM planned_meals WHERE 0",
-    list ? [list.id] : [],
+  const { data: planned } = useQuery<ShoppingMeal>(
+    `${MEALS_WITH_SHOPPING} WHERE pm.list_id = ?`,
+    [list?.id ?? ""],
   );
   const { data: variants } = useQuery<DbVariant>(
     "SELECT * FROM variants ORDER BY created_at DESC",
@@ -157,7 +156,7 @@ export default function Meals() {
     return {
       id: row.variant_id ?? row.id,
       variantId: row.variant_id,
-      shoppingReviewedVariantId: row.shopping_reviewed_variant_id,
+      shoppingReviewed: !!row.shopping_reviewed,
       recipeId: row.recipe_id,
       name: row.name ?? v?.name ?? "…",
       totalTime: v?.total_time ?? null,
@@ -203,7 +202,7 @@ export default function Meals() {
       [k]: {
         ...recipe,
         variantId: recipe.id,
-        shoppingReviewedVariantId: null,
+        shoppingReviewed: false,
         eaterIds,
         extraPortions: 0,
         eatersLabel: eatersLabel({ people, eaterIds, extraPortions: 0 }),

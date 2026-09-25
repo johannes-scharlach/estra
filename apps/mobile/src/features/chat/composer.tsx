@@ -1,6 +1,14 @@
 import { SymbolView } from "expo-symbols";
 import { useState, type ReactNode } from "react";
 import { Pressable, ScrollView, TextInput, View } from "react-native";
+import Animated, {
+  Easing,
+  Keyframe,
+  LayoutAnimationConfig,
+  LinearTransition,
+  ReduceMotion,
+  useReducedMotion,
+} from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useResolveClassNames } from "uniwind";
 
@@ -16,10 +24,42 @@ import { ImageAttachmentMenu } from "./image-attachment-menu";
 import { ImageAttachmentStrip } from "./image-attachment-strip";
 
 const SEND_ICON = {
-  ios: "arrow.up",
-  android: "arrow_upward",
-  web: "arrow_upward",
+  ios: "arrow.up.circle.fill",
+  android: "arrow_circle_up",
 } as const;
+
+// Focusing hands the trailing slot from emptyAction to Send, and blurring an
+// empty field hands it back. The outgoing button leaves first, the field
+// follows a beat later, and the incoming button lands as the field settles.
+const EASE_OUT = Easing.bezier(0.23, 1, 0.32, 1);
+const EASE_IN_OUT = Easing.bezier(0.77, 0, 0.175, 1);
+const FIELD_LAYOUT = LinearTransition.duration(200)
+  .delay(50)
+  .easing(EASE_IN_OUT);
+const SWAP_IN = new Keyframe({
+  0: { opacity: 0, transform: [{ scale: 0.8 }] },
+  100: { opacity: 1, transform: [{ scale: 1 }], easing: EASE_OUT },
+})
+  .duration(150)
+  .delay(170);
+const SWAP_OUT = new Keyframe({
+  0: { opacity: 1, transform: [{ scale: 1 }] },
+  100: { opacity: 0, transform: [{ scale: 0.8 }], easing: EASE_OUT },
+}).duration(150);
+// Reduced motion: keep the fade that explains the swap, drop scale and reflow.
+const SWAP_IN_REDUCED = new Keyframe({
+  0: { opacity: 0 },
+  100: { opacity: 1, easing: EASE_OUT },
+})
+  .duration(150)
+  .delay(170)
+  .reduceMotion(ReduceMotion.Never);
+const SWAP_OUT_REDUCED = new Keyframe({
+  0: { opacity: 1 },
+  100: { opacity: 0, easing: EASE_OUT },
+})
+  .duration(150)
+  .reduceMotion(ReduceMotion.Never);
 
 /**
  * Text and image attachments. Keyboard dictation already covers voice. Suggested
@@ -43,11 +83,17 @@ export function Composer({
 }) {
   const insets = useSafeAreaInsets();
   const [text, setText] = useState("");
+  const [focused, setFocused] = useState(false);
   const [attachments, setAttachments] = useState<ImageAttachment[]>([]);
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
   const placeholderColor = useResolveClassNames("text-muted-foreground").color;
-  const iconColor = useResolveClassNames("text-primary-foreground").color;
+  const primaryColor = useResolveClassNames("text-primary").color;
   const canSend = (text.trim().length > 0 || attachments.length > 0) && !busy;
+  const showEmptyAction =
+    !focused && !text.trim() && !attachments.length && !!emptyAction;
+  const reduced = useReducedMotion();
+  const swapIn = reduced ? SWAP_IN_REDUCED : SWAP_IN;
+  const swapOut = reduced ? SWAP_OUT_REDUCED : SWAP_OUT;
 
   function submit() {
     const trimmed = text.trim();
@@ -91,7 +137,7 @@ export function Composer({
               onPress={() => {
                 onSend(s, []);
               }}
-              className="rounded-full border border-border bg-card px-3.5 py-1.5 active:bg-accent"
+              className="rounded-full bg-muted px-3.5 py-1.5 active:bg-accent"
             >
               <Text className="text-sm">{s}</Text>
             </Pressable>
@@ -113,52 +159,62 @@ export function Composer({
           {attachmentError}
         </Text>
       ) : null}
-      <View className="flex-row items-end gap-2 px-4 pt-2">
-        <View className="min-h-12 flex-1 flex-row items-end rounded-3xl bg-card pl-1 pr-4">
-          {/* Draw the border without adding height to the 48-point input row. */}
-          <View
-            pointerEvents="none"
-            className="absolute inset-0 rounded-3xl border border-border"
-          />
-          <ImageAttachmentMenu
-            onSelect={(source) => void addAttachments(source)}
-            disabled={busy}
-          />
-          <TextInput
-            value={text}
-            onChangeText={setText}
-            placeholder={placeholder}
-            placeholderTextColor={placeholderColor}
-            multiline
-            returnKeyType="send"
-            submitBehavior="blurAndSubmit"
-            onSubmitEditing={submit}
-            style={{ includeFontPadding: false, textAlignVertical: "center" }}
-            className="max-h-32 min-h-12 flex-1 py-3.5 text-base leading-5 text-foreground"
-          />
-        </View>
-        {!text.trim() && !attachments.length && emptyAction ? (
-          emptyAction
-        ) : (
-          <Pressable
-            onPress={submit}
-            disabled={!canSend}
-            accessibilityLabel="Send"
-            accessibilityRole="button"
+      {/* No swap animation when the composer first appears. */}
+      <LayoutAnimationConfig skipEntering>
+        <View className="flex-row items-end gap-2 px-4 pt-2">
+          <Animated.View
+            layout={FIELD_LAYOUT}
             className={cn(
-              "size-12 items-center justify-center rounded-full bg-primary",
-              !canSend && "opacity-30",
+              "min-h-12 flex-1 flex-row items-end rounded-3xl bg-muted pl-1",
+              showEmptyAction ? "pr-4" : "pr-1",
             )}
           >
-            <SymbolView
-              name={SEND_ICON}
-              tintColor={iconColor}
-              size={22}
-              weight="bold"
+            <ImageAttachmentMenu
+              onSelect={(source) => void addAttachments(source)}
+              disabled={busy}
             />
-          </Pressable>
-        )}
-      </View>
+            <TextInput
+              value={text}
+              onChangeText={setText}
+              onFocus={() => setFocused(true)}
+              onBlur={() => setFocused(false)}
+              placeholder={placeholder}
+              placeholderTextColor={placeholderColor}
+              multiline
+              returnKeyType="send"
+              submitBehavior="blurAndSubmit"
+              onSubmitEditing={submit}
+              style={{ includeFontPadding: false, textAlignVertical: "center" }}
+              className="max-h-32 min-h-12 flex-1 py-3.5 text-base leading-5 text-foreground"
+            />
+            {/* Send sits inside the field, like Home's; emptyAction replaces it outside while the field is idle. */}
+            {showEmptyAction ? null : (
+              <Animated.View entering={swapIn} exiting={swapOut}>
+                <Pressable
+                  onPress={submit}
+                  disabled={!canSend}
+                  accessibilityLabel="Send"
+                  accessibilityRole="button"
+                  hitSlop={{ right: 4 }}
+                  className="h-12 w-10 items-center justify-center active:opacity-60"
+                  style={canSend ? undefined : { opacity: 0.35 }}
+                >
+                  <SymbolView
+                    name={SEND_ICON}
+                    tintColor={canSend ? primaryColor : placeholderColor}
+                    size={26}
+                  />
+                </Pressable>
+              </Animated.View>
+            )}
+          </Animated.View>
+          {showEmptyAction ? (
+            <Animated.View entering={swapIn} exiting={swapOut}>
+              {emptyAction}
+            </Animated.View>
+          ) : null}
+        </View>
+      </LayoutAnimationConfig>
     </View>
   );
 }

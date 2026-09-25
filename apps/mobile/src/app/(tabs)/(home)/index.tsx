@@ -1,11 +1,17 @@
 import * as Crypto from "expo-crypto";
 import { Link, Stack, useRouter } from "expo-router";
 import { SymbolView } from "expo-symbols";
-import { useState } from "react";
-import { Keyboard, Pressable, ScrollView, View } from "react-native";
+import { Image } from "expo-image";
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  Keyboard,
+  Pressable,
+  ScrollView,
+  TextInput,
+  View,
+} from "react-native";
 import { useResolveClassNames } from "uniwind";
 
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Text } from "@/components/ui/text";
 import { dishMessage, entryMessage } from "@/features/chat/compose";
@@ -16,13 +22,13 @@ import {
   type ImageSource,
 } from "@/features/chat/image-attachment";
 import { ImageAttachmentMenu } from "@/features/chat/image-attachment-menu";
-import { ImageAttachmentStrip } from "@/features/chat/image-attachment-strip";
 import { queueMessage } from "@/features/chat/message-queue";
 import { SeededDeck } from "@/features/chat/seeded-deck";
 import {
   useActiveList,
   useHouseholdAccess,
 } from "@/features/onboarding/access";
+import { WeekGlance } from "@/features/meals/week-glance";
 import { HouseholdAvatars } from "@/features/profile/household-avatars";
 
 const HISTORY_ICON = {
@@ -32,20 +38,11 @@ const HISTORY_ICON = {
 } as const;
 const ADD_ICON = { ios: "plus.circle", android: "add_circle" } as const;
 const REMOVE_ICON = { ios: "xmark", android: "close", web: "close" } as const;
-const CALENDAR_ICON = {
-  ios: "calendar",
-  android: "calendar_today",
-  web: "calendar_today",
-} as const;
-const CHEVRON_ICON = {
-  ios: "chevron.right",
-  android: "chevron_right",
-  web: "chevron_right",
-} as const;
+const SUBMIT_ICON = { ios: "arrow.up.circle.fill", android: "arrow_circle_up" } as const;
 
 /**
  * Home starts a spontaneous meal from ingredients or a dish in mind.
- * These are independent entry points, not one combined form. "Get ideas" pushes
+ * These are independent entry points, not one combined form. Submitting pushes
  * the chat screen with the first message already written — the words are
  * the user's, assembled plainly (ADR 9).
  */
@@ -55,6 +52,7 @@ export default function Home() {
   const mutedColor = useResolveClassNames("text-muted-foreground").color;
   const { listId } = useHouseholdAccess();
   const list = useActiveList();
+  const primaryColor = useResolveClassNames("text-primary").color;
 
   const [entry, setEntry] = useState<"ingredients" | "dish">("ingredients");
   const [draft, setDraft] = useState("");
@@ -62,6 +60,41 @@ export default function Home() {
   const [chips, setChips] = useState<string[]>([]);
   const [attachments, setAttachments] = useState<ImageAttachment[]>([]);
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
+
+  const scrollRef = useRef<ScrollView>(null);
+  const scrollY = useRef(0);
+  const keyboardTop = useRef<number | null>(null);
+  const ingredientRef = useRef<TextInput>(null);
+  const dishRef = useRef<TextInput>(null);
+  const startRef = useRef<View>(null);
+
+  // Typing into either field must not hide the entry block behind the keyboard.
+  const revealStart = useCallback(() => {
+    const top = keyboardTop.current;
+    const focused = TextInput.State.currentlyFocusedInput();
+    if (top === null) return;
+    if (focused !== ingredientRef.current && focused !== dishRef.current) return;
+    startRef.current?.measureInWindow((_x, y, _width, height) => {
+      const overlap = y + height + 16 - top;
+      if (overlap > 0) {
+        scrollRef.current?.scrollTo({ y: scrollY.current + overlap });
+      }
+    });
+  }, []);
+
+  useEffect(() => {
+    const show = Keyboard.addListener("keyboardDidShow", (e) => {
+      keyboardTop.current = e.endCoordinates.screenY;
+      revealStart();
+    });
+    const hide = Keyboard.addListener("keyboardDidHide", () => {
+      keyboardTop.current = null;
+    });
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, [revealStart]);
 
   const trimmed = draft.trim();
   const canStart =
@@ -116,11 +149,30 @@ export default function Home() {
     router.push(`/chats/${chatId}` as never);
   }
 
+  const submitButton = (
+    <Pressable
+      onPress={start}
+      disabled={!canStart}
+      accessibilityLabel="Get ideas"
+      accessibilityRole="button"
+      hitSlop={{ right: 4 }}
+      className="h-12 w-10 items-center justify-center self-end active:opacity-60"
+      style={canStart ? undefined : { opacity: 0.35 }}
+    >
+      <SymbolView
+        name={SUBMIT_ICON}
+        tintColor={canStart ? primaryColor : mutedColor}
+        size={26}
+      />
+    </Pressable>
+  );
+
   return (
-    <View className="flex-1 bg-background">
+    <>
       <Stack.Screen
         options={{
           title: list?.name ?? "Home",
+          headerShadowVisible: false,
           headerLeft: () => (
             <Pressable
               onPress={() => router.push("/household" as never)}
@@ -147,32 +199,23 @@ export default function Home() {
       />
 
       <ScrollView
-        className="flex-1"
-        contentContainerClassName="pb-8 pt-5"
+        ref={scrollRef}
+        onScroll={(e) => {
+          scrollY.current = e.nativeEvent.contentOffset.y;
+        }}
+        scrollEventThrottle={16}
+        // The ScrollView is the screen's first native view, so the large
+        // title collapses with it.
+        className="flex-1 bg-background"
+        contentContainerClassName="pb-8 pt-2"
         keyboardShouldPersistTaps="handled"
         contentInsetAdjustmentBehavior="automatic"
         automaticallyAdjustKeyboardInsets
       >
-        <Link href="/meals/plan" asChild>
-          <Pressable
-            accessibilityRole="link"
-            className="mx-5 min-h-14 flex-row items-center gap-3 rounded-xl bg-accent px-4 py-2 active:opacity-60"
-          >
-            <SymbolView name={CALENDAR_ICON} tintColor={iconColor} size={20} />
-            <Text className="flex-1 font-medium">Plan the week</Text>
-            <SymbolView
-              name={CHEVRON_ICON}
-              tintColor={mutedColor}
-              size={14}
-              weight="semibold"
-            />
-          </Pressable>
-        </Link>
+        <WeekGlance listId={listId} />
 
-        <View className="mx-5 mt-6 gap-5">
-          <Text className="text-2xl font-semibold tracking-tight">
-            Spontaneous meal
-          </Text>
+        <View className="mx-4 mt-8 gap-3">
+          <Text className="text-xl font-semibold">Spontaneous meal</Text>
           <EntrySelector
             value={entry}
             onChange={(value) => {
@@ -180,135 +223,144 @@ export default function Home() {
               setEntry(value);
             }}
           />
-          <View className="gap-2">
-            <Text variant="muted" className="text-sm">
-              {entry === "ingredients"
-                ? "Two or three things you have is plenty."
-                : "Name a dish and explore a few ways to make it."}
-            </Text>
 
+          {/* What the keyboard must not cover. */}
+          <View ref={startRef} onLayout={revealStart}>
             {entry === "dish" ? (
-              <Input
-                value={dish}
-                onChangeText={setDish}
-                placeholder="What would you like to make?"
-                accessibilityLabel="Dish in mind"
-                className="h-12 shadow-none"
-                autoCapitalize="sentences"
-                autoCorrect
-                returnKeyType="go"
-                submitBehavior="submit"
-                onSubmitEditing={start}
-              />
+              <View className="min-h-12 flex-row items-center rounded-2xl bg-muted pr-1">
+                <Input
+                  ref={dishRef}
+                  value={dish}
+                  onChangeText={setDish}
+                  placeholder="What would you like to make?"
+                  accessibilityLabel="Dish in mind"
+                  className="h-12 flex-1 bg-transparent px-3.5"
+                  autoCapitalize="sentences"
+                  autoCorrect
+                  returnKeyType="go"
+                  submitBehavior="submit"
+                  onSubmitEditing={start}
+                />
+                {submitButton}
+              </View>
             ) : (
-              <View className="gap-3">
-                <View className="relative">
+              // One field: ingredients and photos sit inside it as tokens,
+              // ahead of the text you are typing.
+              <Pressable
+                onPress={() => ingredientRef.current?.focus()}
+                accessible={false}
+                className="min-h-12 flex-row items-center rounded-2xl bg-muted pl-2 pr-1"
+              >
+                <View className="flex-1 flex-row flex-wrap items-center gap-1.5 py-2">
+                  {chips.map((chip, i) => (
+                    <Pressable
+                      key={`${i}-${chip}`}
+                      onPress={() => removeChip(i)}
+                      accessibilityLabel={`Remove ${chip}`}
+                      accessibilityRole="button"
+                      hitSlop={{ top: 6, bottom: 6 }}
+                      className="h-8 flex-row items-center gap-1.5 rounded-full bg-card pl-3 pr-2.5 active:bg-accent"
+                    >
+                      <Text className="text-sm">{chip}</Text>
+                      <SymbolView
+                        name={REMOVE_ICON}
+                        tintColor={mutedColor}
+                        size={10}
+                        weight="bold"
+                      />
+                    </Pressable>
+                  ))}
+                  {attachments.map((attachment, i) => (
+                    <Pressable
+                      key={`${i}-${attachment.uri}`}
+                      onPress={() =>
+                        setAttachments((current) =>
+                          current.filter((_, j) => j !== i),
+                        )
+                      }
+                      accessibilityLabel={`Remove photo ${i + 1}`}
+                      accessibilityRole="button"
+                      hitSlop={{ top: 6, bottom: 6 }}
+                      className="h-8 flex-row items-center gap-1.5 rounded-full bg-card pl-1 pr-2.5 active:bg-accent"
+                    >
+                      <Image
+                        source={{ uri: attachment.uri }}
+                        contentFit="cover"
+                        style={{ width: 24, height: 24, borderRadius: 12 }}
+                      />
+                      <Text className="text-sm">Photo</Text>
+                      <SymbolView
+                        name={REMOVE_ICON}
+                        tintColor={mutedColor}
+                        size={10}
+                        weight="bold"
+                      />
+                    </Pressable>
+                  ))}
                   <Input
+                    ref={ingredientRef}
                     value={draft}
                     onChangeText={setDraft}
-                    placeholder="Add an ingredient…"
+                    placeholder={
+                      chips.length || attachments.length
+                        ? "Add more…"
+                        : "Two or three things you have…"
+                    }
                     accessibilityLabel="Ingredient"
-                    className="h-12 pr-14 shadow-none"
+                    className="h-8 min-w-24 flex-1 rounded-none bg-transparent px-1.5 py-0"
                     autoCapitalize="sentences"
                     autoCorrect
-                    returnKeyType="done"
+                    returnKeyType="go"
                     submitBehavior="submit"
                     onSubmitEditing={submitIngredient}
                   />
-                  {trimmed.length > 0 ? (
-                    <Pressable
-                      onPress={submitIngredient}
-                      accessibilityLabel="Add ingredient"
-                      accessibilityRole="button"
-                      className="absolute bottom-0 right-0 top-0 w-12 items-center justify-center active:opacity-60"
-                    >
-                      <SymbolView
-                        name={ADD_ICON}
-                        tintColor={iconColor}
-                        size={22}
-                      />
-                    </Pressable>
-                  ) : (
-                    <View className="absolute bottom-0 right-0 top-0 w-12 items-center justify-center">
-                      <ImageAttachmentMenu
-                        onSelect={(source) => void addAttachments(source)}
-                        accessibilityLabel="Add images of what you have"
-                      />
-                    </View>
-                  )}
                 </View>
-
-                {chips.length ? (
-                  <View className="flex-row flex-wrap gap-2">
-                    {chips.map((chip, i) => (
-                      <Pressable
-                        key={`${i}-${chip}`}
-                        onPress={() => removeChip(i)}
-                        accessibilityLabel={`Remove ${chip}`}
-                        accessibilityRole="button"
-                        className="flex-row items-center gap-1.5 rounded-full bg-secondary py-1.5 pl-3.5 pr-2.5 active:bg-accent"
-                      >
-                        <Text className="text-sm">{chip}</Text>
-                        <SymbolView
-                          name={REMOVE_ICON}
-                          tintColor={mutedColor}
-                          size={11}
-                          weight="bold"
-                        />
-                      </Pressable>
-                    ))}
+                {trimmed.length > 0 ? (
+                  <Pressable
+                    onPress={submitIngredient}
+                    accessibilityLabel="Add ingredient"
+                    accessibilityRole="button"
+                    className="h-12 w-10 items-center justify-center self-end active:opacity-60"
+                  >
+                    <SymbolView name={ADD_ICON} tintColor={iconColor} size={22} />
+                  </Pressable>
+                ) : (
+                  <View className="h-12 w-10 items-center justify-center self-end">
+                    <ImageAttachmentMenu
+                      onSelect={(source) => void addAttachments(source)}
+                      accessibilityLabel="Add images of what you have"
+                    />
                   </View>
-                ) : null}
-
-                <ImageAttachmentStrip
-                  attachments={attachments}
-                  onRemove={(index) =>
-                    setAttachments((current) =>
-                      current.filter((_, i) => i !== index),
-                    )
-                  }
-                  size={96}
-                />
-
-                {attachmentError ? (
-                  <Text className="text-destructive" accessibilityRole="alert">
-                    {attachmentError}
-                  </Text>
-                ) : null}
-              </View>
+                )}
+                {submitButton}
+              </Pressable>
             )}
           </View>
 
-          <Button
-            size="lg"
-            disabled={!canStart}
-            onPress={start}
-            className={canStart ? undefined : "bg-secondary opacity-100"}
-          >
-            <Text className={canStart ? undefined : "text-muted-foreground"}>
-              Get ideas
+          {attachmentError ? (
+            <Text className="text-destructive" accessibilityRole="alert">
+              {attachmentError}
             </Text>
-          </Button>
+          ) : null}
         </View>
 
-        <View className="mx-5 mt-7 gap-3">
+        <View className="mx-4 mt-8 gap-3">
           <View className="flex-row items-center justify-between gap-3">
-            <Text className="text-lg font-semibold">Quick meal ideas</Text>
+            <Text className="text-xl font-semibold">Start from an idea</Text>
             <Link href="/chats/ideas" asChild>
               <Pressable
                 accessibilityRole="link"
-                accessibilityLabel="See all quick meal ideas"
-                className="py-2 active:opacity-60"
+                accessibilityLabel="See all ideas"
+                hitSlop={12}
+                className="active:opacity-60"
               >
-                <Text variant="muted">See all</Text>
+                <Text className="text-link">See all</Text>
               </Pressable>
             </Link>
           </View>
-          <View className="-mx-5">
-            <SeededDeck preview onPick={startChat} />
-          </View>
+          <SeededDeck preview onPick={startChat} />
         </View>
       </ScrollView>
-    </View>
+    </>
   );
 }

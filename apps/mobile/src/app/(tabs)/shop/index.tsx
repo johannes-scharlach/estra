@@ -1,23 +1,21 @@
 import { useQuery } from "@powersync/react";
 import * as Haptics from "expo-haptics";
 import { useFocusEffect, useRouter, Stack } from "expo-router";
-import { SymbolView } from "expo-symbols";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   AccessibilityInfo,
   Alert,
-  Pressable,
+  Platform,
   ScrollView,
   View,
 } from "react-native";
 import Animated from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useResolveClassNames } from "uniwind";
 
 import { Text } from "@/components/ui/text";
-import { Button } from "@/components/ui/button";
 import { applySwap, setItemStatus } from "@/db/items";
 import type { List } from "@/db/schema";
+import { MEALS_WITH_SHOPPING, type ShoppingMeal } from "@/db/shopping-meals";
 import {
   alternativesForItem,
   orderedAlternatives,
@@ -46,43 +44,48 @@ type Entry = { key: string } & (
 
 export default function Shop() {
   const router = useRouter();
-  const iconColor = useResolveClassNames("text-foreground").color;
   const list = useActiveList();
+  const today = useToday();
+  const { data: meals } = useQuery<ShoppingMeal>(
+    `${MEALS_WITH_SHOPPING} WHERE pm.list_id = ? AND pm.slot_date >= ?`,
+    [list?.id ?? "", today],
+  );
+  const mealsToReview = meals.filter((meal) => !meal.shopping_reviewed).length;
 
   // The app only opens once a household is active; this covers the rebind.
   if (!list) return <View className="flex-1 bg-background" />;
   return (
     <>
-      <Stack.Screen
-        options={{
-          headerRight: () => (
-            <Pressable
-              onPress={() =>
-                router.push({
-                  pathname: "/shop/add",
-                  params: { listId: list.id },
-                })
-              }
-              hitSlop={12}
-              accessibilityLabel="Add item"
-              accessibilityRole="button"
-              className="items-center justify-center p-2"
-            >
-              <SymbolView
-                name={{ ios: "plus", android: "add" }}
-                tintColor={iconColor}
-                size={22}
-              />
-            </Pressable>
-          ),
-        }}
-      />
-      <ListScreen key={list.id} list={list} />
+      <ListScreen key={list.id} list={list} mealsToReview={mealsToReview} />
+      <Stack.Toolbar placement="right">
+        <Stack.Toolbar.Button
+          hidden={mealsToReview === 0}
+          accessibilityLabel={`${mealsToReview} ${mealsToReview === 1 ? "meal" : "meals"} to review`}
+          onPress={() => router.push("/shop/meals")}
+        >
+          {`Meals (${mealsToReview})`}
+        </Stack.Toolbar.Button>
+        <Stack.Toolbar.Button
+          icon={Platform.OS === "ios" ? "plus" : undefined}
+          accessibilityLabel="Add item"
+          onPress={() =>
+            router.push({ pathname: "/shop/add", params: { listId: list.id } })
+          }
+        >
+          Add
+        </Stack.Toolbar.Button>
+      </Stack.Toolbar>
     </>
   );
 }
 
-function ListScreen({ list }: { list: List }) {
+function ListScreen({
+  list,
+  mealsToReview,
+}: {
+  list: List;
+  mealsToReview: number;
+}) {
   const router = useRouter();
   const today = useToday();
   const insets = useSafeAreaInsets();
@@ -245,14 +248,11 @@ function ListScreen({ list }: { list: List }) {
     >
       <Text variant="muted" className="px-4 pb-1 android:pt-3">
         {active.length === 0
-          ? "Nothing on the list. Choose ingredients from your meals or tap + to add an item."
+          ? mealsToReview > 0
+            ? "Nothing to buy yet. Open Meals to choose what to buy, or add an item."
+            : "Nothing to buy. Add an item when you need it."
           : `${active.length} to buy${checked.length ? ` · ${checked.length} checked` : ""}`}
       </Text>
-      <View className="px-4 pt-3">
-        <Button variant="outline" onPress={() => router.push("/shop/meals")}>
-          <Text>Choose ingredients from meals</Text>
-        </Button>
-      </View>
       {entries.map((entry, index) => {
         if (entry.kind === "header") {
           return (

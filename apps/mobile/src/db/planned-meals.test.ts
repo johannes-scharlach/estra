@@ -10,6 +10,7 @@ import {
   updatePlannedMealEaters,
 } from "./planned-meals";
 import { saveMealShoppingReview } from "./meal-shopping";
+import { MEALS_WITH_SHOPPING } from "./shopping-meals";
 
 const state = vi.hoisted(() => ({ db: null as DatabaseSync | null }));
 vi.mock("expo-crypto", () => ({ randomUUID: () => crypto.randomUUID() }));
@@ -49,6 +50,8 @@ const sourceId = plannedMealId(listId, date, source.slot);
 const destinationId = plannedMealId(listId, destination.date, destination.slot);
 const all = (table: string) =>
   state.db!.prepare(`SELECT * FROM ${table} ORDER BY id`).all();
+const shoppingMeal = (id: string) =>
+  state.db!.prepare(`${MEALS_WITH_SHOPPING} WHERE pm.id = ?`).get(id);
 
 beforeEach(() => {
   state.db = new DatabaseSync(":memory:");
@@ -86,6 +89,27 @@ function addSalad() {
     )
     .run(listId, sourceId);
 }
+
+it("stops prompting a written meal after adding an item, even when bought or moved", async () => {
+  await writeMeal();
+  expect(shoppingMeal(sourceId)).toMatchObject({ shopping_reviewed: 0 });
+  // A standalone item is not a choice for this meal.
+  state.db!.exec(
+    "INSERT INTO list_items (id, list_id, name, status) VALUES ('milk', 'household', 'Milk', 'active')",
+  );
+  expect(shoppingMeal(sourceId)).toMatchObject({ shopping_reviewed: 0 });
+  addSalad();
+  state.db!.exec("UPDATE list_items SET status = 'active' WHERE id = 'salad'");
+  expect(shoppingMeal(sourceId)).toMatchObject({ shopping_reviewed: 1 });
+  state.db!.exec(
+    "UPDATE list_items SET status = 'purchased' WHERE id = 'salad'",
+  );
+  expect(shoppingMeal(sourceId)).toMatchObject({ shopping_reviewed: 1 });
+  await movePlannedMeal(listId, source, destination);
+  expect(shoppingMeal(destinationId)).toMatchObject({ shopping_reviewed: 1 });
+  await repeatPlannedMeal(listId, { ...destination, variantId: null }, source);
+  expect(shoppingMeal(sourceId)).toMatchObject({ shopping_reviewed: 0 });
+});
 
 it("saves just a name, edits it without touching shopping, and supports eaters", async () => {
   await writeMeal();
@@ -419,6 +443,7 @@ it("saves swaps as the meal's shopping item and marks empty reviews complete", a
     variantId: "swap-v",
   });
   const meal = all("planned_meals")[0]!;
+  expect(shoppingMeal(sourceId)).toMatchObject({ shopping_reviewed: 0 });
   await saveMealShoppingReview({
     listId,
     mealId: sourceId,
@@ -429,6 +454,7 @@ it("saves swaps as the meal's shopping item and marks empty reviews complete", a
   expect(all("planned_meals")[0]).toMatchObject({
     shopping_reviewed_variant_id: "swap-v",
   });
+  expect(shoppingMeal(sourceId)).toMatchObject({ shopping_reviewed: 1 });
   expect(all("list_items")[0]).toMatchObject({
     name: "Rice",
     name_key: "rice",
@@ -477,6 +503,11 @@ it("saves swaps as the meal's shopping item and marks empty reviews complete", a
   expect(all("planned_meals").find((row) => row.id === nextId)).toMatchObject({
     shopping_reviewed_variant_id: "swap-v",
   });
+  expect(shoppingMeal(nextId)).toMatchObject({ shopping_reviewed: 1 });
+  state.db!.exec(
+    "UPDATE planned_meals SET shopping_reviewed_variant_id = 'older-variant'",
+  );
+  expect(shoppingMeal(nextId)).toMatchObject({ shopping_reviewed: 0 });
   expect(
     all("list_items").filter((item) => item.planned_meal_id === nextId),
   ).toEqual([]);

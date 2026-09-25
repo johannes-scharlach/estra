@@ -317,7 +317,7 @@ export default function PlanMeals() {
 
           <Text variant="large">What do you have in mind? (optional)</Text>
 
-          <View className="rounded-xl border border-border bg-card">
+          <View className="rounded-2xl bg-muted">
             <TextInput
               multiline
               value={notes}
@@ -325,10 +325,9 @@ export default function PlanMeals() {
               textAlignVertical="top"
               accessibilityLabel="What do you have in mind? (optional)"
               placeholder="Something you're craving, quick dinners, guests, ingredients to use up…"
-              className="min-h-28 px-4 py-3 text-base text-foreground"
+              className="min-h-28 px-4 py-3 text-base text-foreground placeholder:text-muted-foreground/70"
             />
-            <View className="h-px bg-border" />
-            <View className="gap-2 px-4 py-2">
+            <View className="gap-2 px-4 pb-2">
               <ImageAttachmentStrip
                 attachments={attachments}
                 onRemove={(index) =>

@@ -1,12 +1,11 @@
 import { useQuery } from "@powersync/react";
-import * as Crypto from "expo-crypto";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { ScrollView, View } from "react-native";
 
 import { Button } from "@/components/ui/button";
 import { Text } from "@/components/ui/text";
 import type { ListItem, PlannedMeal } from "@/db/schema";
-import { queueMessage } from "@/features/chat/message-queue";
+import { startShoppingChat } from "@/features/meals/start-shopping-chat";
 import { mealLabel } from "@/features/meals/variant-meals";
 import { useActiveList } from "@/features/onboarding/access";
 
@@ -23,19 +22,6 @@ export default function WrittenMeal() {
     [id ?? "", list?.id ?? ""],
   );
   const meal = meals[0];
-  function helpWithShopping() {
-    if (!meal || !list) return;
-    const chatId = Crypto.randomUUID();
-    queueMessage({
-      chatId,
-      listId: list.id,
-      mealContext: { plannedMealId: meal.id },
-      messageId: Crypto.randomUUID(),
-      text: `Help me with shopping for ${meal.name} (${mealLabel(meal)}).`,
-      attachments: [],
-    });
-    router.push({ pathname: "/chats/[id]", params: { id: chatId } });
-  }
   return (
     <ScrollView
       className="flex-1 bg-background"
@@ -92,8 +78,10 @@ export default function WrittenMeal() {
                 {[item.name, item.spec].filter(Boolean).join(" · ")}
               </Text>
             ))}
-            <Button variant="ghost" onPress={helpWithShopping}>
-              <Text>Help with shopping</Text>
+            <Button variant="ghost" onPress={() => startShoppingChat(meal)}>
+              <Text>
+                {items.length ? "Add more items" : "Choose what to buy"}
+              </Text>
             </Button>
           </View>
         </>

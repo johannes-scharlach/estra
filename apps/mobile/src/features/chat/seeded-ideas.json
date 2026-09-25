@@ -5,13 +5,9 @@
     "section": "Seasonal Late-Summer Specials",
     "ingredients": "Pork chops, Zwetschgen/purple plums, red onion, balsamic vinegar, fresh rosemary",
     "previewIngredients": "Pork chops, plums, red onion, balsamic, rosemary",
-    "time": "~20 mins, one skillet",
+    "time": "20 min · 1 skillet",
     "vibe": "Sweet-tart plum sauce, caramelized pork, autumn-on-the-horizon energy.",
-    "months": [
-      8,
-      9,
-      10
-    ]
+    "months": [8, 9, 10]
   },
   {
     "title": "Late-Summer Charred Sweet Corn, Zucchini & Feta Skillet",
@@ -19,13 +15,9 @@
     "section": "Seasonal Late-Summer Specials",
     "ingredients": "Fresh corn, zucchini, feta, fresh basil, lime or lemon",
     "previewIngredients": "Corn, zucchini, feta, basil, lime",
-    "time": "15 mins, hot skillet",
+    "time": "15 min · 1 skillet",
     "vibe": "Sweet, smoky, salty, bright; perfect with bread or tortillas.",
-    "months": [
-      8,
-      9,
-      10
-    ]
+    "months": [8, 9, 10]
   },
   {
     "title": "Brown-Butter Pfifferlinge (Chanterelles) on Toasted Sourdough",
@@ -33,13 +25,9 @@
     "section": "Seasonal Late-Summer Specials",
     "ingredients": "Pfifferlinge, sourdough, butter, shallot/red onion, fresh parsley",
     "previewIngredients": "Chanterelles, sourdough, butter, shallot, parsley",
-    "time": "10–12 mins, pan + toaster",
+    "time": "12 min · pan + toaster",
     "vibe": "Deeply earthy, nutty, woodsy; peak forest-in-a-good-way.",
-    "months": [
-      8,
-      9,
-      10
-    ]
+    "months": [8, 9, 10]
   },
   {
     "title": "Sheet-Pan Roasted Sausage, Sweet Bell Peppers & New Potatoes",
@@ -47,13 +35,9 @@
     "section": "Seasonal Late-Summer Specials",
     "ingredients": "Salsiccia or coarse bratwurst, sweet pointed peppers, baby potatoes, whole garlic cloves, fresh oregano/thyme",
     "previewIngredients": "Sausage, peppers, potatoes, garlic, herbs",
-    "time": "10 mins prep, ~30 mins oven",
+    "time": "40 min · oven",
     "vibe": "Sweet caramelized peppers, crispy potatoes, juicy herb sausage.",
-    "months": [
-      8,
-      9,
-      10
-    ]
+    "months": [8, 9, 10]
   },
   {
     "title": "Jammy Cherry Tomato & Ricotta Pasta",
@@ -61,13 +45,9 @@
     "section": "Seasonal Late-Summer Specials",
     "ingredients": "Cherry/vine tomatoes, rigatoni or paccheri, ricotta (or Schmand/burrata), garlic, fresh basil",
     "previewIngredients": "Tomatoes, pasta, ricotta, garlic, basil",
-    "time": "15 mins, pan + pot",
+    "time": "15 min · pan + pot",
     "vibe": "Creamy, sweet, bright tomato emulsion clinging to big pasta tubes.",
-    "months": [
-      8,
-      9,
-      10
-    ]
+    "months": [8, 9, 10]
   },
   {
     "title": "Flammkuchen with Schmand, bacon and onions",
@@ -75,7 +55,7 @@
     "section": "Pantry & Fast Comfort",
     "ingredients": "Flammkuchen base, Schmand, bacon, onions",
     "previewIngredients": "Flammkuchen base, Schmand, bacon, onions",
-    "time": "5–10 mins prep, 10–15 mins bake",
+    "time": "25 min · oven",
     "vibe": "Ultra-thin, crisp, smoky, creamy, sweet-onion comfort."
   },
   {
@@ -84,7 +64,7 @@
     "section": "Pantry & Fast Comfort",
     "ingredients": "Spaghetti, Pecorino Romano (or Grana Padano), whole black peppercorns, butter",
     "previewIngredients": "Spaghetti, pecorino, black pepper, butter",
-    "time": "15–20 mins, one pot + pan",
+    "time": "20 min · pot + pan",
     "vibe": "Rich, sharp, peppery, pure cheese-and-pepper minimalism."
   },
   {
@@ -93,7 +73,7 @@
     "section": "Pantry & Fast Comfort",
     "ingredients": "Waxy potatoes, eggs, yellow onion, olive oil",
     "previewIngredients": "Potatoes, eggs, onion, olive oil",
-    "time": "25–35 mins, one pan",
+    "time": "35 min · 1 pan",
     "vibe": "Custardy, savory, dense but tender; great hot or room temp."
   },
   {
@@ -102,7 +82,7 @@
     "section": "Pantry & Fast Comfort",
     "ingredients": "Rigatoni or bucatini, guanciale (or smoked bacon/Speck), canned San Marzano tomatoes, Pecorino Romano, dried chili flakes",
     "previewIngredients": "Pasta, guanciale, tomatoes, pecorino, chili",
-    "time": "25 mins, one pan + pot",
+    "time": "25 min · pan + pot",
     "vibe": "Tangy, smoky, spicy, deeply savory."
   },
   {
@@ -111,7 +91,7 @@
     "section": "Pantry & Fast Comfort",
     "ingredients": "Canned cannellini beans, tuna in olive oil, red onion, fresh parsley, lemon",
     "previewIngredients": "White beans, tuna, red onion, parsley, lemon",
-    "time": "10 mins, no cooking",
+    "time": "10 min · no cooking",
     "vibe": "Bright, herby, olive-oily and refreshing, zero-effort pantry dinner."
   },
   {
@@ -120,175 +100,175 @@
     "section": "Pantry & Fast Comfort",
     "ingredients": "Fresh potato gnocchi, diced pancetta or bacon, fresh sage leaves, butter, grated Parmesan",
     "previewIngredients": "Gnocchi, pancetta, sage, butter, parmesan",
-    "time": "15 mins, one pan",
+    "time": "15 min · 1 pan",
     "vibe": "Nutty browned butter, crispy sage, salty pork, pillowy gnocchi."
   },
   {
     "title": "North African Shakshuka",
     "section": "Skillet & Stovetop Mains",
     "ingredients": "Canned crushed tomatoes, eggs, bell pepper, ground cumin, feta (bread to serve)",
-    "time": "20–25 mins, one pan",
+    "time": "25 min · 1 pan",
     "vibe": "Spiced, saucy, runny-yolk brunch-for-dinner."
   },
   {
     "title": "Quesadillas with Refried Black Beans & Roasted Poblanos/Peppers",
     "section": "Skillet & Stovetop Mains",
     "ingredients": "Flour tortillas, canned black beans, shredded cheese, green bell pepper or mild chili, jarred salsa",
-    "time": "15 mins, skillet + tiny bit of chopping",
+    "time": "15 min · 1 skillet",
     "vibe": "Crisp, gooey, mildly smoky; dip-able and kid-adjustable."
   },
   {
     "title": "Pan-Seared Pork Chops with Apples & Mustard Cream Sauce",
     "section": "Skillet & Stovetop Mains",
     "ingredients": "Bone-in pork chops, tart apples, Dijon mustard, heavy cream, fresh thyme",
-    "time": "20 mins, one pan",
+    "time": "20 min · 1 pan",
     "vibe": "Sweet-tangy, creamy pan sauce over juicy seared chops."
   },
   {
     "title": "Greek Spanakorizo (Spinach & Rice Pilaf)",
     "section": "Skillet & Stovetop Mains",
     "ingredients": "Fresh baby spinach, medium-grain rice, spring onions, fresh dill, lemon juice",
-    "time": "25–30 mins, one pot",
+    "time": "30 min · 1 pot",
     "vibe": "Herbaceous, lemony, soothing and light."
   },
   {
     "title": "Crispy Tofu with Peanut-Soy Glaze & Steamed Broccoli",
     "section": "Skillet & Stovetop Mains",
     "ingredients": "Extra-firm tofu, peanut butter, soy sauce, fresh ginger, broccoli florets",
-    "time": "20 mins, pan + pot/steamer",
+    "time": "20 min · pan + steamer",
     "vibe": "Crispy edges, nutty-salty glaze, clean green broccoli."
   },
   {
     "title": "Smoked Trout, Potato & Horseradish Hash",
     "section": "Skillet & Stovetop Mains",
     "ingredients": "Smoked trout fillets, pre-boiled waxy potatoes, sour cream/Schmand, prepared horseradish, fresh chives",
-    "time": "15–20 mins, skillet",
+    "time": "20 min · 1 skillet",
     "vibe": "Smoky, crisp, pungent, cooled down with creamy tang."
   },
   {
     "title": "Roasted Sausage, Fennel & Sweet Potato Traybake",
     "section": "Oven & Sheet-Pan Essentials",
     "ingredients": "Salsiccia or coarse bratwurst, fennel bulbs, sweet potatoes, garlic cloves, fresh rosemary",
-    "time": "10 mins prep, 30–35 mins oven",
+    "time": "45 min · oven",
     "vibe": "Sweet caramelized roots, anise-y fennel, juicy herby sausage."
   },
   {
     "title": "Baked Feta with Cherry Tomatoes & Kalamata Olives",
     "section": "Oven & Sheet-Pan Essentials",
     "ingredients": "Feta block, cherry tomatoes, Kalamata olives, dried oregano, baguette",
-    "time": "5 mins prep, 20 mins oven",
+    "time": "25 min · oven",
     "vibe": "Jammy tomatoes, briny olives, soft salty cheese to scoop with bread."
   },
   {
     "title": "Crispy Sheet-Pan Gnocchi with Bell Peppers & Mozzarella",
     "section": "Oven & Sheet-Pan Essentials",
     "ingredients": "Shelf-stable/fresh gnocchi, bell peppers, red onion, mini mozzarella balls, fresh basil",
-    "time": "5–10 mins prep, 20 mins oven",
+    "time": "30 min · oven",
     "vibe": "Chewy-crisp gnocchi, sweet roasted veg, stretchy cheese."
   },
   {
     "title": "Lemon-Herb Roasted Chicken Thighs & Baby Potatoes",
     "section": "Oven & Sheet-Pan Essentials",
     "ingredients": "Bone-in skin-on chicken thighs, baby potatoes, whole lemons, garlic heads, fresh thyme",
-    "time": "10 mins prep, 35–40 mins oven",
+    "time": "50 min · oven",
     "vibe": "Crispy skin, schmaltz-roasted potatoes, bright lemony pan juices."
   },
   {
     "title": "Korean Stir-Fried Pork Belly with Kimchi (Jaeyuk / Duri-chigi style)",
     "section": "Asian-Inspired & High Flavor",
     "ingredients": "Thinly sliced pork belly, mature kimchi, gochujang, garlic, cooked short-grain rice",
-    "time": "15–20 mins, one pan",
+    "time": "20 min · 1 pan",
     "vibe": "Spicy, tangy, fatty, deeply savory, late-night-bar-food energy."
   },
   {
     "title": "Japanese Gyudon (Beef Rice Bowl)",
     "section": "Asian-Inspired & High Flavor",
     "ingredients": "Thinly sliced beef, sliced onion, soy sauce, mirin, short-grain rice",
-    "time": "15 mins, one pan",
+    "time": "15 min · 1 pan",
     "vibe": "Sweet-savory, oniony, super comforting over fluffy rice."
   },
   {
     "title": "Chinese Tomato & Egg Stir-Fry (Fan Qie Chao Dan)",
     "section": "Asian-Inspired & High Flavor",
     "ingredients": "Ripe tomatoes, eggs, scallions, soy sauce, pinch of sugar (plus rice to serve)",
-    "time": "10–15 mins, one wok/pan",
+    "time": "15 min · 1 wok",
     "vibe": "Silky, sweet-acidic, gentle; ideal for kids and tired adults."
   },
   {
     "title": "Miso-Butter Salmon & Green Beans",
     "section": "Asian-Inspired & High Flavor",
     "ingredients": "Salmon fillets, white miso paste, butter, fresh green beans, soy sauce",
-    "time": "15–20 mins, pan or oven",
+    "time": "20 min · pan or oven",
     "vibe": "Buttery, umami, slightly sweet glaze with crisp-tender beans."
   },
   {
     "title": "Egg Fried Rice with Char Siu or Ham",
     "section": "Asian-Inspired & High Flavor",
     "ingredients": "Day-old jasmine rice, eggs, scallions, diced smoked ham/char siu, soy sauce",
-    "time": "12–15 mins, one wok/pan",
+    "time": "15 min · 1 wok",
     "vibe": "Fast, savory fridge-clean-out with smoky little meat bites."
   },
   {
     "title": "Smoky Ajvar & Burrata Pinsa with Prosciutto",
     "section": "Shortcut-Based Ideas",
     "ingredients": "Pinsa base, mild ajvar, burrata, prosciutto, fresh arugula",
-    "time": "5 mins assembly, 8–10 mins bake",
+    "time": "15 min · oven",
     "vibe": "Airy crisp crust, sweet-smoky pepper base, cool creamy cheese, salty ham."
   },
   {
     "title": "Weeknight Red Thai Curry Noodles with Salmon & Sugar Snaps",
     "section": "Shortcut-Based Ideas",
     "ingredients": "Red curry paste, coconut milk, salmon fillets, sugar snap peas, quick-cook noodles",
-    "time": "~15 mins, one pot",
+    "time": "15 min · 1 pot",
     "vibe": "Fragrant, silky, gently spicy broth with tender fish and crunchy peas."
   },
   {
     "title": "Sheet-Pan Red Pesto Gnocchi with Roasted Zucchini & Halloumi",
     "section": "Shortcut-Based Ideas",
     "ingredients": "Potato gnocchi, jarred red pesto, zucchini, halloumi, cherry tomatoes",
-    "time": "5 mins prep, 20 mins oven",
+    "time": "25 min · oven",
     "vibe": "Crispy-chewy gnocchi, caramelized halloumi, sweet-roasty veg, intense pesto."
   },
   {
     "title": "Silky White Bean & Ajvar Skillet with Crispy Merguez / Salsiccia",
     "section": "Shortcut-Based Ideas",
     "ingredients": "Merguez or salsiccia, ajvar, canned cannellini or butter beans, baby spinach, feta",
-    "time": "15 mins, one skillet",
+    "time": "15 min · 1 skillet",
     "vibe": "Rustic, spoonable, sweet-smoky sauce coating creamy beans and greens."
   },
   {
     "title": "Crispy Hummus & Spiced Lamb/Beef Flatbreads (Lahmacun-Style)",
     "section": "Shortcut-Based Ideas",
     "ingredients": "Pita flatbreads, hummus, ground lamb or beef, ground sumac/cumin, flat-leaf parsley or baby spinach",
-    "time": "~12 mins, pan + oven/toaster",
+    "time": "12 min · pan + oven",
     "vibe": "Charred, street-food vibes: crisp bread, creamy hummus, spiced meat, fresh herbs."
   },
   {
     "title": "Harissa & Apricot Glazed Chicken Thighs with Steamed Couscous",
     "section": "Shortcut-Based Ideas",
     "ingredients": "Chicken thighs, mild harissa paste, apricot jam (or honey), quick-cooking couscous, lemon",
-    "time": "5 mins prep, ~25 mins oven",
+    "time": "30 min · oven",
     "vibe": "Sticky, sweet-heat glaze, fluffy couscous catching all the pan juices."
   },
   {
     "title": "Charred Sweet Corn & Kimchi Quesadillas",
     "section": "Shortcut-Based Ideas",
     "ingredients": "Flour tortillas, chopped kimchi, canned/fresh corn, shredded mozzarella/Gouda, butter or mayo",
-    "time": "10 mins, skillet",
+    "time": "10 min · 1 skillet",
     "vibe": "Funky, tangy, sweet and extremely melty; crunchy-edged from pan-toasting."
   },
   {
     "title": "Gochujang & Honey Glazed Pork Belly with Cucumber Sesame Crunch",
     "section": "Shortcut-Based Ideas",
     "ingredients": "Thinly sliced pork belly, gochujang, honey, mini cucumbers, toasted sesame oil/seeds",
-    "time": "~12 mins, pan + quick salad bowl",
+    "time": "12 min · 1 pan",
     "vibe": "Sticky, caramelized barbecue-ish pork with cool, crunchy, sesame-laced cucumbers."
   },
   {
     "title": "Miso-Glazed Roasted Aubergine (Nasu Dengaku) with Steamed Rice",
     "section": "Shortcut-Based Ideas",
     "ingredients": "Eggplants, white miso paste, mirin (or honey/sugar), short-grain rice, scallions",
-    "time": "5 mins prep, ~20 mins bake/grill",
+    "time": "25 min · oven or grill",
     "vibe": "Silky, smoky-sweet, umami-bomb eggplant over plain, calming rice."
   }
 ]

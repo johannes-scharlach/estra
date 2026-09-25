@@ -8,6 +8,7 @@ import { useResolveClassNames } from "uniwind";
 import { Button } from "@/components/ui/button";
 import { Text } from "@/components/ui/text";
 import { MealCardMenu } from "@/features/meals/meal-card-menu";
+import { startShoppingChat } from "@/features/meals/start-shopping-chat";
 import { useMealSelectionTransition } from "@/features/meals/use-meal-selection-transition";
 import { tonalPair } from "@/features/variants/tonal";
 import { useColorScheme } from "@/hooks/use-color-scheme";
@@ -22,9 +23,10 @@ type Props = {
   slot: MealSlot;
   /** Deterministic slot id; the recipe page uses it to know which meal it is about. */
   plannedMealId: string;
+  listId: string;
   /** Planned recipe, or null when the slot is still open. */
   recipe: DisplayPlannedMeal | null;
-  /** Only true for an unreviewed recipe planned for today or later. */
+  /** Only true for an unreviewed meal planned for today or later. */
   showShoppingPrompt: boolean;
   contenders: Recipe[];
   onPlan: (recipe: Recipe) => void;
@@ -56,6 +58,7 @@ export function MealSection({
   date,
   slot,
   plannedMealId,
+  listId,
   recipe,
   showShoppingPrompt,
   contenders,
@@ -140,84 +143,101 @@ export function MealSection({
 
       <View ref={contentRef} collapsable={false}>
         {recipe ? (
-          <View className={showShoppingPrompt ? "relative mx-6 pb-6" : "relative mx-6"}>
-          {showShoppingPrompt ? (
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => router.push({ pathname: "/meals/shopping", params: { id: plannedMealId } })}
-              className="absolute bottom-0 left-2 right-2 h-12 items-center justify-end rounded-b-xl border border-border bg-muted pb-1"
-              style={{ zIndex: 1 }}
-            >
-              <Text className="text-sm font-medium">Choose what to buy</Text>
-            </Pressable>
-          ) : null}
-          <Animated.View
-            entering={cardEnter}
-            className="overflow-hidden rounded-xl border border-border bg-card"
-            style={{ zIndex: 2 }}
+          <View
+            className={
+              showShoppingPrompt ? "relative mx-6 pb-6" : "relative mx-6"
+            }
           >
-            <Link
-              href={
-                recipe.variantId
-                  ? {
-                      pathname: "/variant/[id]",
-                      params: { id: recipe.variantId, plannedMealId },
-                    }
-                  : {
-                      pathname: "/meals/written",
-                      params: { id: plannedMealId },
-                    }
-              }
-              asChild
-            >
-              <Pressable>
-                {/* Same tonalPair as the cookbook row and hero — one identity per recipe. */}
-                <View className="h-36">
-                  <LinearGradient
-                    colors={tonalPair(recipe.id, dark)}
-                    start={{ x: 0.15, y: 0 }}
-                    end={{ x: 0.85, y: 1 }}
-                    style={{ flex: 1 }}
-                  />
-                  <Animated.View
-                    entering={detailsEnter}
-                    className="absolute bottom-3 left-3 right-3 flex-row flex-wrap items-end justify-between gap-2"
-                  >
-                    {recipe.totalTime ? (
-                      <Text className="rounded-full bg-background/50 mix-blend-hard-light px-2.5 py-1 text-xs font-medium">
-                        {recipe.totalTime}
-                      </Text>
-                    ) : null}
-                    <Text
-                      numberOfLines={1}
-                      className="ml-auto max-w-[60%] rounded-full bg-background/50 mix-blend-hard-light px-2.5 py-1 text-xs font-medium"
-                    >
-                      {recipe.eatersLabel}
-                    </Text>
-                  </Animated.View>
-                </View>
-                <Animated.View entering={detailsEnter} className="p-4">
-                  <Text className="text-lg font-semibold">{recipe.name}</Text>
-                </Animated.View>
+            {showShoppingPrompt ? (
+              <Pressable
+                accessibilityRole="button"
+                onPress={() =>
+                  recipe.variantId
+                    ? router.push({
+                        pathname: "/meals/shopping",
+                        params: { id: plannedMealId },
+                      })
+                    : startShoppingChat({
+                        id: plannedMealId,
+                        list_id: listId,
+                        name: recipe.name,
+                        slot_date: date,
+                        meal: slot,
+                      })
+                }
+                className="absolute bottom-0 left-2 right-2 h-12 items-center justify-end rounded-b-xl border border-border bg-muted pb-1"
+                style={{ zIndex: 1 }}
+              >
+                <Text className="text-sm font-medium">Choose what to buy</Text>
               </Pressable>
-            </Link>
+            ) : null}
             <Animated.View
-              entering={detailsEnter}
-              pointerEvents="box-none"
-              className="absolute inset-0"
+              entering={cardEnter}
+              className="overflow-hidden rounded-xl border border-border bg-card"
+              style={{ zIndex: 2 }}
             >
-              <MealCardMenu
-                recipeId={recipe.id}
-                recipeName={recipe.name}
-                eatersLabel={recipe.eatersLabel}
-                onEditEaters={onEditEaters}
-                onChange={onChange}
-                onMove={onMove}
-                onRepeat={onRepeat}
-                onSkip={onSkip}
-              />
+              <Link
+                href={
+                  recipe.variantId
+                    ? {
+                        pathname: "/variant/[id]",
+                        params: { id: recipe.variantId, plannedMealId },
+                      }
+                    : {
+                        pathname: "/meals/written",
+                        params: { id: plannedMealId },
+                      }
+                }
+                asChild
+              >
+                <Pressable>
+                  {/* Same tonalPair as the cookbook row and hero — one identity per recipe. */}
+                  <View className="h-36">
+                    <LinearGradient
+                      colors={tonalPair(recipe.id, dark)}
+                      start={{ x: 0.15, y: 0 }}
+                      end={{ x: 0.85, y: 1 }}
+                      style={{ flex: 1 }}
+                    />
+                    <Animated.View
+                      entering={detailsEnter}
+                      className="absolute bottom-3 left-3 right-3 flex-row flex-wrap items-end justify-between gap-2"
+                    >
+                      {recipe.totalTime ? (
+                        <Text className="rounded-full bg-background/50 mix-blend-hard-light px-2.5 py-1 text-xs font-medium">
+                          {recipe.totalTime}
+                        </Text>
+                      ) : null}
+                      <Text
+                        numberOfLines={1}
+                        className="ml-auto max-w-[60%] rounded-full bg-background/50 mix-blend-hard-light px-2.5 py-1 text-xs font-medium"
+                      >
+                        {recipe.eatersLabel}
+                      </Text>
+                    </Animated.View>
+                  </View>
+                  <Animated.View entering={detailsEnter} className="p-4">
+                    <Text className="text-lg font-semibold">{recipe.name}</Text>
+                  </Animated.View>
+                </Pressable>
+              </Link>
+              <Animated.View
+                entering={detailsEnter}
+                pointerEvents="box-none"
+                className="absolute inset-0"
+              >
+                <MealCardMenu
+                  recipeId={recipe.id}
+                  recipeName={recipe.name}
+                  eatersLabel={recipe.eatersLabel}
+                  onEditEaters={onEditEaters}
+                  onChange={onChange}
+                  onMove={onMove}
+                  onRepeat={onRepeat}
+                  onSkip={onSkip}
+                />
+              </Animated.View>
             </Animated.View>
-          </Animated.View>
           </View>
         ) : (
           <View className="gap-3">
