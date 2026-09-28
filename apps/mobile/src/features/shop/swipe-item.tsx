@@ -5,6 +5,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import * as Haptics from "expo-haptics";
 import { SymbolView } from "expo-symbols";
 import { View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
@@ -18,6 +19,8 @@ import Animated, {
 } from "react-native-reanimated";
 import { scheduleOnRN } from "react-native-worklets";
 import { useResolveClassNames } from "uniwind";
+
+import { useCommitTick } from "@/hooks/use-commit-tick";
 
 import type { Alternative } from "./alternatives";
 
@@ -58,6 +61,8 @@ export function SwipeItem({
   const mutedColor = useResolveClassNames("text-muted-foreground").color;
   const primaryColor = useResolveClassNames("text-primary").color;
   const pageWidth = width;
+  const commitThreshold = Math.min(72, pageWidth * 0.3);
+  const tick = useCommitTick();
   // The Swap icon stays faint until a finger is on the row.
   const pressed = useSharedValue(0);
   const press = useCallback(
@@ -150,6 +155,7 @@ export function SwipeItem({
         .onBegin(() => press(true))
         .onStart(() => {
           if (!locked.get()) start.set(x.get());
+          tick(0);
         })
         .onUpdate((event) => {
           if (locked.get()) return;
@@ -165,15 +171,19 @@ export function SwipeItem({
               ? boundary
               : edge + overshoot / (1 + Math.abs(overshoot) / 40),
           );
+          tick(
+            x.get() < -commitThreshold && next
+              ? 1
+              : x.get() > commitThreshold && previous
+                ? -1
+                : 0,
+          );
         })
         .onEnd((event) => {
           if (locked.get()) return;
           const projected = x.get() + event.velocityX * 0.15;
           const canCommit = projected < 0 ? !!next : !!previous;
-          if (
-            canCommit &&
-            Math.abs(projected) > Math.min(72, pageWidth * 0.3)
-          ) {
+          if (canCommit && Math.abs(projected) > commitThreshold) {
             const direction = projected < 0 ? 1 : -1;
             animateSwap(direction, event.velocityX);
           } else {
@@ -198,7 +208,19 @@ export function SwipeItem({
               }),
             );
         }),
-    [disabled, next, previous, pageWidth, animateSwap, locked, press, start, x],
+    [
+      disabled,
+      next,
+      previous,
+      pageWidth,
+      commitThreshold,
+      animateSwap,
+      locked,
+      press,
+      start,
+      tick,
+      x,
+    ],
   );
 
   const tap = useMemo(
@@ -240,7 +262,14 @@ export function SwipeItem({
         .onBegin(() => press(true))
         .onFinalize(() => press(false))
         .onEnd((_event, success) => {
-          if (success && !locked.get() && hint !== null) animateSwap(hint, 0);
+          if (success && !locked.get() && hint !== null) {
+            // A tap has no drag to tick on, so it confirms here instead.
+            scheduleOnRN(
+              Haptics.impactAsync,
+              Haptics.ImpactFeedbackStyle.Light,
+            );
+            animateSwap(hint, 0);
+          }
         }),
     [animateSwap, disabled, hint, locked, pageWidth, press],
   );

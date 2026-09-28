@@ -61,6 +61,7 @@ import {
 import { prettyQuantity } from "@/features/shop/spec";
 import { tonalPair } from "@/features/variants/tonal";
 import { useColorScheme } from "@/hooks/use-color-scheme";
+import { useCommitTick } from "@/hooks/use-commit-tick";
 import { useActiveList } from "@/features/onboarding/access";
 
 const HERO_HEIGHT = 320;
@@ -252,18 +253,28 @@ function IngredientRow({
     [animateSwap, idx, onSwap],
   );
 
+  const tick = useCommitTick();
+  const swapThreshold = 40;
   const gesture = Gesture.Pan()
     .activeOffsetX([-12, 12])
     .failOffsetY([-8, 8])
+    .onStart(() => tick(0))
     .onUpdate((event) => {
       // eslint-disable-next-line react-hooks/immutability
       translateX.value = event.translationX * 0.5;
+      // options wrap around, so both directions can always commit
+      tick(
+        event.translationX < -swapThreshold
+          ? 1
+          : event.translationX > swapThreshold
+            ? -1
+            : 0,
+      );
     })
     .onEnd((event) => {
-      const threshold = 40;
-      if (event.translationX < -threshold) {
+      if (event.translationX < -swapThreshold) {
         runOnJS(triggerSwap)("next");
-      } else if (event.translationX > threshold) {
+      } else if (event.translationX > swapThreshold) {
         runOnJS(triggerSwap)("prev");
       } else {
         // eslint-disable-next-line react-hooks/immutability

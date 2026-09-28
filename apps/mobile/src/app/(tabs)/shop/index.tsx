@@ -1,5 +1,4 @@
 import { useQuery } from "@powersync/react";
-import * as Haptics from "expo-haptics";
 import { useFocusEffect, useRouter, Stack } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -209,7 +208,6 @@ function ListScreen({
     if (!alternative) return false;
     setHighlighted(item.id);
     clearHighlightLater();
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     session.select(alternative);
     AccessibilityInfo.announceForAccessibility(
       `Changed to ${alternative.name}`,

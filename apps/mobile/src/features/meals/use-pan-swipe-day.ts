@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef } from "react";
-import * as Haptics from "expo-haptics";
 import { Gesture } from "react-native-gesture-handler";
 import {
   ReduceMotion,
@@ -8,6 +7,8 @@ import {
   withSpring,
 } from "react-native-reanimated";
 import { scheduleOnRN } from "react-native-worklets";
+
+import { useCommitTick } from "@/hooks/use-commit-tick";
 
 /** Momentum projection — Apple's exponential-decay form. */
 function project(velocity: number, decelerationRate = 0.998) {
@@ -47,6 +48,7 @@ export function usePanSwipeDay({ width, count, index, onCommit }: Options) {
   const offset = useSharedValue(-index * width);
   const context = useSharedValue(0);
   const target = useSharedValue(index);
+  const tick = useCommitTick();
   const laidOutWidth = useRef(width);
   const commitThreshold = Math.max(60, width * 0.3);
 
@@ -65,6 +67,7 @@ export function usePanSwipeDay({ width, count, index, onCommit }: Options) {
         .failOffsetY([-10, 10]) // vertical scroll always wins first
         .onStart(() => {
           context.set(offset.get());
+          tick(0);
         })
         .onUpdate((e) => {
           const next = context.get() + e.translationX;
@@ -76,6 +79,15 @@ export function usePanSwipeDay({ width, count, index, onCommit }: Options) {
                 ? min + rubberband(next - min, width, 0.15)
                 : next,
           );
+          const from = Math.round(-context.get() / width);
+          const moved = offset.get() + from * width;
+          tick(
+            moved < -commitThreshold && from < count - 1
+              ? 1
+              : moved > commitThreshold && from > 0
+                ? -1
+                : 0,
+          );
         })
         .onEnd((e) => {
           const from = Math.round(-context.get() / width);
@@ -84,7 +96,6 @@ export function usePanSwipeDay({ width, count, index, onCommit }: Options) {
             moved < -commitThreshold ? 1 : moved > commitThreshold ? -1 : 0;
           const to = Math.min(count - 1, Math.max(0, from + dir));
           if (to !== from) {
-            scheduleOnRN(Haptics.impactAsync, Haptics.ImpactFeedbackStyle.Light);
             target.set(to);
             scheduleOnRN(onCommit, to);
           }
@@ -98,7 +109,7 @@ export function usePanSwipeDay({ width, count, index, onCommit }: Options) {
             }),
           );
         }),
-    [width, count, commitThreshold, onCommit, offset, context, target],
+    [width, count, commitThreshold, onCommit, offset, context, target, tick],
   );
 
   const dragStyle = useAnimatedStyle(() => ({
