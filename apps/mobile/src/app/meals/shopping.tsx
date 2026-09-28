@@ -1,9 +1,16 @@
 import { Button, Host, Text as NativeText } from "@expo/ui";
+import { fillMaxWidth } from "@expo/ui/jetpack-compose/modifiers";
 import { useQuery } from "@powersync/react";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import { useMemo, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, View } from "react-native";
+import {
+  ActivityIndicator,
+  Platform,
+  Pressable,
+  ScrollView,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useResolveClassNames } from "uniwind";
 
@@ -290,7 +297,14 @@ function IngredientReview({
         <Host matchContents={{ vertical: true }} ignoreSafeArea="all">
           <Button disabled={saving} onPress={() => void save()}>
             <NativeText
-              style={{ width: "100%", paddingVertical: 12 }}
+              // Compose's width modifier only takes numbers; "100%" crashes Android.
+              style={{
+                width: Platform.OS === "ios" ? "100%" : undefined,
+                paddingVertical: 12,
+              }}
+              modifiers={
+                Platform.OS === "android" ? [fillMaxWidth()] : undefined
+              }
               textStyle={{ textAlign: "center" }}
             >
               {saving

@@ -3,9 +3,7 @@ import { router } from "expo-router";
 import {
   useCallback,
   useEffect,
-  useLayoutEffect,
   useMemo,
-  useRef,
   useState,
 } from "react";
 import {
@@ -30,7 +28,6 @@ import {
 import { DayStrip } from "@/features/meals/day-strip";
 import { eatersLabel, parseEaterIds, toEaters } from "@/features/meals/eaters";
 import {
-  addDays,
   dateKey,
   stripDates,
   type MealSlot,
@@ -93,57 +90,20 @@ export default function Meals() {
   }, [choices]);
 
   const todayKey = dateKey(new Date());
-  const selDate = useMemo(
-    () => dates.find((d) => dateKey(d) === selected) ?? new Date(),
-    [dates, selected],
+  const selIndex = Math.max(
+    0,
+    dates.findIndex((d) => dateKey(d) === selected),
   );
-  const prevDate = useMemo(() => {
-    const d = addDays(selDate, -1);
-    return dates.some((x) => dateKey(x) === dateKey(d)) ? d : null;
-  }, [selDate, dates]);
-  const nextDate = useMemo(() => {
-    const d = addDays(selDate, 1);
-    return dates.some((x) => dateKey(x) === dateKey(d)) ? d : null;
-  }, [selDate, dates]);
-
-  // The pager commits after its settle animation, so the selected day lags
-  // the gesture by ~300ms. The page window (and its keys) always render from
-  // the latest selection, and nodes are keyed by date — the landed page is
-  // already on screen, the reset just re-centers the row in the same frame.
-  const commitArmed = useRef(false);
-  const pageRef = useRef({
-    nextKey: null as string | null,
-    prevKey: null as string | null,
-  });
-  useEffect(() => {
-    pageRef.current = {
-      nextKey: nextDate ? dateKey(nextDate) : null,
-      prevKey: prevDate ? dateKey(prevDate) : null,
-    };
-  });
-  const commitDay = useCallback((dir: 1 | -1) => {
-    const key = dir === 1 ? pageRef.current.nextKey : pageRef.current.prevKey;
-    if (!key) return;
-    commitArmed.current = true;
-    setSelected(key);
-  }, []);
-  const {
-    gesture: dayPan,
-    dragStyle,
-    translateX,
-  } = usePanSwipeDay({
+  const commitDay = useCallback(
+    (index: number) => setSelected(dateKey(dates[index]!)),
+    [dates],
+  );
+  const { gesture: dayPan, dragStyle } = usePanSwipeDay({
     width,
-    canGoPrev: !!prevDate,
-    canGoNext: !!nextDate,
+    count: dates.length,
+    index: selIndex,
     onCommit: commitDay,
   });
-  useLayoutEffect(() => {
-    if (commitArmed.current) {
-      commitArmed.current = false;
-      // same frame as the re-render — the landed page doesn't move a pixel
-      translateX.set(0);
-    }
-  }, [selected, translateX]);
 
   function plannedFor(date: string, slot: MealSlot): DisplayPlannedMeal | null {
     const k = `${date}:${slot}`;
@@ -308,9 +268,11 @@ export default function Meals() {
     });
   }
 
-  function dayPage(date: Date | null, slot: "prev" | "current" | "next") {
-    if (!list || !date) return <View key={`${slot}-empty`} style={{ width }} />;
+  function dayPage(date: Date, index: number) {
     const key = dateKey(date);
+    // Only the selected day and its neighbours mount; the rest hold their slot.
+    if (!list || Math.abs(index - selIndex) > 1)
+      return <View key={key} style={{ width }} />;
     return (
       <View key={key} style={{ width }}>
         <DayContent
@@ -382,14 +344,12 @@ export default function Meals() {
                 overflow: "hidden",
                 paddingBottom: 40,
                 // explicit: a stretched row would be viewport-wide and the
-                // -width rest offset would push every page off-screen
-                width: width * 3,
+                // page offset would push every page off-screen
+                width: width * dates.length,
               },
             ]}
           >
-            {dayPage(prevDate, "prev")}
-            {dayPage(selDate, "current")}
-            {dayPage(nextDate, "next")}
+            {dates.map(dayPage)}
           </Animated.View>
         </GestureDetector>
       </ScrollView>

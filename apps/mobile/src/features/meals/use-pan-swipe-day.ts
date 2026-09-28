@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import * as Haptics from "expo-haptics";
 import { Gesture } from "react-native-gesture-handler";
 import {
@@ -26,31 +26,37 @@ function rubberband(overshoot: number, dimension: number, constant = 0.55) {
 
 type Options = {
   width: number;
-  /** previous day exists — dragging right may pull it in */
-  canGoPrev: boolean;
-  /** next day exists — dragging left may pull it in */
-  canGoNext: boolean;
+  /** number of pages in the row */
+  count: number;
+  /** page the row rests on — follows the day strip */
+  index: number;
   /**
-   * Fires once the pulled page has landed. The screen swaps the selected day
-   * and snaps the row back to center in the same frame (see reset below).
+   * Fires as soon as a swipe decides its page, while the settle spring is
+   * still running, so the screen can mount the new neighbours in time.
    */
-  onCommit: (dir: 1 | -1) => void;
+  onCommit: (index: number) => void;
 };
 
 /**
- * 1:1 pull-over pager for the day row. The drag offset is a shared value —
- * no setState per frame. Velocity is handed to the settle spring, so a flick
- * commits and a slow drag past ~30% of the width commits too.
+ * 1:1 pull-over pager for the day row. Every page has a fixed slot in one
+ * long row and the drag moves a single offset — nothing is re-keyed or reset
+ * on commit, so there's no JS/UI-thread frame to keep in sync. A new drag
+ * picks the spring up mid-flight, so swipes can follow each other quickly.
  */
-export function usePanSwipeDay({
-  width,
-  canGoPrev,
-  canGoNext,
-  onCommit,
-}: Options) {
-  const translateX = useSharedValue(0);
+export function usePanSwipeDay({ width, count, index, onCommit }: Options) {
+  const offset = useSharedValue(-index * width);
   const context = useSharedValue(0);
+  const target = useSharedValue(index);
+  const laidOutWidth = useRef(width);
   const commitThreshold = Math.max(60, width * 0.3);
+
+  // A tap in the day strip (or a width change) jumps straight to the page.
+  useEffect(() => {
+    if (target.get() === index && laidOutWidth.current === width) return;
+    target.set(index);
+    laidOutWidth.current = width;
+    offset.set(-index * width);
+  }, [index, width, offset, target]);
 
   const gesture = useMemo(
     () =>
@@ -58,67 +64,46 @@ export function usePanSwipeDay({
         .activeOffsetX([-10, 10])
         .failOffsetY([-10, 10]) // vertical scroll always wins first
         .onStart(() => {
-          context.set(translateX.get());
+          context.set(offset.get());
         })
         .onUpdate((e) => {
           const next = context.get() + e.translationX;
-          if (next > 0) {
-            // pulling the previous page in; rest is 0, page fully in at +width
-            const limit = canGoPrev ? width : 0;
-            translateX.set(
-              next > limit ? limit + rubberband(next - limit, width, 0.15) : next,
-            );
-          } else {
-            // pulling the next page in; page fully in at -width
-            const limit = canGoNext ? -width : 0;
-            translateX.set(
-              next < limit ? limit + rubberband(next - limit, width, 0.15) : next,
-            );
-          }
+          const min = -(count - 1) * width;
+          offset.set(
+            next > 0
+              ? rubberband(next, width, 0.15)
+              : next < min
+                ? min + rubberband(next - min, width, 0.15)
+                : next,
+          );
         })
         .onEnd((e) => {
-          const projected = translateX.get() + project(e.velocityX);
+          const from = Math.round(-context.get() / width);
+          const moved = offset.get() + from * width + project(e.velocityX);
           const dir =
-            projected < -commitThreshold && canGoNext
-              ? 1
-              : projected > commitThreshold && canGoPrev
-                ? -1
-                : 0;
-          if (dir !== 0) {
+            moved < -commitThreshold ? 1 : moved > commitThreshold ? -1 : 0;
+          const to = Math.min(count - 1, Math.max(0, from + dir));
+          if (to !== from) {
             scheduleOnRN(Haptics.impactAsync, Haptics.ImpactFeedbackStyle.Light);
-            translateX.set(
-              withSpring(
-                dir * -width,
-                {
-                  duration: 300,
-                  dampingRatio: 1,
-                  velocity: e.velocityX,
-                  overshootClamping: true,
-                  reduceMotion: ReduceMotion.System,
-                },
-                (finished) => {
-                  if (finished) scheduleOnRN(onCommit, dir);
-                },
-              ),
-            );
-          } else {
-            translateX.set(
-              withSpring(0, {
-                duration: 300,
-                dampingRatio: 0.8,
-                velocity: e.velocityX,
-                reduceMotion: ReduceMotion.System,
-              }),
-            );
+            target.set(to);
+            scheduleOnRN(onCommit, to);
           }
+          offset.set(
+            withSpring(-to * width, {
+              duration: 300,
+              dampingRatio: to !== from ? 1 : 0.8,
+              velocity: e.velocityX,
+              overshootClamping: to !== from,
+              reduceMotion: ReduceMotion.System,
+            }),
+          );
         }),
-    [width, canGoPrev, canGoNext, commitThreshold, onCommit, translateX, context],
+    [width, count, commitThreshold, onCommit, offset, context, target],
   );
 
   const dragStyle = useAnimatedStyle(() => ({
-    // rest position centers the middle page of the [prev, current, next] row
-    transform: [{ translateX: translateX.get() - width }],
+    transform: [{ translateX: offset.get() }],
   }));
 
-  return { gesture, dragStyle, translateX };
+  return { gesture, dragStyle };
 }
