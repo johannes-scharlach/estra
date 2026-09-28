@@ -94,15 +94,28 @@ export default function CookMode() {
                   </Text>
                 ) : null}
                 {step.ingredients?.length ? (
-                  <View className="flex-row flex-wrap gap-2">
-                    {step.ingredients.map((ing) => (
-                      <View
-                        key={ing}
-                        className="rounded-full border border-foreground/25 px-3 py-1"
-                      >
-                        <Text className="text-sm">{ing}</Text>
-                      </View>
-                    ))}
+                  <View className="gap-2">
+                    {step.ingredients.map((ing, i) =>
+                      typeof ing === "string" ? (
+                        <Text key={i} className="text-lg">
+                          {ing}
+                        </Text>
+                      ) : (
+                        <Text key={i} className="text-lg">
+                          {ing.qty_text ? (
+                            <Text className="text-lg font-semibold">
+                              {ing.qty_text}{" "}
+                            </Text>
+                          ) : null}
+                          {ing.item_name}
+                          {ing.prep_note ? (
+                            <Text className="text-lg text-foreground/60">
+                              , {ing.prep_note}
+                            </Text>
+                          ) : null}
+                        </Text>
+                      ),
+                    )}
                   </View>
                 ) : null}
                 <Text className="text-xl leading-relaxed">{step.text}</Text>

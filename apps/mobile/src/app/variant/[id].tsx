@@ -1,7 +1,12 @@
 import { itemNameKey, mealDelta, mealSync } from "@estra/meals";
 import { useQuery } from "@powersync/react";
 import * as Crypto from "expo-crypto";
-import { Stack, useIsPreview, useLocalSearchParams, useRouter } from "expo-router";
+import {
+  Stack,
+  useIsPreview,
+  useLocalSearchParams,
+  useRouter,
+} from "expo-router";
 import { SymbolView } from "expo-symbols";
 import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
 import { LinearGradient } from "expo-linear-gradient";
@@ -25,6 +30,7 @@ import { KeyboardStickyView } from "react-native-keyboard-controller";
 import Animated, {
   interpolate,
   runOnJS,
+  useAnimatedReaction,
   useAnimatedScrollHandler,
   useAnimatedStyle,
   useReducedMotion,
@@ -32,6 +38,7 @@ import Animated, {
   withSequence,
   withTiming,
 } from "react-native-reanimated";
+import { scheduleOnRN } from "react-native-worklets";
 import { useResolveClassNames } from "uniwind";
 
 import { Button } from "@/components/ui/button";
@@ -508,12 +515,28 @@ export default function VariantPage() {
   const actionColor = useResolveClassNames("text-primary-foreground").color;
   const reducedMotion = useReducedMotion();
   const [composerHeight, setComposerHeight] = useState(96);
+  const [readingRecipe, setReadingRecipe] = useState(false);
   const list = useActiveList();
 
   const scrollY = useSharedValue(0);
+  const readingOnUI = useSharedValue(false);
   const scrollHandler = useAnimatedScrollHandler((event) => {
-    scrollY.value = event.contentOffset.y;
+    scrollY.set(event.contentOffset.y);
   });
+
+  // Hand space to chat as the hero leaves. Restore the labelled action only
+  // near the top, so small scroll reversals cannot keep swapping the bar.
+  useAnimatedReaction(
+    () => scrollY.get(),
+    (y) => {
+      const reading = readingOnUI.get();
+      const next = y >= HERO_HEIGHT - 52 ? true : y <= 48 ? false : reading;
+      if (next !== reading) {
+        readingOnUI.set(next);
+        scheduleOnRN(setReadingRecipe, next);
+      }
+    },
+  );
 
   // Header background + title fade in together as the hero scrolls away, so
   // controls are always themed-on-surface or themed-on-pastel — never white
@@ -883,6 +906,31 @@ export default function VariantPage() {
     router.push({ pathname: "/variant/plan", params: { id: variant.id } });
   const openCook = () =>
     router.push({ pathname: "/variant/cook", params: { id: variant.id } });
+  const recipeAction = (wide: boolean) => (
+    <Pressable
+      onPress={meal ? openCook : openPlan}
+      accessibilityRole="button"
+      accessibilityLabel={meal ? "Cook" : "Add to plan"}
+      className={`items-center justify-center rounded-full active:opacity-70 ${
+        wide ? "min-h-12 flex-1 flex-row gap-2 px-4 py-3" : "size-12"
+      }`}
+    >
+      <SymbolView
+        name={
+          meal
+            ? { ios: "frying.pan", android: "skillet" }
+            : { ios: "calendar.badge.plus", android: "event_available" }
+        }
+        size={22}
+        tintColor={actionColor}
+      />
+      {wide ? (
+        <Text className="shrink font-semibold text-primary-foreground">
+          {meal ? "Cook" : "Add to plan"}
+        </Text>
+      ) : null}
+    </Pressable>
+  );
   const openEaters = () => {
     if (!meal?.list_id || !meal.slot_date || !meal.meal) return;
     router.push({
@@ -901,98 +949,104 @@ export default function VariantPage() {
   return (
     <View className="flex-1 bg-background">
       {/* Stack.Screen reads navigation state, which is unavailable in a Link preview. */}
-      {!isPreview && <Stack.Screen
-        options={{
-          title: variant.name ?? "Recipe",
-          headerTintColor: foreground as string | undefined,
-          headerBackground: () => (
-            <Animated.View
-              style={[StyleSheet.absoluteFill, headerStyle]}
-              className="border-b border-border/40 bg-background"
-            />
-          ),
-          headerTitle: () => (
-            <Animated.View
-              style={[headerStyle, { maxWidth: headerTitleMaxWidth }]}
-              className="min-w-0 shrink px-2"
-            >
-              <Text
-                numberOfLines={1}
-                ellipsizeMode="tail"
-                className={`text-base font-semibold ${process.env.EXPO_OS === "ios" ? "text-center" : "text-left"}`}
+      {!isPreview && (
+        <Stack.Screen
+          options={{
+            title: variant.name ?? "Recipe",
+            headerTintColor: foreground as string | undefined,
+            headerBackground: () => (
+              <Animated.View
+                style={[StyleSheet.absoluteFill, headerStyle]}
+                className="border-b border-border/40 bg-background"
+              />
+            ),
+            headerTitle: () => (
+              <Animated.View
+                style={[headerStyle, { maxWidth: headerTitleMaxWidth }]}
+                className="min-w-0 shrink px-2"
               >
-                {variant.name}
-              </Text>
-            </Animated.View>
-          ),
-          // Share stays a direct control; the menu holds the rare actions.
-          headerRight: () => (
-            <View
-              style={{ width: HEADER_ACTIONS_WIDTH }}
-              className="flex-row items-center"
-            >
-              <Pressable
-                onPress={() => void onShare()}
-                hitSlop={8}
-                accessibilityRole="button"
-                accessibilityLabel="Share"
-                className="items-center justify-center p-2"
+                <Text
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
+                  className={`text-base font-semibold ${process.env.EXPO_OS === "ios" ? "text-center" : "text-left"}`}
+                >
+                  {variant.name}
+                </Text>
+              </Animated.View>
+            ),
+            // Share stays a direct control; the menu holds the rare actions.
+            headerRight: () => (
+              <View
+                style={{ width: HEADER_ACTIONS_WIDTH }}
+                className="flex-row items-center"
               >
-                <SymbolView
-                  name={SHARE_ICON}
-                  tintColor={foreground}
-                  size={22}
-                />
-              </Pressable>
-              <MenuView
-                actions={[
-                  {
-                    id: "history",
-                    title: "Chat history",
-                    image: "bubble.left.and.bubble.right",
-                  },
-                  { id: "variants", title: "Other variants", image: "square.stack" },
-                  ...(meal
-                    ? [
-                        {
-                          id: "plan",
-                          title: "Plan this again",
-                          image: "calendar.badge.plus" as const,
-                        },
-                      ]
-                    : []),
-                ]}
-                onPressAction={({ nativeEvent: { event } }) => {
-                  if (event === "plan") openPlan();
-                  if (event === "history")
-                    router.push({
-                      pathname: "/chats/history",
-                      params: { recipeId, listId: conversationListId },
-                    });
-                  if (event === "variants")
-                    router.push({
-                      pathname: "/variant/versions",
-                      params: { recipeId, id: variant.id },
-                    });
-                }}
-              >
-                <View
-                  accessible
+                <Pressable
+                  onPress={() => void onShare()}
+                  hitSlop={8}
                   accessibilityRole="button"
-                  accessibilityLabel="More"
+                  accessibilityLabel="Share"
                   className="items-center justify-center p-2"
                 >
                   <SymbolView
-                    name={MENU_ICON}
+                    name={SHARE_ICON}
                     tintColor={foreground}
                     size={22}
                   />
-                </View>
-              </MenuView>
-            </View>
-          ),
-        }}
-      />}
+                </Pressable>
+                <MenuView
+                  actions={[
+                    {
+                      id: "history",
+                      title: "Chat history",
+                      image: "bubble.left.and.bubble.right",
+                    },
+                    {
+                      id: "variants",
+                      title: "Other variants",
+                      image: "square.stack",
+                    },
+                    ...(meal
+                      ? [
+                          {
+                            id: "plan",
+                            title: "Plan this again",
+                            image: "calendar.badge.plus" as const,
+                          },
+                        ]
+                      : []),
+                  ]}
+                  onPressAction={({ nativeEvent: { event } }) => {
+                    if (event === "plan") openPlan();
+                    if (event === "history")
+                      router.push({
+                        pathname: "/chats/history",
+                        params: { recipeId, listId: conversationListId },
+                      });
+                    if (event === "variants")
+                      router.push({
+                        pathname: "/variant/versions",
+                        params: { recipeId, id: variant.id },
+                      });
+                  }}
+                >
+                  <View
+                    accessible
+                    accessibilityRole="button"
+                    accessibilityLabel="More"
+                    className="items-center justify-center p-2"
+                  >
+                    <SymbolView
+                      name={MENU_ICON}
+                      tintColor={foreground}
+                      size={22}
+                    />
+                  </View>
+                </MenuView>
+              </View>
+            ),
+          }}
+        />
+      )}
 
       <Animated.ScrollView
         onScroll={scrollHandler}
@@ -1194,7 +1248,16 @@ export default function VariantPage() {
                 ) : null}
               </View>
               {meal ? (
-                <Button variant="outline" className="mb-3" onPress={() => router.push({ pathname: "/meals/shopping", params: { id: meal.id } })}>
+                <Button
+                  variant="outline"
+                  className="mb-3"
+                  onPress={() =>
+                    router.push({
+                      pathname: "/meals/shopping",
+                      params: { id: meal.id },
+                    })
+                  }
+                >
                   <Text>Choose what to buy</Text>
                 </Button>
               ) : null}
@@ -1304,27 +1367,9 @@ export default function VariantPage() {
             busy={!conversationListId}
             suggestions={[]}
             onSend={startChat}
-            emptyAction={
-              <Pressable
-                onPress={meal ? openCook : openPlan}
-                accessibilityRole="button"
-                accessibilityLabel={meal ? "Cook" : "Add to plan"}
-                className="size-12 items-center justify-center rounded-full bg-primary active:opacity-70"
-              >
-                <SymbolView
-                  name={
-                    meal
-                      ? { ios: "frying.pan", android: "skillet" }
-                      : {
-                          ios: "calendar.badge.plus",
-                          android: "event_available",
-                        }
-                  }
-                  size={22}
-                  tintColor={actionColor}
-                />
-              </Pressable>
-            }
+            preferCollapsed={!readingRecipe}
+            collapsedAction={recipeAction(true)}
+            emptyAction={recipeAction(false)}
           />
         </View>
       </KeyboardStickyView>

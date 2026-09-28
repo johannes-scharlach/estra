@@ -4,7 +4,10 @@ import { newPerson, newProfile, profileContext } from "@estra/profile";
 
 test("household context preserves restrictions and routines without inventing inventory or equipment", () => {
   const profile = newProfile();
-  profile.goals = { "save-time": true, other: ["Cook with the children"] };
+  profile.goals = {
+    "fast-weeknight-dinners": true,
+    other: ["Cook with the children"],
+  };
   profile.kitchen_equipment = { other: [] };
   profile.meals_at_home = "Weekday dinners, lunches and dinners on weekends";
   profile.other_shops = "The Asian shop takes a special trip";
@@ -30,9 +33,12 @@ test("household context preserves restrictions and routines without inventing in
   assert.equal(data.people[0].is_current_user, true);
   assert.equal(data.people[1].is_current_user, false);
   assert.equal(data.household_restrictions, "Severe peanut allergy");
-  assert.match(data.people[0].diet_meaning, /still eats meat and fish/);
+  assert.match(context, /Flexitarian .* still regularly eats meat and fish/);
   assert.deepEqual(data.equipment, []);
-  assert.deepEqual(data.goals, ["Save time", "Cook with the children"]);
+  assert.deepEqual(data.goals, [
+    "Fast weeknight dinners",
+    "Cook with the children",
+  ]);
   assert.equal(
     data.meals_at_home,
     "Weekday dinners, lunches and dinners on weekends",

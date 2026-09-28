@@ -20,7 +20,13 @@ test("add-to-cookbook accepts optional household sizing metadata", () => {
       },
     ],
     recipeInstructions: [
-      { name: "Simmer", ingredients: ["chickpeas"], text: "Simmer until tender." },
+      {
+        name: "Simmer",
+        ingredients: [
+          { qty_text: "2 cans", item_name: "chickpeas", prep_note: "drained" },
+        ],
+        text: "Simmer until tender.",
+      },
     ],
     sizedFor: {
       eater_ids: ["00000000-0000-4000-8000-000000000001"],
@@ -29,10 +35,11 @@ test("add-to-cookbook accepts optional household sizing metadata", () => {
   });
 
   assert.equal(input.success, true);
-  if (input.success) assert.deepEqual(input.data.sizedFor, {
-    eater_ids: ["00000000-0000-4000-8000-000000000001"],
-    extra_portions: 0,
-  });
+  if (input.success)
+    assert.deepEqual(input.data.sizedFor, {
+      eater_ids: ["00000000-0000-4000-8000-000000000001"],
+      extra_portions: 0,
+    });
 });
 
 test("missing structured recipe ingredients produce actionable save feedback", () => {

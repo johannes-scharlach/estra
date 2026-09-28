@@ -2,8 +2,15 @@ import { mealDelta, type IngredientLine } from "@estra/meals";
 import type { PoolClient } from "pg";
 
 import { inTransaction, pool } from "./db.js";
-import { PlannedMealChangedError, PlannedMealNotFoundError, VariantNotFoundError } from "./errors.js";
-import { assertListMember, assertListMemberUntilCommit } from "./list-authorization.js";
+import {
+  PlannedMealChangedError,
+  PlannedMealNotFoundError,
+  VariantNotFoundError,
+} from "./errors.js";
+import {
+  assertListMember,
+  assertListMemberUntilCommit,
+} from "./list-authorization.js";
 import type { CookRecipeInput } from "./recipe-schema.js";
 import { findVariantIdentity, insertVariant } from "./variants.js";
 
@@ -37,7 +44,13 @@ type VariantRow = {
   instructions: unknown[];
 };
 type ItemRow = { name: string; spec: string | null; status: string };
-type Person = { id: string; name: string; age_group: string | null; diet: string | null; diet_other: string | null };
+type Person = {
+  id: string;
+  name: string;
+  age_group: string | null;
+  diet: string | null;
+  diet_other: string | null;
+};
 
 export type AdjustContext = {
   meal: MealRow;
@@ -100,10 +113,17 @@ export async function loadAdjustContext(
 }
 
 const joinNames = (names: string[]) =>
-  names.length <= 1 ? (names[0] ?? "") : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+  names.length <= 1
+    ? (names[0] ?? "")
+    : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
 
 /** The ask, in words. The schema descriptions carry the ingredient format. */
-export function adjustPrompt({ meal, variant, items, eaters }: AdjustContext): string {
+export function adjustPrompt({
+  meal,
+  variant,
+  items,
+  eaters,
+}: AdjustContext): string {
   const delta = mealDelta(variant.ingredient_lines, items);
   const swaps = delta.lines
     .filter((s) => s.swap && s.item)
@@ -111,12 +131,17 @@ export function adjustPrompt({ meal, variant, items, eaters }: AdjustContext): s
       const spec = [s.item?.spec].filter(Boolean).join(", ");
       return `- Use "${s.item?.name}"${spec ? ` (${spec})` : ""} instead of "${s.line.item_name}".`;
     });
-  const extra = delta.extra.map((i) => `- ${i.name}${i.spec ? ` (${i.spec})` : ""}`);
+  const extra = delta.extra.map(
+    (i) => `- ${i.name}${i.spec ? ` (${i.spec})` : ""}`,
+  );
   const who = eaters.map((p) => {
     const diet = p.diet === "other" ? p.diet_other : p.diet;
     return `${p.name} (${[p.age_group ?? "adult", diet].filter(Boolean).join(", ")})`;
   });
-  const extraPortions = meal.extra_portions > 0 ? `, plus ${meal.extra_portions} extra portions (one extra portion is one adult helping)` : "";
+  const extraPortions =
+    meal.extra_portions > 0
+      ? `, plus ${meal.extra_portions} extra portions (one extra portion is one adult helping)`
+      : "";
   const yieldFor = `Sized for ${joinNames(eaters.map((p) => p.name))}${meal.extra_portions > 0 ? ` + ${meal.extra_portions} extra` : ""}`;
 
   return [
@@ -125,7 +150,7 @@ export function adjustPrompt({ meal, variant, items, eaters }: AdjustContext): s
     `Keep the language (locale "${variant.locale}"), the voice, the structure and the order of steps, and every detail you are not told to change. Keep the dish name unless a swap replaces an ingredient the name mentions; then rename the dish to match. The name, description and instructions must agree with the ingredient lines you return: nothing may still name an ingredient that was swapped out. contentMarkdown is only for useful context not covered by the structured fields; do not put ingredients or steps there, and update contextual notes if a swap makes them inaccurate.`,
     "",
     `Eating: ${who.length ? who.join("; ") : "the household"}${extraPortions}.`,
-    `The recipe as written says it serves: "${variant.recipe_yield ?? "unknown"}". Scale every amount for exactly these eaters and extra. A child eats less than an adult; a teenager about as much.`,
+    `The recipe as written says it serves: "${variant.recipe_yield ?? "unknown"}". Scale every amount, including each step's ingredient amounts, for exactly these eaters and extra. A child eats less than an adult; a teenager about as much.`,
     `Write recipeYield as who it is sized for: "${yieldFor}".`,
     "",
     ...(swaps.length
@@ -171,11 +196,18 @@ export async function saveAdjusted(opts: {
   recipe: CookRecipeInput;
 }): Promise<AdjustResult> {
   const { userId, plannedMealId, variantId, context, recipe } = opts;
-  const { list_id: listId, recipe_id: recipeId, variant_id: oldVariantId } = context.meal;
+  const {
+    list_id: listId,
+    recipe_id: recipeId,
+    variant_id: oldVariantId,
+  } = context.meal;
   return inTransaction(async (client: PoolClient) => {
     await assertListMemberUntilCommit(client, userId, listId);
     // Same lock as imports: a concurrent retry waits, then finds the result.
-    await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", [variantId]);
+    await client.query(
+      "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))",
+      [variantId],
+    );
     const existing = await findVariantIdentity(client, variantId);
     if (existing) return existing;
 
@@ -185,7 +217,10 @@ export async function saveAdjusted(opts: {
       recipeId,
       variantId,
       recipe,
-      sizedFor: { eater_ids: context.meal.eater_ids, extra_portions: context.meal.extra_portions },
+      sizedFor: {
+        eater_ids: context.meal.eater_ids,
+        extra_portions: context.meal.extra_portions,
+      },
     });
     const repointed = await client.query(
       "UPDATE planned_meals SET variant_id = $1, shopping_reviewed_variant_id = NULL, updated_at = now() WHERE id = $2 AND variant_id = $3",

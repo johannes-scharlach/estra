@@ -96,6 +96,25 @@ const IngredientLineSchema = z.object({
     ),
 });
 
+const StepIngredientSchema = z.object({
+  qty_text: z
+    .string()
+    .nullable()
+    .describe(
+      'the amount this step uses, e.g. "150g", "1/2". When an ingredient line is split across steps (150g butter for the batter, 75g for the glaze), each step gets only its share. null if none, like "salt to taste"',
+    ),
+  item_name: z
+    .string()
+    .min(1)
+    .describe("the item_name of the ingredient line this comes from"),
+  prep_note: z
+    .string()
+    .optional()
+    .describe(
+      "how this portion should be prepped when the cook reaches this step, e.g. 'juiced', 'softened', 'finely diced'. Omit when none; never write placeholders such as 'none' or 'N/A'.",
+    ),
+});
+
 export const RecipeSchema = z.object({
   name: z
     .string()
@@ -144,9 +163,9 @@ export const RecipeSchema = z.object({
             'a crisp, short title for the cooking action, e.g. "Marinate the tofu"',
           ),
         ingredients: z
-          .array(z.string())
+          .array(StepIngredientSchema)
           .describe(
-            "specific measured ingredients used in this step (e.g. '1/2 lemon, juiced'). Include only ingredients used together in this action; split unrelated jobs into separate steps.",
+            "the measured ingredients used in this step. Include only ingredients used together in this step.",
           ),
         text: z
           .string()
@@ -159,7 +178,7 @@ export const RecipeSchema = z.object({
       }),
     )
     .describe(
-      "ordered cooking steps. Keep each step to an action in one place; give concurrent jobs separate steps and say what each runs alongside.",
+      "ordered cooking steps. Keep each step to an action in one place; give concurrent jobs separate steps and say what each runs alongside. There is no minimum or maximum number of steps, so a simple recipe can have as few as one step and a complex recipe can have many.",
     ),
   recipeCategory: z.string().optional().describe('e.g. "Dinner", "Lunch"'),
   recipeCuisine: z
