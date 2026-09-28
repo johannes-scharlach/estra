@@ -12,6 +12,8 @@ export type Swap = {
   item_name: string;
   prep_note?: string;
   category_id?: string;
+  /** Why a cook would pick this over the line's own ingredient. */
+  reason?: string;
 };
 
 export type IngredientLine = Swap & {

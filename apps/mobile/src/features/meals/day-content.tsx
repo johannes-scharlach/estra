@@ -16,6 +16,7 @@ import {
   type MealSlot,
 } from "@/features/meals/slots";
 import type { ImportJobs } from "@/features/meals/import-jobs";
+import { mealIsPast } from "@/features/meals/variant-meals";
 import { useToday } from "@/hooks/use-today";
 
 const PLUS_ICON = { ios: "plus", android: "add" } as const;
@@ -162,6 +163,7 @@ export function DayContent({
               plannedMealId={plannedMealId(list.id, dateStr, slot)}
               listId={list.id}
               recipe={recipe}
+              isPast={mealIsPast(dateStr, today)}
               showShoppingPrompt={
                 !!recipe && !recipe.shoppingReviewed && dateStr >= today
               }

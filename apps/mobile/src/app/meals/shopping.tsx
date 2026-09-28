@@ -174,6 +174,12 @@ function IngredientReview({
               const options = optionsForLine(line);
               const chosenIndex = optionIndexes[index] ?? optionIndex;
               const chosen = options[chosenIndex] ?? line;
+              // Only an alternative has a reason; the line's own ingredient
+              // needs no justification for being there.
+              const chosenReason =
+                chosenIndex > 0 && "reason" in chosen
+                  ? chosen.reason
+                  : undefined;
               return (
                 <View key={index} className="border-b border-border py-3">
                   <Pressable
@@ -228,6 +234,9 @@ function IngredientReview({
                       </Text>
                       {chosen.prep_note ? (
                         <Text variant="muted">{chosen.prep_note}</Text>
+                      ) : null}
+                      {chosenReason ? (
+                        <Text variant="muted">{chosenReason}</Text>
                       ) : null}
                       {item ? (
                         <Text variant="muted">

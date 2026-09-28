@@ -26,6 +26,7 @@ type Props = {
   listId: string;
   /** Planned recipe, or null when the slot is still open. */
   recipe: DisplayPlannedMeal | null;
+  isPast: boolean;
   /** Only true for an unreviewed meal planned for today or later. */
   showShoppingPrompt: boolean;
   contenders: Recipe[];
@@ -47,6 +48,7 @@ const CHECK_ICON = {
   ios: "checkmark",
   android: "check",
 } as const;
+const PAST_ICON = { ios: "clock", android: "history" } as const;
 
 /**
  * One meal slot of a day. Planned: a card (tap to view, … for actions).
@@ -60,6 +62,7 @@ export function MealSection({
   plannedMealId,
   listId,
   recipe,
+  isPast,
   showShoppingPrompt,
   contenders,
   onPlan,
@@ -118,8 +121,10 @@ export function MealSection({
             importantForAccessibility={planned ? "auto" : "no-hide-descendants"}
             className="flex-row items-center gap-1"
           >
-            <SymbolView name={CHECK_ICON} tintColor={muted} size={12} />
-            <Text className="text-xs text-muted-foreground">Planned</Text>
+            <SymbolView name={isPast ? PAST_ICON : CHECK_ICON} tintColor={muted} size={12} />
+            <Text className="text-xs text-muted-foreground">
+              {isPast ? "Past meal" : "Planned"}
+            </Text>
           </Animated.View>
           <Animated.View
             style={choosingHeadingStyle}

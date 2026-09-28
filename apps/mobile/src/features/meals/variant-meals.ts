@@ -1,7 +1,15 @@
 import type { MealSync } from "@estra/meals";
 
 import { dayName } from "@/features/chat/compose";
-import { SLOT_LABEL, SLOT_ORDER, type MealSlot } from "@/features/meals/slots";
+import {
+  addDays,
+  dateKey,
+  MONTH_SHORT,
+  SLOT_LABEL,
+  SLOT_ORDER,
+  WEEKDAY_LONG,
+  type MealSlot,
+} from "@/features/meals/slots";
 
 /** The planned_meals columns this module reads. */
 export type MealRow = {
@@ -10,6 +18,10 @@ export type MealRow = {
   slot_date: string | null;
   meal: string | null;
 };
+
+export function mealIsPast(slotDate: string | null, today: string): boolean {
+  return !!slotDate && slotDate < today;
+}
 
 const slotIndex = (meal: string | null) =>
   SLOT_ORDER.indexOf(meal as MealSlot) === -1
@@ -51,12 +63,25 @@ export function variantMeals<M extends MealRow>(
   return { selected, sibling, lastPast };
 }
 
-/** "Friday · Dinner", "Today · Lunch". Same day wording as the chat message. */
+/** Upcoming days use chat wording; past meals name yesterday or an explicit date. */
 export function mealLabel(
   meal: Pick<MealRow, "slot_date" | "meal">,
   today: Date = new Date(),
 ): string {
-  const day = dayName(meal.slot_date ?? "", today);
+  const key = meal.slot_date ?? "";
+  let day = dayName(key, today);
+  if (key && key < dateKey(today)) {
+    if (key === dateKey(addDays(today, -1))) {
+      day = "yesterday";
+    } else {
+      const date = new Date(`${key}T12:00:00`);
+      const year =
+        date.getFullYear() === today.getFullYear()
+          ? ""
+          : ` ${date.getFullYear()}`;
+      day = `${WEEKDAY_LONG[date.getDay()]}, ${date.getDate()} ${MONTH_SHORT[date.getMonth()]}${year}`;
+    }
+  }
   const slot = SLOT_LABEL[meal.meal as MealSlot] ?? meal.meal ?? "";
   return `${day.charAt(0).toUpperCase()}${day.slice(1)} · ${slot}`;
 }

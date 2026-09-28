@@ -25,6 +25,8 @@ export const SwapSchema = z.object({
   item_name: z.string().min(1),
   prep_note: z.string().optional(),
   category_id: z.enum(CATEGORIES).optional(),
+  /** Why a cook would pick this over the line's own ingredient. */
+  reason: z.string().optional(),
 });
 
 export const IngredientLineSchema = z.object({

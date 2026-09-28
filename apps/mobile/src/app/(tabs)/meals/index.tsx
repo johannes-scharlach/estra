@@ -36,6 +36,7 @@ import { usePanSwipeDay } from "@/features/meals/use-pan-swipe-day";
 import { useImportJobs } from "@/features/meals/use-import-jobs";
 import { useActiveList } from "@/features/onboarding/access";
 import { useRecipeChoices } from "@/features/cookbook/use-recipe-choices";
+import { useToday } from "@/hooks/use-today";
 
 export default function Meals() {
   const [{ dates, todayIndex }] = useState(stripDates);
@@ -89,7 +90,7 @@ export default function Meals() {
     return { lunch: all, dinner: all, treat: all };
   }, [choices]);
 
-  const todayKey = dateKey(new Date());
+  const todayKey = useToday();
   const selIndex = Math.max(
     0,
     dates.findIndex((d) => dateKey(d) === selected),

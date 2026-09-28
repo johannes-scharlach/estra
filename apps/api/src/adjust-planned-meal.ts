@@ -148,6 +148,7 @@ export function adjustPrompt({
     "You are adjusting a saved recipe to the meal it is planned for. Return the complete recipe in the same JSON shape.",
     "",
     `Keep the language (locale "${variant.locale}"), the voice, the structure and the order of steps, and every detail you are not told to change. Keep the dish name unless a swap replaces an ingredient the name mentions; then rename the dish to match. The name, description and instructions must agree with the ingredient lines you return: nothing may still name an ingredient that was swapped out. contentMarkdown is only for useful context not covered by the structured fields; do not put ingredients or steps there, and update contextual notes if a swap makes them inaccurate.`,
+    `A swap may change how the food is cooked or how long it takes — often that is exactly why the cook picked it. Follow the consequence through: rewrite every step whose method, order or timing it affects, and set totalTime to the new wall-clock time from the first thing the cook does until the food is ready. Never keep the old time when the work changed. Say so in the description too, when a shortcut is what makes this version different.`,
     "",
     `Eating: ${who.length ? who.join("; ") : "the household"}${extraPortions}.`,
     `The recipe as written says it serves: "${variant.recipe_yield ?? "unknown"}". Scale every amount, including each step's ingredient amounts, for exactly these eaters and extra. A child eats less than an adult; a teenager about as much.`,

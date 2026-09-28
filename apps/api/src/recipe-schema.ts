@@ -55,6 +55,13 @@ const SwapSchema = z.object({
     .describe(
       "REQUIRED: aisle where you BUY the raw item (ignore prep). Omit ONLY for non-purchasable like leftovers.",
     ),
+  reason: z
+    .string()
+    .min(1)
+    .optional()
+    .describe(
+      "One short line, in the recipe's language, saying why a cook would choose this instead of the original: '15 min faster, no roasting', 'if you dislike green beans', 'more authentic from an Asian grocer'. Name the gain honestly. Omit when no honest reason applies.",
+    ),
 });
 
 const IngredientLineSchema = z.object({
@@ -92,7 +99,16 @@ const IngredientLineSchema = z.object({
     .array(SwapSchema)
     .optional()
     .describe(
-      "1-3 obvious 1:1 swaps for this line, each with its own quantity and category, and prep_note only when useful — e.g. bulgur -> couscous/orzo, sardines -> tuna; fresh bell pepper (produce) -> jarred roasted peppers (spices)",
+      "1-3 alternatives a cook might reach for on purpose, each for a DIFFERENT reason. The three good reasons are: faster or easier, taste, and a better version. " +
+        "Faster or easier: a shortcut form that saves real work, and say how much — jarred roasted peppers instead of roasting and peeling your own peppers. " +
+        "Taste: what a household may simply prefer, including making the dish work for people who dislike the original, such as Brussels sprouts instead of green beans. " +
+        "Better version: a more authentic or higher-quality ingredient than the generic supermarket one the recipe settles for, such as doubanjiang instead of chilli bean paste from a jar, or holy basil instead of the basil most English recipes say. " +
+        "Every alternative needs its own distinct item_name — a swap that keeps the name of the line it replaces disappears in the shopping list, so a better brand or grade of the same thing is not a swap. " +
+        "An alternative does not have to be a classic substitute; it only has to cook well in THIS dish, judged against its role, the cooking method and the other ingredients. It may change how long something takes or how it is cooked, because the recipe gets rewritten when the cook picks it — but never suggest something you would not actually cook here. " +
+        "Give each swap its own quantity, category and reason; use prep_note only when it clarifies the measured quantity or a prepared state the instructions assume. " +
+        "Never offer three versions of the same idea. Fewer is better than padding, and none is right for a line with no worthwhile alternative. " +
+        "Alternatives often sit in the SAME aisle as the original: where you buy something says nothing about whether swapping it is a real decision, so never pad the list with aisle-hopping for its own sake. category_id is only where the item goes on your route. " +
+        "Examples, each with the reason a cook would pick it: fresh bell pepper -> jarred roasted peppers ('15 min faster, no roasting'); dried chickpeas -> canned chickpeas ('skips the soak and the hour of simmering'); green beans -> Brussels sprouts ('if your house would rather eat them'); canned tuna in olive oil -> sardines ('richer and more savoury — a different fish, not a fallback'); coriander -> flat-leaf parsley ('if cilantro tastes of soap to you'); 'chilli bean paste' -> Pixian doubanjiang, and any 'basil' in a Thai curry -> holy basil ('what the dish actually meant'); bulgur -> couscous ('cooks in five minutes').",
     ),
 });
 

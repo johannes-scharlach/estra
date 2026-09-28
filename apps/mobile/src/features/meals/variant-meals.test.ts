@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   driftLabel,
+  mealIsPast,
   mealLabel,
   shoppedLabel,
   variantMeals,
@@ -19,6 +20,17 @@ const meals = [
 const today = "2026-09-18";
 
 describe("variantMeals", () => {
+  it("keeps the past meal opened from the calendar even when this recipe is planned again", () => {
+    const result = variantMeals(meals, {
+      variantId: v1,
+      plannedMealId: "past",
+      today,
+    });
+    expect(result.selected?.id).toBe("past");
+    expect(mealLabel(result.selected!, new Date(2026, 8, 18))).toBe(
+      "Thursday, 10 Sep · Dinner",
+    );
+  });
   it("keeps an older page honest after its explicitly selected meal moves to another variant", () => {
     const result = variantMeals(meals, {
       variantId: v1,
@@ -50,6 +62,24 @@ describe("variantMeals", () => {
 });
 
 describe("labels", () => {
+  it("treats only dates before today as past meals", () => {
+    expect(mealIsPast("2026-09-17", today)).toBe(true);
+    expect(mealIsPast("2026-09-18", today)).toBe(false);
+    expect(mealIsPast("2026-09-19", today)).toBe(false);
+    expect(mealIsPast(null, today)).toBe(false);
+  });
+  it("makes past dates explicit, including yesterday and previous years", () => {
+    const on = new Date(2026, 8, 18);
+    expect(mealLabel({ slot_date: "2026-09-17", meal: "dinner" }, on)).toBe(
+      "Yesterday · Dinner",
+    );
+    expect(mealLabel({ slot_date: "2025-09-10", meal: "lunch" }, on)).toBe(
+      "Wednesday, 10 Sep 2025 · Lunch",
+    );
+    expect(mealLabel({ slot_date: "2026-09-19", meal: "lunch" }, on)).toBe(
+      "Tomorrow · Lunch",
+    );
+  });
   it("say the day the way the chat message does and count the shopping", () => {
     const on = new Date(2026, 8, 18);
     expect(mealLabel({ slot_date: "2026-09-18", meal: "dinner" }, on)).toBe(

@@ -53,9 +53,9 @@ import { adjustRecipeMessage } from "@/features/chat/compose";
 import type { ImageAttachment } from "@/features/chat/image-attachment";
 import { queueMessage } from "@/features/chat/message-queue";
 import { eatersLabel, parseEaterIds, toEaters } from "@/features/meals/eaters";
-import { dateKey } from "@/features/meals/slots";
 import {
   driftLabel,
+  mealIsPast,
   mealLabel,
   shoppedLabel,
   variantMeals,
@@ -69,6 +69,7 @@ import { prettyQuantity } from "@/features/shop/spec";
 import { tonalPair } from "@/features/variants/tonal";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useCommitTick } from "@/hooks/use-commit-tick";
+import { useToday } from "@/hooks/use-today";
 import { useActiveList } from "@/features/onboarding/access";
 
 const HERO_HEIGHT = 320;
@@ -137,9 +138,15 @@ function ListStateIcon({
       size={20}
     />
   );
-  if (state === "missing" || !onToggle) {
+  if (!onToggle) {
+    const label =
+      state === "bought"
+        ? "Bought"
+        : state === "toBuy"
+          ? "Still on the shopping list"
+          : "Not on the list";
     return (
-      <View className="w-9 pt-3" accessibilityLabel="Not on the list">
+      <View className="w-9 pt-3" accessibilityLabel={label}>
         {icon}
       </View>
     );
@@ -216,6 +223,7 @@ function IngredientRow({
   onToggle,
   mutedColor,
   primaryColor,
+  readOnly,
 }: {
   row: RowModel;
   idx: number;
@@ -225,9 +233,10 @@ function IngredientRow({
   onToggle: (itemId: string, bought: boolean) => void;
   mutedColor: ColorValue | undefined;
   primaryColor: ColorValue | undefined;
+  readOnly?: boolean;
 }) {
   const missing = row.list === "missing";
-  const canSwap = row.options.length > 1;
+  const canSwap = !readOnly && row.options.length > 1;
   const translateX = useSharedValue(0);
   const opacity = useSharedValue(1);
 
@@ -324,7 +333,7 @@ function IngredientRow({
       <ListStateIcon
         state={row.list}
         onToggle={
-          row.itemId
+          row.itemId && !readOnly
             ? () => onToggle(row.itemId!, row.list === "bought")
             : undefined
         }
@@ -517,6 +526,7 @@ export default function VariantPage() {
   const [composerHeight, setComposerHeight] = useState(96);
   const [readingRecipe, setReadingRecipe] = useState(false);
   const list = useActiveList();
+  const today = useToday();
 
   const scrollY = useSharedValue(0);
   const readingOnUI = useSharedValue(false);
@@ -624,9 +634,9 @@ export default function VariantPage() {
       variantMeals(meals, {
         variantId: id ?? "",
         plannedMealId,
-        today: dateKey(new Date()),
+        today,
       }),
-    [meals, id, plannedMealId],
+    [meals, id, plannedMealId, today],
   );
   const { data: items, isFetching: itemsFetching } = useQuery<ListItem>(
     "SELECT * FROM list_items WHERE planned_meal_id = ?",
@@ -875,6 +885,7 @@ export default function VariantPage() {
   }
 
   const colors = tonalPair(variant.id, scheme === "dark");
+  const pastMeal = mealIsPast(meal?.slot_date ?? null, today);
   // The fade is full from the composer's top edge down.
   const fadeHeight = composerHeight + FADE_RUN;
   // For a planned meal the yield is not up here: sizing is judged against
@@ -906,27 +917,66 @@ export default function VariantPage() {
     router.push({ pathname: "/variant/plan", params: { id: variant.id } });
   const openCook = () =>
     router.push({ pathname: "/variant/cook", params: { id: variant.id } });
+  const openRepeat = () => {
+    if (!meal?.list_id || !meal.slot_date || !meal.meal) return;
+    router.push({
+      pathname: "/meals/move",
+      params: {
+        listId: meal.list_id,
+        date: meal.slot_date,
+        slot: meal.meal,
+        variantId: meal.variant_id ?? "",
+        mode: "repeat",
+      },
+    });
+  };
+  const openShopping = () => {
+    if (!meal) return;
+    router.push({ pathname: "/meals/shopping", params: { id: meal.id } });
+  };
+  const adjustMeal = () => {
+    if (!meal) return;
+    startChat(
+      adjustRecipeMessage({
+        date: meal.slot_date ?? "",
+        meal: meal.meal ?? "meal",
+        people,
+        eaterIds: parseEaterIds(meal.eater_ids),
+        extraPortions: meal.extra_portions ?? 0,
+        swaps: delta.lines
+          .filter((line) => line.swap && line.item)
+          .map((line) => ({
+            from: line.line.item_name,
+            to: line.item!.name ?? "",
+          })),
+      }),
+    );
+  };
   const recipeAction = (wide: boolean) => (
     <Pressable
-      onPress={meal ? openCook : openPlan}
+      onPress={pastMeal ? openRepeat : meal ? openCook : openPlan}
       accessibilityRole="button"
-      accessibilityLabel={meal ? "Cook" : "Add to plan"}
+      accessibilityLabel={
+        pastMeal ? "Plan again" : meal ? "Cook" : "Add to plan"
+      }
       className={`items-center justify-center rounded-full active:opacity-70 ${
         wide ? "min-h-12 flex-1 flex-row gap-2 px-4 py-3" : "size-12"
       }`}
     >
       <SymbolView
         name={
-          meal
-            ? { ios: "frying.pan", android: "skillet" }
-            : { ios: "calendar.badge.plus", android: "event_available" }
+          pastMeal
+            ? { ios: "calendar.badge.plus", android: "event_available" }
+            : meal
+              ? { ios: "frying.pan", android: "skillet" }
+              : { ios: "calendar.badge.plus", android: "event_available" }
         }
         size={22}
         tintColor={actionColor}
       />
       {wide ? (
         <Text className="shrink font-semibold text-primary-foreground">
-          {meal ? "Cook" : "Add to plan"}
+          {pastMeal ? "Plan again" : meal ? "Cook" : "Add to plan"}
         </Text>
       ) : null}
     </Pressable>
@@ -1005,7 +1055,7 @@ export default function VariantPage() {
                       title: "Other variants",
                       image: "square.stack",
                     },
-                    ...(meal
+                    ...(meal && !pastMeal
                       ? [
                           {
                             id: "plan",
@@ -1014,9 +1064,41 @@ export default function VariantPage() {
                           },
                         ]
                       : []),
+                    ...(pastMeal
+                      ? [
+                          {
+                            id: "cook",
+                            title: "Cook recipe",
+                            image: "frying.pan" as const,
+                          },
+                          {
+                            id: "eaters",
+                            title: "Edit meal details",
+                            image: "person.2" as const,
+                          },
+                          ...(!sync?.inSync
+                            ? [
+                                {
+                                  id: "adjust",
+                                  title: "Adjust recipe",
+                                  image: "slider.horizontal.3" as const,
+                                },
+                              ]
+                            : []),
+                          {
+                            id: "shopping",
+                            title: "Review shopping",
+                            image: "cart" as const,
+                          },
+                        ]
+                      : []),
                   ]}
                   onPressAction={({ nativeEvent: { event } }) => {
                     if (event === "plan") openPlan();
+                    if (event === "cook") openCook();
+                    if (event === "eaters") openEaters();
+                    if (event === "adjust") adjustMeal();
+                    if (event === "shopping") openShopping();
                     if (event === "history")
                       router.push({
                         pathname: "/chats/history",
@@ -1094,47 +1176,51 @@ export default function VariantPage() {
               the user; both are visible and the human judges (spec 0004). */}
           {meal && sync ? (
             <View className="rounded-2xl bg-secondary">
-              <SectionRow
-                first
-                onPress={openEaters}
-                accessibilityLabel="Who is eating"
-                label={mealLabel(meal)}
-                detail={eatersLabel({
-                  people,
-                  eaterIds: parseEaterIds(meal.eater_ids),
-                  extraPortions: meal.extra_portions ?? 0,
-                })}
-                trailing="chevron"
-                mutedColor={mutedColor}
-              />
+              {pastMeal ? (
+                <View className="gap-0.5 px-4 py-3">
+                  <Text className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Past meal
+                  </Text>
+                  <Text className="font-semibold">{mealLabel(meal)}</Text>
+                  <Text variant="muted">
+                    {eatersLabel({
+                      people,
+                      eaterIds: parseEaterIds(meal.eater_ids),
+                      extraPortions: meal.extra_portions ?? 0,
+                    })}
+                  </Text>
+                </View>
+              ) : (
+                <SectionRow
+                  first
+                  onPress={openEaters}
+                  accessibilityLabel="Who is eating"
+                  label={mealLabel(meal)}
+                  detail={eatersLabel({
+                    people,
+                    eaterIds: parseEaterIds(meal.eater_ids),
+                    extraPortions: meal.extra_portions ?? 0,
+                  })}
+                  trailing="chevron"
+                  mutedColor={mutedColor}
+                />
+              )}
               {/* The second row is the recipe's standing against the meal:
                   in sync, a plain statement; otherwise the drift, with the
                   action that resolves it. */}
-              {sync.inSync ? (
+              {sync.inSync || pastMeal ? (
                 <View className="pl-4">
                   <View className="min-h-12 justify-center border-t border-border/70 py-2.5 pr-4">
-                    <Text variant="muted">Adjusted for this meal</Text>
+                    <Text variant="muted">
+                      {sync.inSync
+                        ? "Adjusted for this meal"
+                        : driftLabel(sync, variant.recipe_yield)}
+                    </Text>
                   </View>
                 </View>
               ) : (
                 <SectionRow
-                  onPress={() =>
-                    startChat(
-                      adjustRecipeMessage({
-                        date: meal.slot_date ?? "",
-                        meal: meal.meal ?? "meal",
-                        people,
-                        eaterIds: parseEaterIds(meal.eater_ids),
-                        extraPortions: meal.extra_portions ?? 0,
-                        swaps: delta.lines
-                          .filter((line) => line.swap && line.item)
-                          .map((line) => ({
-                            from: line.line.item_name,
-                            to: line.item!.name ?? "",
-                          })),
-                      }),
-                    )
-                  }
+                  onPress={adjustMeal}
                   disabled={!conversationListId}
                   label="Adjust the recipe"
                   detail={driftLabel(sync, variant.recipe_yield)}
@@ -1247,16 +1333,11 @@ export default function VariantPage() {
                   </Text>
                 ) : null}
               </View>
-              {meal ? (
+              {meal && !pastMeal ? (
                 <Button
                   variant="outline"
                   className="mb-3"
-                  onPress={() =>
-                    router.push({
-                      pathname: "/meals/shopping",
-                      params: { id: meal.id },
-                    })
-                  }
+                  onPress={openShopping}
                 >
                   <Text>Choose what to buy</Text>
                 </Button>
@@ -1273,6 +1354,7 @@ export default function VariantPage() {
                     onToggle={handleToggle}
                     mutedColor={mutedColor}
                     primaryColor={primaryColor}
+                    readOnly={pastMeal}
                   />
                 ))}
               </View>
