@@ -1,14 +1,12 @@
 import * as Notifications from "expo-notifications";
 import { useRouter } from "expo-router";
+import * as Device from "expo-device";
 import { useEffect, useRef, type ReactNode } from "react";
 import { AppState } from "react-native";
 
 import { useAuth } from "@/db/provider";
 import { useHouseholdAccess } from "@/features/onboarding/access";
-import {
-  notificationState,
-  registerPushDevice,
-} from "./notifications";
+import { notificationState, registerPushDevice } from "./notifications";
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -27,7 +25,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   const openedResponseId = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!session || !complete) return;
+    if (!session || !complete || !Device.isDevice) return;
     const refresh = () =>
       void notificationState()
         .then((state) => {
@@ -60,7 +58,10 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
         void Notifications.clearLastNotificationResponseAsync();
         return;
       }
-      if (!complete || !households.some((household) => household.id === listId)) {
+      if (
+        !complete ||
+        !households.some((household) => household.id === listId)
+      ) {
         readyResponse.current = response;
         return;
       }
@@ -72,10 +73,18 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       router.push("/household-activity");
       void Notifications.clearLastNotificationResponseAsync();
     };
-    const subscription = Notifications.addNotificationResponseReceivedListener(open);
+    const subscription =
+      Notifications.addNotificationResponseReceivedListener(open);
     void Notifications.getLastNotificationResponseAsync().then(open);
     return () => subscription.remove();
-  }, [authReady, complete, households, router, session?.user.id, switchHousehold]);
+  }, [
+    authReady,
+    complete,
+    households,
+    router,
+    session?.user.id,
+    switchHousehold,
+  ]);
 
   useEffect(() => {
     if (authReady && complete && readyResponse.current) {
@@ -97,7 +106,14 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
         void Notifications.clearLastNotificationResponseAsync();
       }
     }
-  }, [authReady, complete, households, router, session?.user.id, switchHousehold]);
+  }, [
+    authReady,
+    complete,
+    households,
+    router,
+    session?.user.id,
+    switchHousehold,
+  ]);
 
   return children;
 }

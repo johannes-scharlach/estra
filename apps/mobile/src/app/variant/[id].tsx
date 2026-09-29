@@ -44,7 +44,7 @@ import { useResolveClassNames } from "uniwind";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Text } from "@/components/ui/text";
-import { applySwap, setItemStatus } from "@/db/items";
+import { applySwap } from "@/db/items";
 import { useAuth } from "@/db/provider";
 import type { ListItem, PlannedMeal, Variant, Recipe } from "@/db/schema";
 import { parseVariant } from "@/db/variants";
@@ -57,7 +57,6 @@ import {
   driftLabel,
   mealIsPast,
   mealLabel,
-  shoppedLabel,
   variantMeals,
 } from "@/features/meals/variant-meals";
 import {
@@ -88,82 +87,6 @@ const MENU_ICON = {
   android: "more_vert",
   web: "more_horiz",
 } as const;
-// The list's state of each line, as a leading checklist column: the same
-// shapes the shop page uses, so bought / to buy / dropped read at a glance.
-const BOUGHT_ICON = {
-  ios: "checkmark.circle.fill",
-  android: "check_circle",
-  web: "check_circle",
-} as const;
-const TO_BUY_ICON = {
-  ios: "circle",
-  android: "radio_button_unchecked",
-  web: "radio_button_unchecked",
-} as const;
-const MISSING_ICON = {
-  ios: "minus.circle",
-  android: "do_not_disturb_on",
-  web: "do_not_disturb_on",
-} as const;
-
-/** What the shopping list says about a line; null when the recipe is not
- *  planned and there is no list to consult. */
-type ListState = "bought" | "toBuy" | "missing" | null;
-
-/** The tick is the shop page's control, not a decoration: tapping it marks
- *  the item bought or not, so the pantry check ("do I have this?") happens
- *  here with the recipe in view. A dropped line has nothing to toggle. */
-function ListStateIcon({
-  state,
-  onToggle,
-  mutedColor,
-  primaryColor,
-}: {
-  state: ListState;
-  onToggle?: () => void;
-  mutedColor: ColorValue | undefined;
-  primaryColor: ColorValue | undefined;
-}) {
-  if (!state) return null;
-  const name =
-    state === "bought"
-      ? BOUGHT_ICON
-      : state === "toBuy"
-        ? TO_BUY_ICON
-        : MISSING_ICON;
-  const icon = (
-    <SymbolView
-      name={name}
-      tintColor={state === "bought" ? primaryColor : mutedColor}
-      size={20}
-    />
-  );
-  if (!onToggle) {
-    const label =
-      state === "bought"
-        ? "Bought"
-        : state === "toBuy"
-          ? "Still on the shopping list"
-          : "Not on the list";
-    return (
-      <View className="w-9 pt-3" accessibilityLabel={label}>
-        {icon}
-      </View>
-    );
-  }
-  return (
-    <Pressable
-      onPress={onToggle}
-      hitSlop={{ top: 8, bottom: 8, left: 24, right: 8 }}
-      accessibilityRole="checkbox"
-      accessibilityState={{ checked: state === "bought" }}
-      accessibilityLabel={state === "bought" ? "Bought" : "Still to buy"}
-      className="w-9 pt-3 active:opacity-60"
-    >
-      {icon}
-    </Pressable>
-  );
-}
 const CHEVRON_ICON = {
   ios: "chevron.right",
   android: "chevron_right",
@@ -198,16 +121,14 @@ function firstSentence(text: string): string | null {
 }
 
 /** One ingredient row as it should read right now: the recipe line, or the
- *  swap that replaced it, plus what the shopping list says about it. */
+ *  swap that replaced it. Shopping state lives one screen away; swaps stay
+ *  live here because they define what the dish is. */
 type RowModel = {
   qtyText: string | null;
   name: string;
   prepNote: string | null;
   /** The recipe's own line when a swap replaced it. */
   swappedFrom: string | null;
-  list: ListState;
-  /** The list item behind this line, when planned and still on the list. */
-  itemId: string | null;
   /** Everything the recipe allows here, its own line first, when the row
    *  can still change. Empty once the item is bought: the list is settled
    *  then. */
@@ -220,7 +141,6 @@ function IngredientRow({
   last,
   onSwap,
   onPick,
-  onToggle,
   mutedColor,
   primaryColor,
   readOnly,
@@ -230,12 +150,10 @@ function IngredientRow({
   last: boolean;
   onSwap: (idx: number, direction: SwapDirection) => void;
   onPick: (idx: number, alternative: Alternative) => void;
-  onToggle: (itemId: string, bought: boolean) => void;
   mutedColor: ColorValue | undefined;
   primaryColor: ColorValue | undefined;
   readOnly?: boolean;
 }) {
-  const missing = row.list === "missing";
   const canSwap = !readOnly && row.options.length > 1;
   const translateX = useSharedValue(0);
   const opacity = useSharedValue(1);
@@ -298,19 +216,13 @@ function IngredientRow({
       }
     });
 
-  // Only the words move; the tick is the list's state and stays put.
+  // Only the words move.
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: translateX.value }],
     opacity: opacity.value,
   }));
 
-  const nameClass = `shrink ${
-    row.swappedFrom
-      ? "text-primary"
-      : missing
-        ? "text-muted-foreground"
-        : "text-foreground"
-  }`;
+  const nameClass = `shrink ${row.swappedFrom ? "text-primary" : "text-foreground"}`;
   const currentKey = itemNameKey(row.name);
   // A swapped name is tinted and carries the swap glyph: the change must
   // read without colour too.
@@ -329,88 +241,61 @@ function IngredientRow({
   );
 
   const body = (
-    <>
-      <ListStateIcon
-        state={row.list}
-        onToggle={
-          row.itemId && !readOnly
-            ? () => onToggle(row.itemId!, row.list === "bought")
-            : undefined
-        }
-        mutedColor={mutedColor}
-        primaryColor={primaryColor}
-      />
-      {/* The hairline belongs to the text column, inset past the tick as
-          system grouped lists inset past their leading glyph. */}
-      <View
-        className={`flex-1 py-2.5 ${last ? "" : "border-b border-border/70"}`}
-      >
-        <Animated.View className="gap-0.5" style={animatedStyle}>
-          <View className="flex-row flex-wrap items-baseline gap-x-1.5">
-            {row.qtyText ? (
-              <Text
-                className={
-                  missing
-                    ? "font-semibold text-muted-foreground"
-                    : "font-semibold"
-                }
-              >
-                {prettyQuantity(row.qtyText)}
-              </Text>
-            ) : null}
-            {canSwap ? (
-              // A popup button, as Settings shows a value with choices: the
-              // name and the system's up-down chevron open a menu of what
-              // the recipe allows here. A swapped name is tinted; the menu's
-              // title says what the recipe had.
-              <MenuView
-                // The host sizes itself to the label once; a longer name
-                // after a swap would be clipped, so a new name is a new host.
-                key={row.name}
-                title={row.swappedFrom ? `Recipe: ${row.swappedFrom}` : ""}
-                actions={row.options.map((option) => ({
-                  id: option.name,
-                  title: option.name,
-                  state: itemNameKey(option.name) === currentKey ? "on" : "off",
-                }))}
-                onPressAction={({ nativeEvent: { event } }) => {
-                  const option = row.options.find((o) => o.name === event);
-                  if (option && itemNameKey(option.name) !== currentKey) {
-                    onPick(idx, option);
-                  }
-                }}
-              >
-                <View
-                  accessible
-                  accessibilityRole="button"
-                  accessibilityLabel={`${row.name}, choose an alternative`}
-                  className="flex-row items-center gap-1"
-                >
-                  {name}
-                  <SymbolView
-                    name={POPUP_ICON}
-                    tintColor={mutedColor}
-                    size={11}
-                  />
-                </View>
-              </MenuView>
-            ) : (
-              name
-            )}
-            {missing ? (
-              <Text variant="muted" className="text-sm">
-                not on the list
-              </Text>
-            ) : null}
-          </View>
-          {row.prepNote ? (
-            <Text variant="muted" className="text-sm">
-              {row.prepNote}
-            </Text>
+    <View
+      className={`flex-1 py-2.5 ${last ? "" : "border-b border-border/70"}`}
+    >
+      <Animated.View className="gap-0.5" style={animatedStyle}>
+        <View className="flex-row flex-wrap items-baseline gap-x-1.5">
+          {row.qtyText ? (
+            <Text className="font-semibold">{prettyQuantity(row.qtyText)}</Text>
           ) : null}
-        </Animated.View>
-      </View>
-    </>
+          {canSwap ? (
+            // A popup button, as Settings shows a value with choices: the
+            // name and the system's up-down chevron open a menu of what
+            // the recipe allows here. A swapped name is tinted; the menu's
+            // title says what the recipe had.
+            <MenuView
+              // The host sizes itself to the label once; a longer name
+              // after a swap would be clipped, so a new name is a new host.
+              key={row.name}
+              title={row.swappedFrom ? `Recipe: ${row.swappedFrom}` : ""}
+              actions={row.options.map((option) => ({
+                id: option.name,
+                title: option.name,
+                state: itemNameKey(option.name) === currentKey ? "on" : "off",
+              }))}
+              onPressAction={({ nativeEvent: { event } }) => {
+                const option = row.options.find((o) => o.name === event);
+                if (option && itemNameKey(option.name) !== currentKey) {
+                  onPick(idx, option);
+                }
+              }}
+            >
+              <View
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel={`${row.name}, choose an alternative`}
+                className="flex-row items-center gap-1"
+              >
+                {name}
+                <SymbolView
+                  name={POPUP_ICON}
+                  tintColor={mutedColor}
+                  size={11}
+                />
+              </View>
+            </MenuView>
+          ) : (
+            name
+          )}
+        </View>
+        {row.prepNote ? (
+          <Text variant="muted" className="text-sm">
+            {row.prepNote}
+          </Text>
+        ) : null}
+      </Animated.View>
+    </View>
   );
 
   const rowClass = "flex-row items-start";
@@ -720,8 +605,6 @@ export default function VariantPage() {
             name: display.item_name,
             prepNote: display.prep_note ?? null,
             swappedFrom: swap ? line.item_name : null,
-            list: null,
-            itemId: null,
             options: alternativesForLine(line),
           };
         }
@@ -733,20 +616,11 @@ export default function VariantPage() {
           name: display.item_name,
           prepNote: display.prep_note ?? null,
           swappedFrom: state?.swap ? line.item_name : null,
-          list: bought ? "bought" : state?.item ? "toBuy" : "missing",
-          itemId: state?.item?.id ?? null,
           options: state?.item && !bought ? alternativesForLine(line) : [],
         };
       }),
     [ingredientLines, meal, activeSwaps, delta],
   );
-
-  // Same write as the shop page's checkbox; the watched query re-renders.
-  const handleToggle = useCallback((itemId: string, bought: boolean) => {
-    setItemStatus(itemId, bought ? "active" : "purchased").catch(() =>
-      Alert.alert("Couldn't update item", "Please try again."),
-    );
-  }, []);
 
   const handlePick = useCallback(
     (idx: number, alternative: Alternative) => {
@@ -1227,6 +1101,15 @@ export default function VariantPage() {
                   mutedColor={mutedColor}
                 />
               )}
+              {!pastMeal ? (
+                <SectionRow
+                  onPress={openShopping}
+                  accessibilityLabel="Choose what to buy"
+                  label="Choose what to buy"
+                  trailing="chevron"
+                  mutedColor={mutedColor}
+                />
+              ) : null}
             </View>
           ) : null}
 
@@ -1322,26 +1205,9 @@ export default function VariantPage() {
 
           {ingredientLines.length > 0 ? (
             <View>
-              {/* The caption names what the ticks below mean. It sits under
-                  the heading, not in the trailing slot: that slot is where a
-                  section's action goes, and this is a status. */}
-              <View className="gap-0.5 pb-2">
+              <View className="pb-2">
                 <Text variant="h3">Ingredients</Text>
-                {meal ? (
-                  <Text variant="muted" className="text-sm">
-                    {shoppedLabel(items)}
-                  </Text>
-                ) : null}
               </View>
-              {meal && !pastMeal ? (
-                <Button
-                  variant="outline"
-                  className="mb-3"
-                  onPress={openShopping}
-                >
-                  <Text>Choose what to buy</Text>
-                </Button>
-              ) : null}
               <View>
                 {rows.map((row, idx) => (
                   <IngredientRow
@@ -1351,38 +1217,12 @@ export default function VariantPage() {
                     last={idx === rows.length - 1}
                     onSwap={handleSwap}
                     onPick={handlePick}
-                    onToggle={handleToggle}
                     mutedColor={mutedColor}
                     primaryColor={primaryColor}
                     readOnly={pastMeal}
                   />
                 ))}
               </View>
-              {meal && delta.extra.length > 0 ? (
-                <View className="pt-5">
-                  <Text variant="muted" className="pb-1">
-                    Also on the list
-                  </Text>
-                  {delta.extra.map((item) => (
-                    <View key={item.id} className="flex-row items-start">
-                      <ListStateIcon
-                        state={item.status === "purchased" ? "bought" : "toBuy"}
-                        onToggle={() =>
-                          handleToggle(item.id, item.status === "purchased")
-                        }
-                        mutedColor={mutedColor}
-                        primaryColor={primaryColor}
-                      />
-                      <View className="flex-1 gap-0.5 py-2.5">
-                        <Text>{item.name}</Text>
-                        {item.spec ? (
-                          <Text variant="muted">{item.spec}</Text>
-                        ) : null}
-                      </View>
-                    </View>
-                  ))}
-                </View>
-              ) : null}
             </View>
           ) : null}
 
@@ -1391,8 +1231,6 @@ export default function VariantPage() {
               <Text variant="h3">Steps</Text>
               <View className="gap-6">
                 {instructions.map((step, idx) => (
-                  // The number sits in the same column as the ticks above,
-                  // so the page keeps one left rail from top to bottom.
                   <View key={idx} className="flex-row">
                     <Text
                       variant="muted"

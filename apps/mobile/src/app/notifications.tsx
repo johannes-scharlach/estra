@@ -56,22 +56,31 @@ export default function NotificationsScreen() {
       setState(enabled ? "enabled" : "disabled");
       if (enabled) await finish();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Could not enable notifications.");
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : "Could not enable notifications.",
+      );
     } finally {
       setBusy(false);
     }
   }
   if (!state) {
     return (
-      <View className="items-center justify-center px-6 py-12">
+      <View className="items-center justify-center bg-background px-6 py-12">
         <ActivityIndicator />
       </View>
     );
   }
   return (
-    <View className="gap-6 px-6 pt-12 pb-8">
+    // Opaque surface: with a transparent sheet container (iOS) the system
+    // draws behind us, but Android would show Home through otherwise.
+    <View className="gap-6 bg-background px-6 pt-12 pb-8">
       <View className="gap-3">
-        <Text accessibilityRole="header" className="text-3xl font-bold tracking-tight">
+        <Text
+          accessibilityRole="header"
+          className="text-3xl font-bold tracking-tight"
+        >
           Household updates
         </Text>
         <Text className="text-lg leading-7 text-muted-foreground">
@@ -82,7 +91,8 @@ export default function NotificationsScreen() {
         ) : null}
         {state === "disabled" ? (
           <Text className="text-muted-foreground">
-            Notifications are off in system settings. You can turn them on there.
+            Notifications are off in system settings. You can turn them on
+            there.
           </Text>
         ) : null}
       </View>

@@ -1,40 +1,49 @@
 import { useQuery } from "@powersync/react";
 import { useEffect, useRef, useState } from "react";
 import { View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button } from "@/components/ui/button";
 import { Text } from "@/components/ui/text";
 import { ChoiceList } from "@/components/choice-list";
 import { useAuth } from "@/db/provider";
-import {
-  acceptInvitation,
-  InvitationError,
-  type InvitationPreview,
-  previewInvitation,
-} from "@/features/invitations/api";
-import { useInvitation } from "@/features/invitations/provider";
 import { useHouseholdAccess } from "@/features/onboarding/access";
 import {
   EmailAuthFields,
   useEmailAuth,
 } from "@/features/onboarding/email-auth";
 import { useOnboarding } from "@/features/onboarding/provider";
+import { useInvitation } from "@/features/invitations/provider";
+import {
+  acceptInvitation,
+  InvitationError,
+  type InvitationPreview,
+  previewInvitation,
+} from "@/features/invitations/api";
 import { Field, FormError, FormScreen } from "@/features/profile/form";
 
 export default function JoinHousehold() {
   const { session, ready } = useAuth();
   const invitation = useInvitation();
+  const insets = useSafeAreaInsets();
   return (
-    <FormScreen>
+    // headerShown: false on this route (app-stack.tsx), so the screen
+    // keeps its own status-bar padding instead of the stack header's.
+    <FormScreen
+      contentContainerClassName="gap-6 px-5 pb-10"
+      contentContainerStyle={{ paddingTop: insets.top + 18 }}
+    >
       <FormError message={invitation.error} />
-      {!ready ? <Text>Loading…</Text> : session && invitation.code
-        ? (
-          <ChoosePerson
-            key={`${invitation.code}:${session.user.id}`}
-            code={invitation.code}
-            userId={session.user.id}
-          />
-        )
-        : <InviteSignIn />}
+      {!ready ? (
+        <Text>Loading…</Text>
+      ) : session && invitation.code ? (
+        <ChoosePerson
+          key={`${invitation.code}:${session.user.id}`}
+          code={invitation.code}
+          userId={session.user.id}
+        />
+      ) : (
+        <InviteSignIn />
+      )}
     </FormScreen>
   );
 }
@@ -49,9 +58,11 @@ function CancelInvitation({ disabled = false }: { disabled?: boolean }) {
         variant="ghost"
         disabled={disabled}
         onPress={() => {
-          void invitation.clear().catch(() =>
-            setError("Could not close the invitation. Try again.")
-          );
+          void invitation
+            .clear()
+            .catch(() =>
+              setError("Could not close the invitation. Try again."),
+            );
         }}
       >
         <Text>Cancel</Text>
@@ -86,8 +97,11 @@ function InviteSignIn() {
       <Button
         disabled={auth.primaryAction.disabled}
         onPress={auth.primaryAction.onPress}
+        className="min-h-14 rounded-full"
       >
-        <Text>{auth.primaryAction.label}</Text>
+        <Text className="text-[17px] font-semibold">
+          {auth.primaryAction.label}
+        </Text>
       </Button>
       <CancelInvitation disabled={auth.busy} />
     </>
@@ -105,17 +119,19 @@ function ChoosePerson({ code, userId }: { code: string; userId: string }) {
   const inFlight = useRef(false);
   useEffect(() => {
     let active = true;
-    previewInvitation(code).then((result) => {
-      if (!active) return;
-      setPreview(result);
-      if (result.joined) setJoinedId(result.list_id);
-    }).catch((e: unknown) => {
-      if (active) {
-        setError(
-          e instanceof Error ? e.message : "Could not load the invitation.",
-        );
-      }
-    });
+    previewInvitation(code)
+      .then((result) => {
+        if (!active) return;
+        setPreview(result);
+        if (result.joined) setJoinedId(result.list_id);
+      })
+      .catch((e: unknown) => {
+        if (active) {
+          setError(
+            e instanceof Error ? e.message : "Could not load the invitation.",
+          );
+        }
+      });
     return () => {
       active = false;
     };
@@ -151,69 +167,73 @@ function ChoosePerson({ code, userId }: { code: string; userId: string }) {
   return (
     <>
       <FormError message={error} />
-      {!preview
-        ? (
-          <>
-            {!error ? <Text>Loading invitation…</Text> : (
-              <Button
-                variant="outline"
-                onPress={() => {
-                  setError(null);
-                  setAttempt((n) => n + 1);
-                }}
-              >
-                <Text>Try again</Text>
-              </Button>
-            )}
-          </>
-        )
-        : (
-          <>
-            <Text variant="h2">Join {preview.name}</Text>
-            <Text className="text-muted-foreground">
-              Share meals, shopping, recipes, and chats with this household.
-            </Text>
-            <Text variant="h3">Who are you?</Text>
-            <View pointerEvents={busy ? "none" : "auto"}>
-              <ChoiceList
-                selection="single"
-                selectedKeys={selected ? [selected] : []}
-                choices={[
-                  ...preview.people.map((p) => ({ key: p.id, title: p.name })),
-                  { key: "new", title: "I’m not listed" },
-                ]}
-                onSelect={setSelected}
-              />
-            </View>
-            {selected === "new"
-              ? (
-                <Field
-                  label="Your name"
-                  autoCapitalize="words"
-                  value={name}
-                  onChangeText={setName}
-                  maxLength={200}
-                  editable={!busy}
-                />
-              )
-              : null}
+      {!preview ? (
+        <>
+          {!error ? (
+            <Text>Loading invitation…</Text>
+          ) : (
             <Button
-              disabled={busy || !selected ||
-                (selected === "new" && !name.trim())}
-              onPress={() => void join()}
+              variant="outline"
+              onPress={() => {
+                setError(null);
+                setAttempt((n) => n + 1);
+              }}
             >
-              <Text>{busy ? "Joining…" : "Join household"}</Text>
+              <Text>Try again</Text>
             </Button>
-          </>
-        )}
+          )}
+        </>
+      ) : (
+        <>
+          <Text variant="h2">Join {preview.name}</Text>
+          <Text className="text-muted-foreground">
+            Share meals, shopping, recipes, and chats with this household.
+          </Text>
+          <Text variant="h3">Who are you?</Text>
+          <View pointerEvents={busy ? "none" : "auto"}>
+            <ChoiceList
+              selection="single"
+              selectedKeys={selected ? [selected] : []}
+              choices={[
+                ...preview.people.map((p) => ({ key: p.id, title: p.name })),
+                { key: "new", title: "I’m not listed" },
+              ]}
+              onSelect={setSelected}
+            />
+          </View>
+          {selected === "new" ? (
+            <Field
+              label="Your name"
+              autoCapitalize="words"
+              value={name}
+              onChangeText={setName}
+              maxLength={200}
+              editable={!busy}
+            />
+          ) : null}
+          <Button
+            disabled={busy || !selected || (selected === "new" && !name.trim())}
+            onPress={() => void join()}
+            className="min-h-14 rounded-full"
+          >
+            <Text className="text-[17px] font-semibold">
+              {busy ? "Joining…" : "Join household"}
+            </Text>
+          </Button>
+        </>
+      )}
       <CancelInvitation disabled={busy} />
     </>
   );
 }
 
-function OpenJoinedHousehold(
-  { listId, userId }: { listId: string; userId: string },
-) {
+function OpenJoinedHousehold({
+  listId,
+  userId,
+}: {
+  listId: string;
+  userId: string;
+}) {
   const { syncReady, syncError, retrySync } = useAuth();
   const { switchHousehold } = useHouseholdAccess();
   const { clear: clearInvitation } = useInvitation();
@@ -225,7 +245,8 @@ function OpenJoinedHousehold(
     "SELECT l.id, p.user_id FROM lists l JOIN household_profiles h ON h.id = l.id JOIN list_members m ON m.list_id = l.id JOIN household_people p ON p.list_id = l.id AND p.user_id = m.user_id WHERE l.id = ? AND m.user_id = ?",
     [listId, userId],
   );
-  const downloaded = syncReady &&
+  const downloaded =
+    syncReady &&
     data.some((row) => row.id === listId && row.user_id === userId);
   useEffect(() => {
     const timer = setTimeout(() => setSlow(true), 15000);
@@ -236,15 +257,19 @@ function OpenJoinedHousehold(
     let active = true;
     // The destination must exist locally before lifting the invitation gate.
     // Otherwise setup can flash or the previous household can become active.
-    void clearDraft().then(async () => {
-      if (!active) return;
-      switchHousehold(listId);
-      await clearInvitation();
-    }).catch(() => {
-      if (active) {
-        setError("You’ve joined, but could not open the household. Try again.");
-      }
-    });
+    void clearDraft()
+      .then(async () => {
+        if (!active) return;
+        switchHousehold(listId);
+        await clearInvitation();
+      })
+      .catch(() => {
+        if (active) {
+          setError(
+            "You’ve joined, but could not open the household. Try again.",
+          );
+        }
+      });
     return () => {
       active = false;
     };
@@ -263,20 +288,18 @@ function OpenJoinedHousehold(
         You’ve joined. Your shared meals and shopping are downloading.
       </Text>
       <FormError message={error ?? syncError} />
-      {slow || error || syncError
-        ? (
-          <Button
-            variant="outline"
-            onPress={() => {
-              setError(null);
-              setAttempt((n) => n + 1);
-              retrySync();
-            }}
-          >
-            <Text>Try again</Text>
-          </Button>
-        )
-        : null}
+      {slow || error || syncError ? (
+        <Button
+          variant="outline"
+          onPress={() => {
+            setError(null);
+            setAttempt((n) => n + 1);
+            retrySync();
+          }}
+        >
+          <Text>Try again</Text>
+        </Button>
+      ) : null}
     </>
   );
 }

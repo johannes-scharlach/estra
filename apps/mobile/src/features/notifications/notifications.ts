@@ -19,7 +19,9 @@ export async function notificationState(): Promise<NotificationState> {
   return permissions.canAskAgain ? "not-asked" : "disabled";
 }
 
-export async function wasNotificationPrompted(userId: string): Promise<boolean> {
+export async function wasNotificationPrompted(
+  userId: string,
+): Promise<boolean> {
   return (await AsyncStorage.getItem(`${PROMPT_KEY}:${userId}`)) === "true";
 }
 
@@ -41,9 +43,13 @@ export async function enableNotifications(): Promise<boolean> {
 }
 
 export async function registerPushDevice(): Promise<void> {
-  if (!Device.isDevice) throw new Error("Push notifications need a physical device.");
+  // Simulators and emulators cannot receive push tokens. This runs on every
+  // foregrounding via the provider, so silently skip instead of logging.
+  if (!Device.isDevice) return;
   await ensureAndroidChannel();
-  const projectId = Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
+  const projectId =
+    Constants.expoConfig?.extra?.eas?.projectId ??
+    Constants.easConfig?.projectId;
   if (!projectId) throw new Error("Missing Expo project ID.");
   const token = await Notifications.getExpoPushTokenAsync({ projectId });
   const { error } = await supabase.rpc("register_push_device", {
@@ -81,6 +87,7 @@ async function ensureAndroidChannel() {
     name: "Household activity",
     description: "Changes to who shares your household",
     importance: Notifications.AndroidImportance.DEFAULT,
-    sound: "default",
+    // No `sound`: omitting uses the system default. A string here names a
+    // bundled custom sound file and logs when it doesn't exist.
   });
 }

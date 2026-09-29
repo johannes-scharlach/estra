@@ -35,6 +35,10 @@ import { useActiveList } from "@/features/onboarding/access";
 import { useToday } from "@/hooks/use-today";
 
 const HIGHLIGHT_MS = 4500;
+// Android's toolbar takes drawables, not SF Symbols. Tinted by the toolbar's
+// tint colour (see `iconRenderingMode` below), so they follow light and dark.
+const ADD_ICON = require("../../../../assets/icons/add.xml");
+const MEALS_ICON = require("../../../../assets/icons/restaurant.xml");
 type Held = Browse & { hold: HeldPosition };
 type Entry = { key: string } & (
   | { kind: "header"; title: string }
@@ -59,13 +63,22 @@ export default function Shop() {
       <Stack.Toolbar placement="right">
         <Stack.Toolbar.Button
           hidden={mealsToReview === 0}
+          // Android draws neither SF Symbols nor labels in a toolbar, so the
+          // count rides along as a Material badge instead of "(3)" in a label.
+          icon={Platform.OS === "ios" ? undefined : MEALS_ICON}
+          iconRenderingMode="template"
           accessibilityLabel={`${mealsToReview} ${mealsToReview === 1 ? "meal" : "meals"} to review`}
           onPress={() => router.push("/shop/meals")}
         >
-          {`Meals (${mealsToReview})`}
+          {Platform.OS === "ios" ? (
+            `Meals (${mealsToReview})`
+          ) : (
+            <Stack.Toolbar.Badge>{`${mealsToReview}`}</Stack.Toolbar.Badge>
+          )}
         </Stack.Toolbar.Button>
         <Stack.Toolbar.Button
-          icon={Platform.OS === "ios" ? "plus" : undefined}
+          icon={Platform.OS === "ios" ? "plus" : ADD_ICON}
+          iconRenderingMode="template"
           accessibilityLabel="Add item"
           onPress={() =>
             router.push({ pathname: "/shop/add", params: { listId: list.id } })

@@ -241,26 +241,20 @@ export function EmailAuthFields({
           </Pressable>
         </>
       ) : (
-        <>
-          <Field
-            label="Email address"
-            value={state.email}
-            onChangeText={state.onEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoCorrect={false}
-            autoComplete="email"
-            textContentType="emailAddress"
-            editable={!state.busy}
-            returnKeyType="send"
-            onSubmitEditing={state.primaryAction.onPress}
-          />
-          {!signup ? (
-            <Text className="text-muted-foreground">
-              New here? Go back and choose Get started.
-            </Text>
-          ) : null}
-        </>
+        <Field
+          label="Email address"
+          value={state.email}
+          onChangeText={state.onEmail}
+          keyboardType="email-address"
+          autoCapitalize="none"
+          autoCorrect={false}
+          autoComplete="email"
+          textContentType="emailAddress"
+          placeholder="you@example.com"
+          editable={!state.busy}
+          returnKeyType="send"
+          onSubmitEditing={state.primaryAction.onPress}
+        />
       )}
     </View>
   );

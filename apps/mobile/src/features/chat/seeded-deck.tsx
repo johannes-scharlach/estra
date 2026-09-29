@@ -74,10 +74,37 @@ export function SeededDeck({
     );
   }
 
+  // The seasonal sort scatters only when a section is out of season, so
+  // same-section ideas stay adjacent: one pass into consecutive groups.
+  const groups: Seeded[][] = [];
+  for (const meal of deck) {
+    const group = groups.at(-1);
+    if (group && group.at(0)?.section === meal.section) group.push(meal);
+    else groups.push([meal]);
+  }
+
   return (
-    <View className="gap-2 pb-4 pt-2">
-      {deck.map((meal) => (
-        <SeededCard key={meal.title} meal={meal} onPick={pick} />
+    <View className="gap-5 pb-4 pt-2">
+      {groups.map((group, gi) => (
+        <View key={`${gi}-${group.at(0)?.section}`} className="gap-2">
+          {/* Shop's section headers: sentence case, quiet, aligned to the card. */}
+          <Text className="px-4 text-[13px] font-semibold text-muted-foreground">
+            {group.at(0)?.section}
+          </Text>
+          <View className="mx-4 overflow-hidden rounded-2xl bg-card">
+            {group.map((meal, mi) => (
+              <View key={meal.title}>
+                {mi > 0 ? (
+                  <View
+                    className="border-t border-border"
+                    style={{ marginLeft: 16 + THUMB + 12 }}
+                  />
+                ) : null}
+                <SeededRow meal={meal} onPick={pick} />
+              </View>
+            ))}
+          </View>
+        </View>
       ))}
     </View>
   );
@@ -182,40 +209,5 @@ function IngredientsLine({ ingredients }: { ingredients: string }) {
         {ingredients}
       </Text>
     </View>
-  );
-}
-
-function SeededCard({
-  meal,
-  onPick,
-}: {
-  meal: Seeded;
-  onPick: (meal: Seeded) => void;
-}) {
-  const { style, onPressIn, onPressOut } = usePressFade();
-
-  return (
-    <Pressable
-      onPress={() => onPick(meal)}
-      onPressIn={onPressIn}
-      onPressOut={onPressOut}
-      accessibilityRole="button"
-      accessibilityLabel={`Explore ${meal.title}`}
-    >
-      <Animated.View
-        className="gap-1 rounded-2xl border border-border px-4 py-3"
-        style={style}
-      >
-        <Text className="text-base font-semibold leading-snug">
-          {meal.title}
-        </Text>
-        <Text className="text-sm leading-5 text-foreground/80">
-          {meal.vibe}
-        </Text>
-        <Text variant="muted" numberOfLines={1}>
-          {meal.ingredients}
-        </Text>
-      </Animated.View>
-    </Pressable>
   );
 }

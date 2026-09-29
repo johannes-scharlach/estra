@@ -14,8 +14,10 @@ import {
   Pressable,
   ScrollView,
   View,
+  type StyleProp,
   type TextInput,
   type TextInputProps,
+  type ViewStyle,
 } from "react-native";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { AddRow } from "@/components/add-row";
@@ -24,13 +26,26 @@ import { Input } from "@/components/ui/input";
 import { MenuPicker } from "@/components/ui/menu-picker";
 import { Text } from "@/components/ui/text";
 
-export function FormScreen({ children }: { children: ReactNode }) {
+export function FormScreen({
+  children,
+  contentContainerClassName,
+  contentContainerStyle,
+}: {
+  children: ReactNode;
+  contentContainerClassName?: string;
+  contentContainerStyle?: StyleProp<ViewStyle>;
+}) {
   return (
     <KeyboardAvoidingView behavior="padding" className="flex-1 bg-background">
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"
         keyboardShouldPersistTaps="handled"
-        contentContainerClassName="gap-6 px-5 pt-5 pb-10"
+        // The inset padding exists so screens without a stack header keep
+        // their place below the status bar (see join.tsx).
+        contentContainerClassName={
+          contentContainerClassName ?? "gap-6 px-5 pt-5 pb-10"
+        }
+        contentContainerStyle={contentContainerStyle}
       >
         {children}
       </ScrollView>

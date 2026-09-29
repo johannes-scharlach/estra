@@ -23,9 +23,14 @@ function InvitationStack({ children }: { children: ReactNode }) {
   const { draft, ready, clear, isPreparing } = useOnboarding();
   useEffect(() => {
     if (
-      !ready || !invitation.ready || invitation.code || !access.complete ||
-      !draft || isPreparing
-    ) return;
+      !ready ||
+      !invitation.ready ||
+      invitation.code ||
+      !access.complete ||
+      !draft ||
+      isPreparing
+    )
+      return;
     // This also handles a process closing between the local commit and cleanup.
     if (draft.list_id !== access.listId) {
       Alert.alert(
@@ -55,7 +60,9 @@ function InvitationStack({ children }: { children: ReactNode }) {
       <Stack.Protected guard={!!invitation.code}>
         <Stack.Screen
           name="join"
-          options={{ title: "Join household", headerBackVisible: false }}
+          // No header: the screen's own title changes per step
+          // (You're invited / Check your inbox / Join <name>).
+          options={{ headerShown: false }}
         />
       </Stack.Protected>
       <Stack.Protected guard={showApp && !invitation.code}>
