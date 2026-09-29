@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState, type RefObject } from "react"
 import {
   AppState,
   Keyboard,
+  Platform,
   useWindowDimensions,
   type FlatList,
   type LayoutRectangle,
@@ -121,6 +122,7 @@ export function useActivityVisit(
     // Android can keep a route mounted while another route is focused. Keep
     // window focus current across those visits so returning never inherits a
     // missed notification-shade blur/focus event.
+    if (Platform.OS !== "android") return;
     const blur = AppState.addEventListener("blur", () => {
       windowFocused.current = false;
       check();
