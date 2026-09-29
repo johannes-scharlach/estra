@@ -5,7 +5,7 @@ import { ActivityIndicator, View } from "react-native";
 import { Button } from "@/components/ui/button";
 import { Text } from "@/components/ui/text";
 import { useAuth } from "@/db/provider";
-import { FormError, FormScreen } from "@/features/profile/form";
+import { FormError } from "@/features/profile/form";
 import {
   enableNotifications,
   markNotificationPrompted,
@@ -63,20 +63,19 @@ export default function NotificationsScreen() {
   }
   if (!state) {
     return (
-      <View className="flex-1 items-center justify-center bg-background">
+      <View className="items-center justify-center bg-background px-6 py-12">
         <ActivityIndicator />
       </View>
     );
   }
   return (
-    <FormScreen contentContainerClassName="flex-grow justify-center gap-6 px-6 py-10">
+    <View className="gap-6 bg-background px-6 py-8">
       <View className="gap-3">
         <Text accessibilityRole="header" className="text-3xl font-bold tracking-tight">
-          Know when your household changes
+          Household updates
         </Text>
         <Text className="text-lg leading-7 text-muted-foreground">
-          Estra can tell you when someone joins your household. Your phone’s Focus or Do Not
-          Disturb settings still decide when notifications interrupt you.
+          Get a notification when someone joins your household.
         </Text>
         {state === "enabled" ? (
           <Text className="font-medium">Notifications are enabled.</Text>
@@ -96,12 +95,12 @@ export default function NotificationsScreen() {
           <Button variant="outline" onPress={() => router.back()}>
             <Text>Done</Text>
           </Button>
-        ) : prompted ? (
+        ) : (
           <Button variant="ghost" onPress={() => void finish()}>
-            <Text>Not now</Text>
+            <Text>{prompted ? "Not now" : "Cancel"}</Text>
           </Button>
-        ) : null}
+        )}
       </View>
-    </FormScreen>
+    </View>
   );
 }
