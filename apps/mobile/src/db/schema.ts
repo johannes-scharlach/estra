@@ -67,6 +67,28 @@ const household_people = new Table(
   { indexes: { by_list: ["list_id"] } },
 );
 
+/** Server-written facts; only recipient seen_at is writable on the device. */
+const household_activities = new Table(
+  {
+    list_id: column.text,
+    kind: column.text,
+    actor_user_id: column.text,
+    actor_name: column.text,
+    occurred_at: column.text,
+  },
+  { indexes: { by_list_recent: ["list_id", "occurred_at"] } },
+);
+
+const household_activity_recipients = new Table(
+  {
+    activity_id: column.text,
+    list_id: column.text,
+    user_id: column.text,
+    seen_at: column.text,
+  },
+  { indexes: { by_user_list: ["user_id", "list_id"], by_activity: ["activity_id"] } },
+);
+
 const recipes = new Table({
   from_name: column.text,
   from_url: column.text,
@@ -183,6 +205,8 @@ export const AppSchema = new Schema({
   list_members,
   household_profiles,
   household_people,
+  household_activities,
+  household_activity_recipients,
   recipes,
   variants,
   planned_meals,

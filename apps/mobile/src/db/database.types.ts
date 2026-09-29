@@ -162,6 +162,80 @@ export type Database = {
           },
         ]
       }
+      household_activities: {
+        Row: {
+          actor_name: string
+          actor_user_id: string | null
+          id: string
+          kind: string
+          list_id: string
+          occurred_at: string
+        }
+        Insert: {
+          actor_name: string
+          actor_user_id?: string | null
+          id?: string
+          kind: string
+          list_id: string
+          occurred_at?: string
+        }
+        Update: {
+          actor_name?: string
+          actor_user_id?: string | null
+          id?: string
+          kind?: string
+          list_id?: string
+          occurred_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "household_activities_list_id_fkey"
+            columns: ["list_id"]
+            isOneToOne: false
+            referencedRelation: "lists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      household_activity_recipients: {
+        Row: {
+          activity_id: string
+          id: string
+          list_id: string
+          seen_at: string | null
+          user_id: string
+        }
+        Insert: {
+          activity_id: string
+          id?: string
+          list_id: string
+          seen_at?: string | null
+          user_id: string
+        }
+        Update: {
+          activity_id?: string
+          id?: string
+          list_id?: string
+          seen_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "household_activity_recipients_activity_id_list_id_fkey"
+            columns: ["activity_id", "list_id"]
+            isOneToOne: false
+            referencedRelation: "household_activities"
+            referencedColumns: ["id", "list_id"]
+          },
+          {
+            foreignKeyName: "household_activity_recipients_list_id_user_id_fkey"
+            columns: ["list_id", "user_id"]
+            isOneToOne: false
+            referencedRelation: "list_members"
+            referencedColumns: ["list_id", "user_id"]
+          },
+        ]
+      }
       household_people: {
         Row: {
           age_group: string

@@ -69,6 +69,13 @@ export default function RootLayout() {
                       headerBackButtonDisplayMode: "minimal",
                     }}
                   />
+                  <Stack.Screen
+                    name="household-activity"
+                    options={{
+                      title: "Household activity",
+                      headerBackButtonDisplayMode: "minimal",
+                    }}
+                  />
                   {/* No variant/_layout.tsx by design: [id] must sit above (tabs)
                 in this same stack to get the system back button + swipe-back.
                 Push-time chrome for its sub-screens is declared here. */}

@@ -6,7 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Keyboard,
   Pressable,
-  ScrollView,
+  type FlatList,
   TextInput,
   View,
 } from "react-native";
@@ -14,6 +14,8 @@ import { useResolveClassNames } from "uniwind";
 
 import { Input } from "@/components/ui/input";
 import { Text } from "@/components/ui/text";
+import type { HouseholdActivity } from "@/features/activity/activities";
+import { HouseholdActivityFeed } from "@/features/activity/household-activity-feed";
 import { dishMessage, entryMessage } from "@/features/chat/compose";
 import { EntrySelector } from "@/features/chat/entry-selector";
 import {
@@ -61,7 +63,7 @@ export default function Home() {
   const [attachments, setAttachments] = useState<ImageAttachment[]>([]);
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
 
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<FlatList<HouseholdActivity>>(null);
   const scrollY = useRef(0);
   const keyboardTop = useRef<number | null>(null);
   const ingredientRef = useRef<TextInput>(null);
@@ -77,7 +79,7 @@ export default function Home() {
     startRef.current?.measureInWindow((_x, y, _width, height) => {
       const overlap = y + height + 16 - top;
       if (overlap > 0) {
-        scrollRef.current?.scrollTo({ y: scrollY.current + overlap });
+        scrollRef.current?.scrollToOffset({ offset: scrollY.current + overlap });
       }
     });
   }, []);
@@ -198,19 +200,13 @@ export default function Home() {
         }}
       />
 
-      <ScrollView
-        ref={scrollRef}
+      <HouseholdActivityFeed
+        listId={listId}
+        preview
+        listRef={scrollRef}
         onScroll={(e) => {
           scrollY.current = e.nativeEvent.contentOffset.y;
         }}
-        scrollEventThrottle={16}
-        // The ScrollView is the screen's first native view, so the large
-        // title collapses with it.
-        className="flex-1 bg-background"
-        contentContainerClassName="pb-8 pt-2"
-        keyboardShouldPersistTaps="handled"
-        contentInsetAdjustmentBehavior="automatic"
-        automaticallyAdjustKeyboardInsets
       >
         <WeekGlance listId={listId} />
 
@@ -360,7 +356,7 @@ export default function Home() {
           </View>
           <SeededDeck preview onPick={startChat} />
         </View>
-      </ScrollView>
+      </HouseholdActivityFeed>
     </>
   );
 }

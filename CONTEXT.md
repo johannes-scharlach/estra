@@ -39,3 +39,18 @@ _Avoid_: Substitution, replacement
 **SwapSuggestion**:
 A stored 1:1 alternative for an IngredientLine (e.g. "bell pepper → jarred roasted peppers"), generated when a Recipe is imported. Not a Variant until chosen.
 _Avoid_: Alternative
+
+### Household activity
+
+**HouseholdActivity**:
+A fact about something that happened in the household, such as a person joining.
+It remains true regardless of whether anyone has seen it or received a notification.
+_Avoid_: Notification
+
+**ActivityRecipient**:
+A household member an activity is addressed to. Each recipient has their own seen state.
+
+**Seen**:
+An activity has been visibly presented to a recipient or opened by them. This is
+an observation, not proof of reading or acknowledgement.
+_Avoid_: Read, acknowledged
