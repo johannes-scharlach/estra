@@ -16,6 +16,7 @@ import {
 
 import { Text } from "@/components/ui/text";
 import { useAuth } from "@/db/provider";
+import { cn } from "@/lib/utils";
 
 import { useActivities, type HouseholdActivity } from "./activities";
 import { ActivityCell, ActivityCellLayoutContext } from "./activity-cell";
@@ -100,29 +101,50 @@ function ActivityFeed({
               : isLoading ? "Loading activity…" : "No household activity yet."}
           </Text>
         ) : null}
-        renderItem={({ item }) => (
-          <Pressable
-            onPress={() => {
-              markSeen([item.id]);
-              router.push("/household");
-            }}
-            accessibilityRole="link"
-            accessibilityLabel={`${newIds.has(item.id) ? "New. " : ""}${item.actor_name} joined the household. ${new Date(item.occurred_at).toLocaleString()}`}
-            className="mx-4 flex-row items-center gap-3 border-b border-border/40 py-3 active:opacity-60"
+        renderItem={({ item, index }) => (
+          <View
+            className={cn(
+              "mx-4 overflow-hidden bg-card",
+              index === 0 && "rounded-t-2xl",
+              index === shown.length - 1 && "rounded-b-2xl",
+            )}
           >
-            <View className={`h-2 w-2 rounded-full ${newIds.has(item.id) ? "bg-primary" : "bg-transparent"}`} />
-            <View className="flex-1 gap-1">
-              <Text>{item.actor_name} joined the household</Text>
-              <Text className="text-sm text-muted-foreground">
-                {new Date(item.occurred_at).toLocaleString(undefined, {
-                  month: "short",
-                  day: "numeric",
-                  hour: "numeric",
-                  minute: "2-digit",
-                })}
-              </Text>
-            </View>
-          </Pressable>
+            {index > 0 ? <View className="ml-[72px] border-t border-border" /> : null}
+            <Pressable
+              onPress={() => {
+                markSeen([item.id]);
+                router.push("/household");
+              }}
+              accessibilityRole="link"
+              accessibilityLabel={`${newIds.has(item.id) ? "New. " : ""}${item.actor_name} joined the household. ${new Date(item.occurred_at).toLocaleString()}`}
+              className="flex-row items-center gap-3 px-4 py-3 active:bg-accent"
+            >
+              <View className="h-11 w-11 items-center justify-center rounded-xl bg-muted">
+                <Text className="text-lg font-semibold">
+                  {item.actor_name.trim().charAt(0).toUpperCase()}
+                </Text>
+              </View>
+              <View className="flex-1 gap-0.5">
+                <Text className="text-[17px] font-medium leading-snug">
+                  {item.actor_name} joined the household
+                </Text>
+                <Text className="text-sm text-muted-foreground">
+                  {new Date(item.occurred_at).toLocaleString(undefined, {
+                    month: "short",
+                    day: "numeric",
+                    hour: "numeric",
+                    minute: "2-digit",
+                  })}
+                </Text>
+              </View>
+              <View
+                className={cn(
+                  "h-2 w-2 rounded-full",
+                  newIds.has(item.id) ? "bg-primary" : "bg-transparent",
+                )}
+              />
+            </Pressable>
+          </View>
         )}
       />
     </ActivityCellLayoutContext.Provider>
