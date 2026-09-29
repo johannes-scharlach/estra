@@ -22,6 +22,8 @@ import { SystemProvider } from "@/db/provider";
 import { HouseholdAccessProvider } from "@/features/onboarding/access";
 import { AppStack } from "@/features/onboarding/app-stack";
 import { OnboardingProvider } from "@/features/onboarding/provider";
+import { NotificationPrompt } from "@/features/notifications/prompt";
+import { NotificationProvider } from "@/features/notifications/provider";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 
 // A deep link into a pushed screen (a shared recipe, a meal notification)
@@ -56,26 +58,37 @@ export default function RootLayout() {
         <SystemProvider>
           <HouseholdAccessProvider>
             <OnboardingProvider>
-              <ThemeProvider value={theme}>
-                <AppStack>
-                  <Stack.Screen
-                    name="(tabs)"
-                    options={{ headerShown: false }}
-                  />
-                  <Stack.Screen
-                    name="household"
-                    options={{
-                      title: "Household",
-                      headerBackButtonDisplayMode: "minimal",
-                    }}
-                  />
-                  <Stack.Screen
-                    name="household-activity"
-                    options={{
-                      title: "Household activity",
-                      headerBackButtonDisplayMode: "minimal",
-                    }}
-                  />
+              <NotificationProvider>
+                <ThemeProvider value={theme}>
+                  <NotificationPrompt />
+                  <AppStack>
+                    <Stack.Screen
+                      name="(tabs)"
+                      options={{ headerShown: false }}
+                    />
+                    <Stack.Screen
+                      name="household"
+                      options={{
+                        title: "Household",
+                        headerBackButtonDisplayMode: "minimal",
+                      }}
+                    />
+                    <Stack.Screen
+                      name="household-activity"
+                      options={{
+                        title: "Household activity",
+                        headerBackButtonDisplayMode: "minimal",
+                      }}
+                    />
+                    <Stack.Screen
+                      name="notifications"
+                      options={{
+                        presentation: "formSheet",
+                        sheetAllowedDetents: "fitToContents",
+                        sheetGrabberVisible: true,
+                        title: "Notifications",
+                      }}
+                    />
                   {/* No variant/_layout.tsx by design: [id] must sit above (tabs)
                 in this same stack to get the system back button + swipe-back.
                 Push-time chrome for its sub-screens is declared here. */}
@@ -234,9 +247,10 @@ export default function RootLayout() {
                       animation: "fade_from_bottom",
                     }}
                   />
-                </AppStack>
-                <StatusBar style="auto" />
-              </ThemeProvider>
+                  </AppStack>
+                  <StatusBar style="auto" />
+                </ThemeProvider>
+              </NotificationProvider>
             </OnboardingProvider>
           </HouseholdAccessProvider>
         </SystemProvider>

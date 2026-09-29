@@ -1,5 +1,8 @@
-import { requireUser } from '../_shared/supabase.ts';
+import { dispatchNotificationBatch } from '../_shared/notification-delivery.ts';
+import { adminClient, requireUser } from '../_shared/supabase.ts';
 import { handleOptions, json } from '../_shared/cors.ts';
+
+declare const EdgeRuntime: { waitUntil(promise: Promise<unknown>): void };
 
 // All identity comes from the caller's JWT. The narrow database functions
 // resolve bearer codes and perform membership + person linking atomically.
@@ -52,7 +55,14 @@ Deno.serve(async (req) => {
       person_id: person_id ?? null,
       person_name: name ?? null,
     });
-    return error ? failure(error) : json({ list_id: data });
+    if (error) return failure(error);
+    // The membership transaction is already committed. Push is best-effort:
+    // recovery cron owns any work this short request cannot complete.
+    const dispatch = dispatchNotificationBatch(adminClient()).catch((dispatchError) => {
+      console.error('Immediate household notification dispatch failed', dispatchError);
+    });
+    EdgeRuntime.waitUntil(dispatch);
+    return json({ list_id: data });
   } catch (error) {
     if (error instanceof Response) return error;
     console.error('Unexpected household invitation failure', error);

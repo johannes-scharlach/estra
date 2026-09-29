@@ -15,6 +15,7 @@ import { useOnboarding } from "@/features/onboarding/provider";
 import { StartupScreen } from "@/features/onboarding/startup-screen";
 import { FormError } from "@/features/profile/form";
 import { supabase } from "@/lib/supabase";
+import { unregisterPushDevice } from "@/features/notifications/notifications";
 
 export default function Welcome() {
   const router = useRouter();
@@ -131,11 +132,20 @@ export default function Welcome() {
         <Pressable
           accessibilityRole="button"
           className="self-start"
-          onPress={() => void supabase.auth.signOut()}
+          onPress={() => void signOut()}
         >
           <Text className="font-medium text-primary">Sign out</Text>
         </Pressable>
       )}
     </OnboardingScreen>
   );
+}
+
+async function signOut() {
+  try {
+    await unregisterPushDevice();
+  } catch (error) {
+    console.error("Could not unregister push device before sign out", error);
+  }
+  await supabase.auth.signOut();
 }

@@ -23,6 +23,7 @@ import {
   SettingsSection,
 } from "@/features/profile/settings-list";
 import { useHousehold } from "@/features/profile/use-household";
+import { unregisterPushDevice } from "@/features/notifications/notifications";
 
 const selectionTitles: Record<SelectionField, string> = {
   goals: "Goals",
@@ -154,6 +155,16 @@ export default function ProfileScreen() {
           />
         </SettingsSection>
         <SettingsSection title="Account">
+          <SettingsRow
+            title="Notifications"
+            detail="Household updates"
+            onPress={() =>
+              router.push({
+                pathname: "/notifications",
+                params: { source: "settings" },
+              } as never)
+            }
+          />
           <SettingsRow title="Email" detail={session?.user.email} />
           <SettingsRow title="Sign out" destructive onPress={confirmSignOut} />
         </SettingsSection>
@@ -168,7 +179,18 @@ function confirmSignOut() {
     {
       text: "Sign out",
       style: "destructive",
-      onPress: () => void supabase.auth.signOut(),
+      onPress: () => void signOut(),
     },
   ]);
+}
+
+async function signOut() {
+  try {
+    await unregisterPushDevice();
+  } catch (error) {
+    // Signing out still wins. A reassigned installation is disabled again when
+    // the next account registers it; server eligibility also checks ownership.
+    console.error("Could not unregister push device before sign out", error);
+  }
+  await supabase.auth.signOut();
 }

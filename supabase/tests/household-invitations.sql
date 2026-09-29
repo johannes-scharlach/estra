@@ -1,7 +1,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = public, extensions;
-select plan(18);
+select plan(20);
 
 insert into auth.users (id) values
   ('aa000000-0000-4000-8000-000000000001'),
@@ -14,6 +14,8 @@ insert into public.household_profiles (id) values
   ('bb000000-0000-4000-8000-000000000001'), ('bb000000-0000-4000-8000-000000000002');
 insert into public.list_members (list_id, user_id) values
   ('bb000000-0000-4000-8000-000000000001', 'aa000000-0000-4000-8000-000000000001');
+insert into public.push_devices (installation_id, user_id, expo_push_token, platform) values
+  ('dd000000-0000-4000-8000-000000000001', 'aa000000-0000-4000-8000-000000000001', 'ExpoPushToken[test-owner]', 'ios');
 insert into public.household_people (id, list_id, name, diet, meal_times) values
   ('cc000000-0000-4000-8000-000000000001', 'bb000000-0000-4000-8000-000000000001', 'Anna', 'vegan', 'Weekends'),
   ('cc000000-0000-4000-8000-000000000002', 'bb000000-0000-4000-8000-000000000002', 'Another Anna', 'vegan', 'Always');
@@ -38,6 +40,10 @@ select is((select diet || '/' || meal_times from household_people where id = 'cc
 select is(accept_household_invite(current_setting('test.invite_code'), null, 'Duplicate'),
   'bb000000-0000-4000-8000-000000000001'::uuid, 'A lost response can be retried safely');
 select is((select count(*)::integer from household_people where list_id = 'bb000000-0000-4000-8000-000000000001'), 1, 'Retry does not add another eater');
+reset role;
+select is((select count(*)::integer from notification_deliveries), 1, 'Join creates delivery work for an existing member device');
+select is((select count(*)::integer from notification_deliveries where user_id = 'aa000000-0000-4000-8000-000000000002'), 0, 'Joiner receives no delivery work');
+set local role authenticated;
 select is(preview_household_invite(current_setting('test.invite_code'))->>'joined', 'true', 'Reopening an invite recognizes your existing link');
 
 select set_config('request.jwt.claim.sub', 'aa000000-0000-4000-8000-000000000003', true);

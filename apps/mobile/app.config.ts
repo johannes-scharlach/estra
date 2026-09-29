@@ -58,6 +58,12 @@ const config: ExpoConfig = {
     "expo-router",
     "expo-secure-store",
     [
+      "expo-notifications",
+      {
+        defaultChannel: "household-activity",
+      },
+    ],
+    [
       "expo-image-picker",
       {
         cameraPermission:
