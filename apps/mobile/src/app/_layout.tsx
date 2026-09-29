@@ -86,7 +86,8 @@ export default function RootLayout() {
                         presentation: "formSheet",
                         sheetAllowedDetents: "fitToContents",
                         sheetGrabberVisible: true,
-                        title: "Notifications",
+                        headerShown: false,
+                        contentStyle: { backgroundColor: "transparent" },
                       }}
                     />
                   {/* No variant/_layout.tsx by design: [id] must sit above (tabs)
@@ -226,7 +227,7 @@ export default function RootLayout() {
                     options={{
                       presentation: "pageSheet",
                       headerShown: true,
-                      title: "Weeknight ideas",
+                      title: "See all",
                       contentStyle: { backgroundColor: "transparent" },
                     }}
                   />

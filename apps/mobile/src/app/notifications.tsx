@@ -11,7 +11,6 @@ import {
   markNotificationPrompted,
   notificationState,
   openNotificationSettings,
-  registerPushDevice,
   type NotificationState,
 } from "@/features/notifications/notifications";
 
@@ -30,14 +29,15 @@ export default function NotificationsScreen() {
   }, [prompted, session]);
   useFocusEffect(
     useCallback(() => {
-      void notificationState().then(async (next) => {
-        setState(next);
-        if (next === "enabled") await registerPushDevice();
-      }).catch((cause) => {
-        setError(
-          cause instanceof Error ? cause.message : "Could not enable notifications.",
-        );
-      });
+      void notificationState()
+        .then(setState)
+        .catch((cause) => {
+          setError(
+            cause instanceof Error
+              ? cause.message
+              : "Could not load notification settings.",
+          );
+        });
     }, []),
   );
   async function finish() {
@@ -63,13 +63,13 @@ export default function NotificationsScreen() {
   }
   if (!state) {
     return (
-      <View className="items-center justify-center bg-background px-6 py-12">
+      <View className="items-center justify-center px-6 py-12">
         <ActivityIndicator />
       </View>
     );
   }
   return (
-    <View className="gap-6 bg-background px-6 py-8">
+    <View className="gap-6 px-6 pt-12 pb-8">
       <View className="gap-3">
         <Text accessibilityRole="header" className="text-3xl font-bold tracking-tight">
           Household updates
@@ -88,17 +88,25 @@ export default function NotificationsScreen() {
       </View>
       <FormError message={error} />
       <View className="gap-3">
-        <Button disabled={busy || state === "enabled"} onPress={() => void allow()}>
-          {busy ? <ActivityIndicator /> : <Text>{state === "disabled" ? "Open settings" : "Allow notifications"}</Text>}
-        </Button>
         {state === "enabled" ? (
-          <Button variant="outline" onPress={() => router.back()}>
+          <Button onPress={() => router.back()}>
             <Text>Done</Text>
           </Button>
         ) : (
-          <Button variant="ghost" onPress={() => void finish()}>
-            <Text>{prompted ? "Not now" : "Cancel"}</Text>
-          </Button>
+          <>
+            <Button disabled={busy} onPress={() => void allow()}>
+              {busy ? (
+                <ActivityIndicator />
+              ) : (
+                <Text>
+                  {state === "disabled" ? "Open settings" : "Allow notifications"}
+                </Text>
+              )}
+            </Button>
+            <Button variant="ghost" onPress={() => void finish()}>
+              <Text>{prompted ? "Not now" : "Cancel"}</Text>
+            </Button>
+          </>
         )}
       </View>
     </View>
