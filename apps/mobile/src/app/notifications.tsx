@@ -2,7 +2,7 @@ import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
 
-import { Button } from "@/components/ui/button";
+import { Action, PrimaryAction } from "@/components/action";
 import { Text } from "@/components/ui/text";
 import { useAuth } from "@/db/provider";
 import { FormError } from "@/features/profile/form";
@@ -89,23 +89,24 @@ export default function NotificationsScreen() {
       <FormError message={error} />
       <View className="gap-3">
         {state === "enabled" ? (
-          <Button onPress={() => router.back()}>
-            <Text>Done</Text>
-          </Button>
+          <PrimaryAction label="Done" onPress={() => router.back()} />
         ) : (
           <>
-            <Button disabled={busy} onPress={() => void allow()}>
-              {busy ? (
-                <ActivityIndicator />
-              ) : (
-                <Text>
-                  {state === "disabled" ? "Open settings" : "Allow notifications"}
-                </Text>
-              )}
-            </Button>
-            <Button variant="ghost" onPress={() => void finish()}>
-              <Text>{prompted ? "Not now" : "Cancel"}</Text>
-            </Button>
+            <PrimaryAction
+              disabled={busy}
+              label={
+                busy
+                  ? "Enabling…"
+                  : state === "disabled"
+                    ? "Open settings"
+                    : "Allow notifications"
+              }
+              onPress={() => void allow()}
+            />
+            <Action
+              label={prompted ? "Not now" : "Cancel"}
+              onPress={() => void finish()}
+            />
           </>
         )}
       </View>
