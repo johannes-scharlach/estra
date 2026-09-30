@@ -45,7 +45,7 @@ test("migration, identity allocation and adjustment preserve choices and purchas
       ('00000000-0000-4000-8000-000000000011', $1, $2, 'Olives', 'olives', '60g', 'active'),
       ('00000000-0000-4000-8000-000000000012', $1, $2, 'Garlic', 'garlic', '2 cloves', 'purchased'),
       ('00000000-0000-4000-8000-000000000013', $1, $2, 'Napkins', 'napkins', NULL, 'active')`, [mealId, baseId]);
-    const migration = await readFile(new URL("../../../supabase/migrations/20260929100000_meal_ingredient_choices.sql", import.meta.url), "utf8");
+    const migration = await readFile(new URL("../../../supabase/migrations/20260930100000_meal_ingredient_choices.sql", import.meta.url), "utf8");
     await client.query(migration.replaceAll("public.", "pg_temp."));
     assert.deepEqual((await client.query("SELECT ingredient_swaps FROM planned_meals")).rows[0].ingredient_swaps, { 1: 1 });
     assert.deepEqual((await client.query("SELECT ingredient_id FROM list_items ORDER BY id")).rows.map((row) => row.ingredient_id), [1, 2, 3, null]);
