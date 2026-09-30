@@ -4,6 +4,7 @@ import { test } from "node:test";
 
 import { AddToCookbookSchema, CookRecipeSchema } from "./recipe-schema.js";
 import { chatToolErrorText } from "./chat-tool-errors.js";
+import { AppError } from "./errors.js";
 
 test("add-to-cookbook accepts optional household sizing metadata", () => {
   const input = AddToCookbookSchema.safeParse({
@@ -72,4 +73,12 @@ test("unrelated tool failures do not expose internal error details", () => {
     chatToolErrorText(new Error("database password or stack trace")),
     "This action couldn't be completed. Try again.",
   );
+});
+
+test("expected ingredient validation failures explain how to retry without exposing their cause", () => {
+  const message = "Preserve unique ingredient ids from the base variant. Omit ids only for new ingredients.";
+  const error = new AppError("INVALID_INGREDIENT_IDS", message, 422, {
+    cause: new Error("internal details"),
+  });
+  assert.equal(chatToolErrorText(error), message);
 });

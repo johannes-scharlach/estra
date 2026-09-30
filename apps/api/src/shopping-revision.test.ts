@@ -16,13 +16,13 @@ const item = (id: string, name: string, status = "active"): ShoppingItem => ({
 });
 
 test("a rewrite updates chosen ingredients without adding unchosen ones, preserving purchases and row identities", () => {
-  const sardines = item("fish", "sardines", "purchased");
-  const rice = item("grain", " Rice ");
+  const sardines = { ...item("fish", "sardines", "purchased"), ingredient_id: 1 };
+  const rice = { ...item("grain", "rice"), ingredient_id: 2 };
   const result = shoppingRevision(
-    [sardines, rice, item("herb", "parsley")],
+    [sardines, rice, { ...item("herb", "parsley"), ingredient_id: 3 }, item("extra", "Napkins")],
     [
-      { item_name: "tuna", qty_text: "2 tins" },
-      { item_name: "rice", qty_text: "300g" },
+      { id: 4, item_name: "capers", qty_text: "20g" },
+      { id: 2, item_name: "orzo", qty_text: "300g" },
     ],
   );
   assert.deepEqual(result.bought, [sardines]);

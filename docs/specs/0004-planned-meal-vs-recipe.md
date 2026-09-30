@@ -2,6 +2,10 @@
 
 Status: Accepted (ADR 13); implementation in tickets T8–T11.
 
+Ingredient and shopping behavior amended by [ADR 20](../decisions/0020-meal-owned-ingredient-choices.md).
+The recipe page shows meal-owned ingredient choices without shopping status;
+shopping is reached through “Choose what to buy” in the meal group.
+
 ## Problem
 
 A planned meal is a recipe plus intent: who is eating, how much extra, and

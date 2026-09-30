@@ -1,4 +1,5 @@
 import { Button, Host, Text as NativeText } from "@expo/ui";
+import { parseMealSwaps } from "@estra/meals";
 import { fillMaxWidth } from "@expo/ui/jetpack-compose/modifiers";
 import { useQuery } from "@powersync/react";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -91,7 +92,9 @@ function IngredientReview({
   const insets = useSafeAreaInsets();
   const primary = useResolveClassNames("text-primary").color;
   const muted = useResolveClassNames("text-muted-foreground").color;
-  const review = shoppingReview(lines, items);
+  const review = shoppingReview(
+    lines, items, parseMealSwaps(meal.ingredient_swaps),
+  );
   const alreadyReviewed = meal.shopping_reviewed_variant_id === meal.variant_id;
   const [selected, setSelected] = useState(
     () =>
@@ -101,12 +104,7 @@ function IngredientReview({
           .map((entry) => entry.index),
       ),
   );
-  const [optionIndexes, setOptionIndexes] = useState(
-    () =>
-      Object.fromEntries(
-        review.map((entry) => [entry.index, entry.optionIndex]),
-      ) as Record<number, number>,
-  );
+  const [optionIndexes, setOptionIndexes] = useState<Record<number, number>>({});
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const toAdd = review.filter(
@@ -123,6 +121,10 @@ function IngredientReview({
         mealId: meal.id,
         contentId: meal.content_id,
         variantId: meal.variant_id,
+        choices: review.map((entry) => ({
+          lineIndex: entry.index,
+          optionIndex: optionIndexes[entry.index] ?? entry.optionIndex,
+        })),
         selections: review
           .filter((entry) => selected.has(entry.index))
           .map((entry) => ({
@@ -156,7 +158,7 @@ function IngredientReview({
         <Text variant="muted">{mealLabel(meal)}</Text>
         <Text variant="muted">
           Choose what to buy, and pick a swap if you prefer an alternative.
-          Changes apply to this meal’s shopping items.
+          Swaps apply to this meal, even for ingredients you already have.
         </Text>
       </View>
       {[false, true].map((atHome) => {
@@ -170,10 +172,13 @@ function IngredientReview({
               <Text variant="muted">No ingredients in this section.</Text>
             ) : null}
             {entries.map(({ index, line, item, optionIndex }) => {
-              const checked = selected.has(index);
+              const checked = item?.status === "purchased" || selected.has(index);
               const options = optionsForLine(line);
               const chosenIndex = optionIndexes[index] ?? optionIndex;
               const chosen = options[chosenIndex] ?? line;
+              const itemLabel = item?.status === "purchased"
+                ? `Bought: ${[item.name, item.spec].filter(Boolean).join(" · ")}`
+                : item ? "Already on the list" : null;
               // Only an alternative has a reason; the line's own ingredient
               // needs no justification for being there.
               const chosenReason =
@@ -191,11 +196,7 @@ function IngredientReview({
                     accessibilityLabel={[
                       chosen.qty_text,
                       chosen.item_name,
-                      item
-                        ? item.status === "purchased"
-                          ? "Bought"
-                          : "Already on the list"
-                        : null,
+                      itemLabel,
                     ]
                       .filter(Boolean)
                       .join(" ")}
@@ -238,13 +239,7 @@ function IngredientReview({
                       {chosenReason ? (
                         <Text variant="muted">{chosenReason}</Text>
                       ) : null}
-                      {item ? (
-                        <Text variant="muted">
-                          {item.status === "purchased"
-                            ? "Bought"
-                            : "Already on the list"}
-                        </Text>
-                      ) : null}
+                      {itemLabel ? <Text variant="muted">{itemLabel}</Text> : null}
                     </View>
                   </Pressable>
                   {options.length > 1 ? (
@@ -257,17 +252,14 @@ function IngredientReview({
                             accessibilityRole="radio"
                             accessibilityState={{
                               checked: active,
-                              disabled: saving || item?.status === "purchased",
+                              disabled: saving,
                             }}
-                            disabled={saving || item?.status === "purchased"}
+                            disabled={saving}
                             onPress={() => {
                               setOptionIndexes((current) => ({
                                 ...current,
                                 [index]: choice,
                               }));
-                              setSelected((current) =>
-                                new Set(current).add(index),
-                              );
                             }}
                             className={
                               active

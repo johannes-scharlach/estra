@@ -11,6 +11,9 @@ import {
 } from "./planned-meals";
 import { saveMealShoppingReview } from "./meal-shopping";
 import { MEALS_WITH_SHOPPING } from "./shopping-meals";
+import { resolveShoppingItem, setMealSwap } from "./meal-ingredients";
+import { applySwap, setItemStatus } from "./items";
+import { mealIngredients, parseMealSwaps } from "@estra/meals";
 
 const state = vi.hoisted(() => ({ db: null as DatabaseSync | null }));
 vi.mock("expo-crypto", () => ({ randomUUID: () => crypto.randomUUID() }));
@@ -61,17 +64,77 @@ beforeEach(() => {
     CREATE TABLE variants (id TEXT PRIMARY KEY, recipe_id TEXT, name TEXT, ingredient_lines TEXT, instructions TEXT, sized_for TEXT, created_at TEXT);
     CREATE TABLE planned_meals (
       id TEXT PRIMARY KEY, list_id TEXT, recipe_id TEXT, variant_id TEXT, name TEXT, content_id TEXT NOT NULL,
-      slot_date TEXT, meal TEXT, eater_ids TEXT, extra_portions REAL, shopping_reviewed_variant_id TEXT, created_at TEXT, updated_at TEXT,
+      slot_date TEXT, meal TEXT, eater_ids TEXT, extra_portions REAL, shopping_reviewed_variant_id TEXT, ingredient_swaps TEXT DEFAULT '{}', created_at TEXT, updated_at TEXT,
       CHECK ((recipe_id IS NOT NULL AND variant_id IS NOT NULL AND name IS NULL)
         OR (recipe_id IS NULL AND variant_id IS NULL AND length(trim(name)) > 0))
     );
     CREATE TABLE list_items (
       id TEXT PRIMARY KEY, list_id TEXT, name TEXT, name_key TEXT, category_id TEXT, spec TEXT,
-      status TEXT, purchase_count INTEGER, planned_meal_id TEXT, variant_id TEXT, created_at TEXT, updated_at TEXT
+      status TEXT, purchase_count INTEGER DEFAULT 0, planned_meal_id TEXT, variant_id TEXT, ingredient_id INTEGER, created_at TEXT, updated_at TEXT
     );
   `);
 });
 afterEach(() => state.db?.close());
+
+it("keeps at-home swaps on the meal and snapshots the actual purchase before later changes", async () => {
+  const fish = [{ id: 7, item_name: "Sardines", qty_text: "3 tins", category_id: "grains",
+    swaps: [{ item_name: "Tuna", qty_text: "2 tins", prep_note: "drained", category_id: "deli" }] }];
+  state.db!.prepare("INSERT INTO variants (id, recipe_id, ingredient_lines) VALUES ('fish', 'recipe', ?)").run(JSON.stringify(fish));
+  await setPlannedMeal({ listId, slotDate: date, meal: source.slot, recipeId: "recipe", variantId: "fish" });
+  const review = { listId, mealId: sourceId, contentId: all("planned_meals")[0]!.content_id as string, variantId: "fish" };
+  const swap = { mealId: sourceId, variantId: "fish", ingredientId: 7, name: "Tuna" };
+  await setMealSwap(swap);
+  const choices = () => parseMealSwaps(all("planned_meals")[0]!.ingredient_swaps as string);
+  expect(all("list_items")).toEqual([]);
+  expect(mealIngredients(fish, choices())[0]!.chosen.item_name).toBe("Tuna");
+
+  // Review can change the choice without selecting it for purchase.
+  await saveMealShoppingReview({ ...review, selections: [], choices: [{ lineIndex: 0, optionIndex: 0 }] });
+  expect(choices()).toEqual({});
+  await saveMealShoppingReview({ ...review, selections: [], choices: [{ lineIndex: 0, optionIndex: 1 }] });
+  expect(choices()).toEqual({ 7: 1 });
+  expect(all("list_items")).toEqual([]);
+
+  await saveMealShoppingReview({ ...review, selections: [{ lineIndex: 0, optionIndex: 1 }] });
+  const itemId = all("list_items")[0]!.id as string;
+  const resolved = () => resolveShoppingItem(state.db!.prepare(`SELECT i.*, v.ingredient_lines, pm.ingredient_swaps
+    FROM list_items i JOIN planned_meals pm ON pm.id = i.planned_meal_id
+    JOIN variants v ON v.id = pm.variant_id WHERE i.id = ?`).get(itemId) as unknown as Parameters<typeof resolveShoppingItem>[0]);
+  await applySwap(itemId, "Sardines");
+  expect(choices()).toEqual({});
+  expect(resolved()).toMatchObject({ name: "Sardines", spec: "3 tins", category_id: "grains" });
+  expect(all("list_items")[0]!.name).toBe("Tuna");
+  await setItemStatus(itemId, "purchased");
+  const purchase = all("list_items")[0]!;
+  expect(purchase).toMatchObject({ name: "Sardines", spec: "3 tins", status: "purchased", purchase_count: 1 });
+  await setMealSwap(swap);
+  expect(resolved()).toMatchObject({ name: "Sardines", spec: "3 tins" });
+  expect(resolveShoppingItem({
+    ...resolved(), ingredient_lines: "{", ingredient_swaps: "{",
+  })).toMatchObject({ name: "Sardines", spec: "3 tins" });
+  expect(mealIngredients(fish, choices())[0]!.chosen.item_name).toBe("Tuna");
+
+  state.db!.exec("INSERT INTO variants (id, recipe_id, ingredient_lines) VALUES ('no-fish', 'recipe', '[]'); UPDATE planned_meals SET variant_id = 'no-fish', ingredient_swaps = '{}'");
+  expect(resolved()).toMatchObject({ name: "Sardines", spec: "3 tins" });
+  expect(all("list_items")[0]).toEqual(purchase);
+  await expect(setMealSwap(swap)).rejects.toThrow("changed");
+  await setItemStatus(itemId, "active");
+  expect(all("list_items")[0]).toMatchObject({ ingredient_id: null, name: "Sardines", status: "active" });
+});
+
+it("carries meal choices when moving or repeating and clears them when replacing", async () => {
+  state.db!.prepare("INSERT INTO variants (id, recipe_id, ingredient_lines) VALUES ('fish', 'recipe', ?)").run(JSON.stringify([
+    { id: 1, item_name: "Sardines", qty_text: null, swaps: [{ item_name: "Tuna", qty_text: null }] },
+  ]));
+  await setPlannedMeal({ listId, slotDate: date, meal: source.slot, recipeId: "recipe", variantId: "fish" });
+  await setMealSwap({ mealId: sourceId, variantId: "fish", ingredientId: 1, name: "Tuna" });
+  await repeatPlannedMeal(listId, { ...source, variantId: "fish" }, destination);
+  expect(all("planned_meals").map((meal) => meal.ingredient_swaps)).toEqual(['{"1":1}', '{"1":1}']);
+  await setPlannedMeal({ listId, slotDate: destination.date, meal: destination.slot, recipeId: "recipe", variantId: "fish" });
+  await movePlannedMeal(listId, { ...source, variantId: "fish" }, destination);
+  expect(all("planned_meals").find((meal) => meal.id === sourceId)!.ingredient_swaps).toBe('{}');
+  expect(all("planned_meals").find((meal) => meal.id === destinationId)!.ingredient_swaps).toBe('{"1":1}');
+});
 
 async function writeMeal() {
   await setWrittenMeal({
@@ -158,13 +221,13 @@ it("repeats the exact historical variant and leaves the original untouched", asy
   insert.run(
     "original",
     "Bulgur",
-    JSON.stringify([{ item_name: "Bulgur", qty_text: "200g" }]),
+    JSON.stringify([{ id: 1, item_name: "Bulgur", qty_text: "200g" }]),
     "2026-09-01",
   );
   insert.run(
     "latest",
     "Orzo",
-    JSON.stringify([{ item_name: "Orzo", qty_text: "200g" }]),
+    JSON.stringify([{ id: 1, item_name: "Orzo", qty_text: "200g" }]),
     "2026-09-22",
   );
   await setPlannedMeal({
@@ -299,9 +362,9 @@ it("saves only chosen ingredients, preserves purchases on retry, and keeps the s
     )
     .run(
       JSON.stringify([
-        { item_name: "Pasta", qty_text: "200g", category_id: "grains" },
-        { item_name: "Olive oil", qty_text: "1 tbsp" },
-        { item_name: "Garlic powder", qty_text: "1 tsp" },
+        { id: 1, item_name: "Pasta", qty_text: "200g", category_id: "grains" },
+        { id: 2, item_name: "Olive oil", qty_text: "1 tbsp" },
+        { id: 3, item_name: "Garlic powder", qty_text: "1 tsp" },
       ]),
     );
   await setPlannedMeal({
@@ -386,8 +449,8 @@ it("retrying a later repeated ingredient preserves its purchased row", async () 
     )
     .run(
       JSON.stringify([
-        { item_name: "Tomato", qty_text: "1" },
-        { item_name: "Tomato", qty_text: "2" },
+        { id: 1, item_name: "Tomato", qty_text: "1" },
+        { id: 2, item_name: "Tomato", qty_text: "2" },
       ]),
     );
   await setPlannedMeal({
@@ -417,7 +480,7 @@ it("retrying a later repeated ingredient preserves its purchased row", async () 
   });
 });
 
-it("saves swaps as the meal's shopping item and marks empty reviews complete", async () => {
+it("saves swaps on the meal and marks empty reviews complete", async () => {
   state
     .db!.prepare(
       "INSERT INTO variants (id, recipe_id, ingredient_lines) VALUES ('swap-v', 'recipe', ?)",
@@ -425,6 +488,7 @@ it("saves swaps as the meal's shopping item and marks empty reviews complete", a
     .run(
       JSON.stringify([
         {
+          id: 1,
           item_name: "Bulgur",
           qty_text: "200g",
           category_id: "grains",
@@ -432,7 +496,7 @@ it("saves swaps as the meal's shopping item and marks empty reviews complete", a
             { item_name: "Rice", qty_text: "200g", category_id: "grains" },
           ],
         },
-        { item_name: "Olive oil", qty_text: "1 tbsp" },
+        { id: 2, item_name: "Olive oil", qty_text: "1 tbsp" },
       ]),
     );
   await setPlannedMeal({
@@ -472,8 +536,9 @@ it("saves swaps as the meal's shopping item and marks empty reviews complete", a
   expect(all("list_items")).toHaveLength(1);
   expect(all("list_items")[0]).toMatchObject({
     id: riceItemId,
-    name: "Bulgur",
+    name: "Rice", // Fallback snapshot; active display resolves the meal.
   });
+  expect(all("planned_meals")[0]!.ingredient_swaps).toBe('{}');
   await saveMealShoppingReview({
     listId,
     mealId: sourceId,

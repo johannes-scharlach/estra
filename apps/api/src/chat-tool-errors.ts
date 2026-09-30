@@ -1,4 +1,5 @@
 import { InvalidToolInputError } from "ai";
+import { AppError } from "./errors.js";
 
 type ValidationIssue = {
   code?: unknown;
@@ -24,6 +25,7 @@ function hasMissingIngredientList(cause: unknown): boolean {
 
 /** Safe, actionable text for tool failures sent back in the chat activity. */
 export function chatToolErrorText(error: unknown): string {
+  if (error instanceof AppError) return error.message;
   if (
     InvalidToolInputError.isInstance(error) &&
     (error.toolName === "addToCookbook" || error.toolName === "updateRecipe")

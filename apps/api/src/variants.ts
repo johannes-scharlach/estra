@@ -1,8 +1,9 @@
-import type { SizedFor } from "@estra/meals";
+import { assignIngredientIds, type IngredientLine, type SizedFor } from "@estra/meals";
 import { randomUUID } from "node:crypto";
 import type { Client, PoolClient } from "pg";
 
 import type { RecipeInput } from "./recipe-schema.js";
+import { AppError } from "./errors.js";
 
 export async function findVariantIdentity(
   client: Client,
@@ -38,9 +39,42 @@ export async function insertVariant(
     recipe: RecipeInput;
     /** Who the adjust route sized it for; omitted for imports. */
     sizedFor?: SizedFor;
+    baseVariantId?: string;
   },
 ): Promise<{ recipeId: string; variantId: string }> {
   const { recipeId, variantId, recipe, sizedFor } = opts;
+  const counter = (
+    await client.query<{ next_ingredient_id: number }>(
+      "SELECT next_ingredient_id FROM recipes WHERE id = $1 FOR UPDATE",
+      [recipeId],
+    )
+  ).rows[0];
+  if (!counter) throw new Error("Recipe not found");
+  const base = opts.baseVariantId
+    ? (await client.query<{ ingredient_lines: IngredientLine[] }>(
+        "SELECT ingredient_lines FROM variants WHERE id = $1 AND recipe_id = $2",
+        [opts.baseVariantId, recipeId],
+      )).rows[0]
+    : undefined;
+  if (opts.baseVariantId && !base) throw new Error("Base variant not found");
+  const allocated = (() => {
+    try {
+      return assignIngredientIds(
+        recipe.recipeIngredient, counter.next_ingredient_id, base?.ingredient_lines,
+      );
+    } catch (cause) {
+      throw new AppError(
+        "INVALID_INGREDIENT_IDS",
+        "Preserve unique ingredient ids from the base variant. Omit ids only for new ingredients.",
+        422,
+        { cause },
+      );
+    }
+  })();
+  await client.query(
+    "UPDATE recipes SET next_ingredient_id = $2 WHERE id = $1",
+    [recipeId, allocated.nextId],
+  );
   await client.query(
     `INSERT INTO variants (id, recipe_id, name, description, locale, total_time, recipe_yield, content_markdown, recipe_category, recipe_cuisine, ingredient_lines, instructions, sized_for)
      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12::jsonb,$13::jsonb)`,
@@ -55,7 +89,7 @@ export async function insertVariant(
       recipe.contentMarkdown ?? null,
       recipe.recipeCategory ?? null,
       recipe.recipeCuisine ?? null,
-      JSON.stringify(recipe.recipeIngredient),
+      JSON.stringify(allocated.lines),
       JSON.stringify(recipe.recipeInstructions),
       sizedFor ? JSON.stringify(sizedFor) : null,
     ],

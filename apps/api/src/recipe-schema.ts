@@ -65,6 +65,9 @@ const SwapSchema = z.object({
 });
 
 const IngredientLineSchema = z.object({
+  id: z.number().int().positive().optional().describe(
+    "When rewriting a saved variant, preserve the ingredient's id even when swapping, scaling or changing preparation. Omit id for a genuinely new ingredient or a new recipe; the server allocates it. Never recycle an id from a removed ingredient."
+  ),
   qty_text: z
     .string()
     .nullable()

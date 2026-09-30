@@ -30,6 +30,7 @@ export const SwapSchema = z.object({
 });
 
 export const IngredientLineSchema = z.object({
+  id: z.number().int().positive().optional(),
   qty_text: z
     .string()
     .nullable()

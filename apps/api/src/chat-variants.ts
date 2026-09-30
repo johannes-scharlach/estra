@@ -1,5 +1,5 @@
-import { itemNameKey, type SizedFor } from "@estra/meals";
-import type { Client, PoolClient } from "pg";
+import { mealIngredients, resolveMealItem, type MealSwaps, type SizedFor } from "@estra/meals";
+import type { Client } from "pg";
 
 import { inTransaction, pool } from "./db.js";
 import {
@@ -11,11 +11,8 @@ import { estraUuidV5 } from "./estra-uuid.js";
 import { assertListMemberUntilCommit } from "./list-authorization.js";
 import type { CookRecipeInput } from "./recipe-schema.js";
 import type { RecipeChat } from "./recipe-chat.js";
-import {
-  ingredientSpec,
-  shoppingRevision,
-  type ShoppingItem,
-} from "./shopping-revision.js";
+import type { ShoppingItem } from "./shopping-revision.js";
+import { repointMealVariant } from "./reconcile-meal-shopping.js";
 import { findVariantIdentity, insertVariant, variantUrl } from "./variants.js";
 
 type VariantRow = {
@@ -159,6 +156,7 @@ export async function readChatMeal(
       meal: string;
       eater_ids: string[];
       extra_portions: number;
+      ingredient_swaps: MealSwaps;
     }>("SELECT * FROM planned_meals WHERE id = $1 AND list_id = $2", [
       plannedMealId,
       listId,
@@ -172,62 +170,20 @@ export async function readChatMeal(
     );
   const items = (
     await client.query<ShoppingItem>(
-      "SELECT id, name, spec, category_id, status FROM list_items WHERE planned_meal_id = $1 ORDER BY created_at, id",
+      "SELECT id, name, spec, category_id, status, ingredient_id FROM list_items WHERE planned_meal_id = $1 ORDER BY created_at, id",
       [meal.id],
     )
   ).rows;
+  const variant = meal.variant_id ? await readChatVariant(client, listId, meal.variant_id) : null;
+  const lines = variant?.recipeIngredient ?? [];
   return {
     ...meal,
+    ingredientChoices: mealIngredients(lines, meal.ingredient_swaps),
     sizedFor: await sizing(client, listId, {
       eater_ids: meal.eater_ids,
       extra_portions: meal.extra_portions,
     }),
-    items,
-  };
-}
-
-async function reviseShopping(
-  client: PoolClient,
-  plannedMealId: string,
-  variantId: string,
-  recipe: CookRecipeInput,
-) {
-  const items = (
-    await client.query<ShoppingItem>(
-      "SELECT id, name, spec, category_id, status FROM list_items WHERE planned_meal_id = $1 ORDER BY created_at, id FOR UPDATE",
-      [plannedMealId],
-    )
-  ).rows;
-  const revision = shoppingRevision(items, recipe.recipeIngredient);
-  await client.query(
-    "DELETE FROM list_items WHERE id = ANY($1::uuid[]) AND status <> 'purchased'",
-    [revision.removed.map((item) => item.id)],
-  );
-  for (const { item, line } of revision.kept) {
-    await client.query(
-      "UPDATE list_items SET name = $2, name_key = $3, spec = $4, category_id = $5, updated_at = now() WHERE id = $1",
-      [
-        item.id,
-        line.item_name,
-        itemNameKey(line.item_name),
-        ingredientSpec(line),
-        line.category_id ?? null,
-      ],
-    );
-  }
-  await client.query(
-    "UPDATE list_items SET variant_id = $1 WHERE planned_meal_id = $2",
-    [variantId, plannedMealId],
-  );
-  const label = (line: { qty_text: string | null; item_name: string }) =>
-    [line.qty_text, line.item_name].filter(Boolean).join(" ");
-  return {
-    added: [] as string[],
-    removed: revision.removed.map((item) => item.name),
-    updated: revision.kept
-      .filter(({ item, line }) => item.spec !== ingredientSpec(line))
-      .map(({ line }) => label(line)),
-    keptBought: revision.bought.map((item) => item.name),
+    items: items.map((item) => resolveMealItem(item, lines, meal.ingredient_swaps)),
   };
 }
 
@@ -281,28 +237,20 @@ export async function writeChatVariant(opts: {
       recipeId: base.recipeId,
       variantId,
       recipe: opts.recipe,
+      baseVariantId: opts.baseVariantId,
       sizedFor: opts.sizedFor,
     });
     let plannedMeal: { id: string; date: string; meal: string } | null = null;
-    let shopping: Awaited<ReturnType<typeof reviseShopping>> | null = null;
+    let shopping: Awaited<ReturnType<typeof repointMealVariant>> | null = null;
     if (opts.chat.planned_meal_id && opts.chat.recipe_id === base.recipeId) {
       const meal = (
-        await client.query<{ id: string; slot_date: string; meal: string }>(
-          "SELECT id, slot_date, meal FROM planned_meals WHERE id = $1 AND list_id = $2 AND recipe_id = $3 AND slot_date >= $4 FOR UPDATE",
+        await client.query<{ id: string; slot_date: string; meal: string; variant_id: string }>(
+          "SELECT id, slot_date, meal, variant_id FROM planned_meals WHERE id = $1 AND list_id = $2 AND recipe_id = $3 AND slot_date >= $4 FOR UPDATE",
           [opts.chat.planned_meal_id, opts.listId, base.recipeId, opts.today],
         )
       ).rows[0];
       if (meal) {
-        await client.query(
-          "UPDATE planned_meals SET variant_id = $1, shopping_reviewed_variant_id = NULL, updated_at = now() WHERE id = $2",
-          [variantId, meal.id],
-        );
-        shopping = await reviseShopping(
-          client,
-          meal.id,
-          variantId,
-          opts.recipe,
-        );
+        shopping = await repointMealVariant(client, { mealId: meal.id, variantId, expectedVariantId: meal.variant_id });
         plannedMeal = { id: meal.id, date: meal.slot_date, meal: meal.meal };
       }
     }

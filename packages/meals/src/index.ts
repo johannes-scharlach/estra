@@ -1,7 +1,7 @@
 /**
- * Rules shared by the app and the API about how a planned meal's shopping
- * items relate to its recipe lines (ADR 13). Plain types, no zod: each app
- * validates at its own boundary and passes the parsed shapes in.
+ * Rules shared by the app and the API for meal-owned ingredient choices,
+ * stable ingredient identity and purchase snapshots (ADR 20). Plain types,
+ * no zod: each app validates at its boundary and passes the parsed shapes in.
  *
  * One file on purpose. The API type-checks this source under nodenext and
  * Metro bundles it; a single module needs no internal import extensions.
@@ -17,12 +17,15 @@ export type Swap = {
 };
 
 export type IngredientLine = Swap & {
+  /** Stable within a recipe, preserved when a variant keeps this ingredient. */
+  id?: number;
   swaps?: Swap[];
   shopping_hint?: "check_at_home" | "likely_purchase";
 };
 
 /** The projection of a `list_items` row this package needs. */
 export type MealItem = {
+  ingredient_id?: number | null;
   name: string | null;
   spec: string | null;
   status: string | null;
@@ -56,55 +59,6 @@ export function lineForItem<L extends IngredientLine>(
   return found;
 }
 
-export type LineState<L extends IngredientLine, I extends MealItem> = {
-  line: L;
-  /** The list item for this line, or null when it was removed from the list. */
-  item: I | null;
-  /** Set when the item is one of the line's swaps rather than the original. */
-  swap: Swap | null;
-};
-
-export type MealDelta<L extends IngredientLine, I extends MealItem> = {
-  lines: LineState<L, I>[];
-  /** Items that match no line (renamed by hand) or a line already taken. */
-  extra: I[];
-  /** At least one item, and every one of them checked off. */
-  shopped: boolean;
-};
-
-/** What the shopping list says about each recipe line. Nothing is guessed. */
-export function mealDelta<L extends IngredientLine, I extends MealItem>(
-  lines: readonly L[],
-  items: readonly I[],
-): MealDelta<L, I> {
-  const states: LineState<L, I>[] = lines.map((line) => ({
-    line,
-    item: null,
-    swap: null,
-  }));
-  const extra: I[] = [];
-  for (const item of items) {
-    const match = item.name ? lineForItem(item.name, lines) : null;
-    const state = match ? states[match.index] : undefined;
-    if (!match || !state || state.item) {
-      extra.push(item);
-      continue;
-    }
-    const key = itemNameKey(item.name ?? "");
-    const swap =
-      itemNameKey(match.line.item_name) === key
-        ? null
-        : ((match.line.swaps ?? []).find(
-            (option) => itemNameKey(option.item_name) === key,
-          ) ?? null);
-    state.item = item;
-    state.swap = swap;
-  }
-  const shopped =
-    items.length > 0 && items.every((item) => item.status === "purchased");
-  return { lines: states, extra, shopped };
-}
-
 /**
  * Who a variant was adjusted for: the meal's eaters and extra at the time
  * the adjust route wrote it (`variants.sized_for`). Null for a variant as
@@ -116,7 +70,7 @@ export type MealSync = {
   /** "match": adjusted for exactly these eaters and extra. "differs": for
    *  others. "unknown": never adjusted; the recipe is sized as written. */
   sizing: "match" | "differs" | "unknown";
-  /** Lines the list swapped that the recipe's steps don't know about. */
+  /** Meal choices that the recipe's steps don't know about. */
   swaps: number;
   /** Nothing to adjust: sized for this meal and no swaps pending. */
   inSync: boolean;
@@ -124,22 +78,136 @@ export type MealSync = {
 
 /**
  * Whether the recipe still describes the meal. The variant the adjust route
- * writes folds the swaps into its lines, so any swap the list shows against
+ * writes folds the swaps into its lines, so any meal choice against
  * it is new drift; and its stamp says who it was sized for. Sets compare
  * by id, never by name.
  */
 export function mealSync(
   sizedFor: SizedFor | null,
   meal: SizedFor,
-  delta: MealDelta<IngredientLine, MealItem>,
+  ingredients: readonly { swap: Swap | null }[],
 ): MealSync {
-  const swaps = delta.lines.filter((state) => state.swap).length;
+  const swaps = ingredients.filter((state) => state.swap).length;
   const sizing = !sizedFor
     ? "unknown"
     : sameEaters(sizedFor, meal)
       ? "match"
       : "differs";
   return { sizing, swaps, inSync: sizing === "match" && swaps === 0 };
+}
+
+/** Alternative indexes in the meal's current variant, keyed by ingredient id. */
+export type MealSwaps = Record<string, number>;
+
+export function parseMealSwaps(raw: string | null | undefined): MealSwaps {
+  if (!raw) return {};
+  const value: unknown = JSON.parse(raw);
+  if (
+    !value ||
+    typeof value !== "object" ||
+    Array.isArray(value) ||
+    Object.entries(value).some(([id, option]) =>
+      !/^[1-9]\d*$/.test(id) || !Number.isSafeInteger(option) || Number(option) < 0,
+    )
+  ) {
+    throw new Error("Invalid meal ingredient choices");
+  }
+  return value as MealSwaps;
+}
+
+export function ingredientOptions(line: IngredientLine): Swap[] {
+  const seen = new Set<string>();
+  return [line, ...(line.swaps ?? [])].filter((option) => {
+    const key = itemNameKey(option.item_name);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+export function mealIngredients<L extends IngredientLine>(
+  lines: readonly L[],
+  swaps: MealSwaps,
+) {
+  return lines.map((line) => {
+    const optionIndex = line.id == null ? 0 : (swaps[line.id] ?? 0);
+    const chosen = ingredientOptions(line)[optionIndex];
+    if (!chosen) {
+      throw new Error("This meal's ingredient choices no longer match its recipe");
+    }
+    return { line, optionIndex, swap: optionIndex ? chosen : null, chosen };
+  });
+}
+
+/** Clear incorporated choices; carry unapplied choices across option reordering.
+ * Removing an ingredient removes its choice, not any purchased snapshot. */
+export function rebaseMealSwaps(
+  previous: readonly IngredientLine[],
+  swaps: MealSwaps,
+  next: readonly IngredientLine[],
+): MealSwaps {
+  const rebased: MealSwaps = {};
+  for (const { line, swap } of mealIngredients(previous, swaps)) {
+    if (!swap || line.id == null) continue;
+    const replacement = next.find((candidate) => candidate.id === line.id);
+    if (!replacement) continue;
+    const index = ingredientOptions(replacement).findIndex(
+      (option) => itemNameKey(option.item_name) === itemNameKey(swap.item_name),
+    );
+    if (index < 0) {
+      throw new Error(`The revised recipe must use or retain the meal's choice of ${swap.item_name}`);
+    }
+    if (index > 0) rebased[line.id] = index;
+  }
+  return rebased;
+}
+
+export function ingredientSpec(line: Swap): string | null {
+  return (
+    [line.qty_text?.trim(), line.prep_note].filter(Boolean).join(", ") || null
+  );
+}
+
+/** Active items follow the meal. Purchases and unlinked items are snapshots. */
+export function resolveMealItem<I extends MealItem & { category_id: string | null }>(
+  item: I,
+  lines: readonly IngredientLine[],
+  swaps: MealSwaps,
+): I {
+  if (item.status === "purchased" || item.ingredient_id == null) return item;
+  const line = lines.find((line) => line.id === item.ingredient_id);
+  if (!line) return item;
+  const chosen = mealIngredients([line], swaps)[0]!.chosen;
+  return {
+    ...item,
+    name: chosen.item_name,
+    spec: ingredientSpec(chosen),
+    category_id: chosen.category_id ?? null,
+  };
+}
+
+/** Allocate only genuinely new ingredients. Never infer identity from names. */
+export function assignIngredientIds<L extends IngredientLine>(
+  lines: readonly L[],
+  nextId: number,
+  base: readonly IngredientLine[] = [],
+): { lines: (L & { id: number })[]; nextId: number } {
+  const allowed = new Set(base.map((line) => line.id));
+  const used = new Set<number>();
+  const assigned = lines.map((line) => {
+    const id = line.id ?? nextId++;
+    if (
+      !Number.isSafeInteger(id) || id < 1 || used.has(id) ||
+      (line.id != null && !allowed.has(id))
+    ) {
+      throw new Error(
+        "Ingredient ids must be unique and preserved from the base variant; omit ids for new ingredients",
+      );
+    }
+    used.add(id);
+    return { ...line, id };
+  });
+  return { lines: assigned, nextId };
 }
 
 function sameEaters(a: SizedFor, b: SizedFor): boolean {

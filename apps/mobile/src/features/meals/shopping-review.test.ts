@@ -33,64 +33,65 @@ it("uses the recipe's shopping hint, never the ingredient name or aisle", () => 
   ]);
 });
 
-it("reserves a bought row for the later recipe line with the matching quantity", () => {
-  const bought = { name: "Tomato", spec: "2", status: "purchased" };
+it("matches purchases by identity even after quantities change", () => {
+  const bought = { ingredient_id: 2, name: "Tomato", spec: "2", status: "purchased" };
   const review = shoppingReview(
     [
-      { item_name: "Tomato", qty_text: "1" },
-      { item_name: "Tomato", qty_text: "2" },
+      { id: 1, item_name: "Tomato", qty_text: "2" },
+      { id: 2, item_name: "Tomato", qty_text: "4" },
     ],
     [bought],
   );
   expect(review.map((entry) => entry.item)).toEqual([null, bought]);
 });
 
-it("does not suggest rebuying an indistinguishable recipe line", () => {
-  const bought = { name: "Tomato", spec: "1", status: "purchased" };
-  const line = { item_name: "Tomato", qty_text: "1" };
-  expect(
-    shoppingReview([line, line], [bought]).every((entry) => entry.item),
-  ).toBe(true);
+it("keeps identical ingredient lines distinct", () => {
+  const bought = { ingredient_id: 1, name: "Tomato", spec: "1", status: "purchased" };
+  const line = { id: 1, item_name: "Tomato", qty_text: "1" };
+  expect(shoppingReview([line, { ...line, id: 2 }], [bought]).map((entry) => entry.item)).toEqual([bought, null]);
 });
 
-it("matches an ingredient's own name before an earlier line's optional swap", () => {
-  const rice = { item_name: "Rice", qty_text: "200g" };
-  const bought = { name: "Rice", spec: "200g", status: "purchased" };
+it("does not confuse another ingredient with an optional swap", () => {
+  const rice = { id: 2, item_name: "Rice", qty_text: "200g" };
+  const bought = { ingredient_id: 2, name: "Rice", spec: "200g", status: "purchased" };
   const review = shoppingReview(
-    [{ item_name: "Bulgur", qty_text: "200g", swaps: [rice] }, rice],
+    [{ id: 1, item_name: "Bulgur", qty_text: "200g", swaps: [rice] }, rice],
     [bought],
   );
   expect(review.map((entry) => entry.item)).toEqual([null, bought]);
 });
 
 it("recognises bought swaps and consumes an existing row only once for repeated recipe lines", () => {
-  const bought = { name: "Orzo", spec: "200g", status: "purchased" };
-  const tomato = { name: "Tomato", spec: "1", status: "active" };
+  const bought = { ingredient_id: 1, name: "Orzo", spec: "200g", status: "purchased" };
+  const tomato = { ingredient_id: 2, name: "Tomato", spec: "1", status: "active" };
   const review = shoppingReview(
     [
       {
+        id: 1,
         item_name: "Bulgur",
         qty_text: "200g",
         swaps: [{ item_name: "Orzo", qty_text: "200g" }],
       },
-      { item_name: "Tomato", qty_text: "1" },
-      { item_name: "Tomato", qty_text: "2" },
+      { id: 2, item_name: "Tomato", qty_text: "1" },
+      { id: 3, item_name: "Tomato", qty_text: "2" },
     ],
     [bought, tomato],
   );
   expect(review.map((entry) => entry.item)).toEqual([bought, tomato, null]);
 });
 
-it("shows an already-added swap as the selected option", () => {
+it("shows the meal choice even without a shopping item", () => {
   const review = shoppingReview(
     [
       {
+        id: 8,
         item_name: "Bulgur",
         qty_text: "200g",
         swaps: [{ item_name: "Rice", qty_text: "200g" }],
       },
     ],
-    [{ name: "Rice", spec: "200g", status: "active" }],
+    [],
+    { 8: 1 },
   );
-  expect(review[0]).toMatchObject({ optionIndex: 1, item: { name: "Rice" } });
+  expect(review[0]).toMatchObject({ optionIndex: 1, item: null });
 });

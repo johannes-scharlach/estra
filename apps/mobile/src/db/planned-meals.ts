@@ -71,7 +71,7 @@ export async function setPlannedMeal(opts: {
     )) as { id: string } | null | undefined;
     if (existing) {
       await tx.execute(
-        `UPDATE planned_meals SET recipe_id = ?, variant_id = ?, name = NULL, content_id = ?, eater_ids = ?, extra_portions = ?, shopping_reviewed_variant_id = NULL, updated_at = ? WHERE id = ?`,
+        `UPDATE planned_meals SET recipe_id = ?, variant_id = ?, name = NULL, content_id = ?, eater_ids = ?, extra_portions = ?, shopping_reviewed_variant_id = NULL, ingredient_swaps = '{}', updated_at = ? WHERE id = ?`,
         [recipeId, vId, Crypto.randomUUID(), eaterIds, extraPortions, now, id],
       );
     } else {
@@ -193,6 +193,7 @@ type Slot = {
   eater_ids: string;
   extra_portions: number;
   shopping_reviewed_variant_id: string | null;
+  ingredient_swaps: string | null;
 };
 
 /** Copy the saved version, never resolve the recipe's latest version. */
@@ -220,8 +221,8 @@ export async function repeatPlannedMeal(
       (JSON.parse(source.eater_ids) as string[]).filter((id) => known.has(id)),
     );
     await tx.execute(
-      `INSERT INTO planned_meals (id, list_id, recipe_id, variant_id, name, content_id, slot_date, meal, eater_ids, extra_portions, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO planned_meals (id, list_id, recipe_id, variant_id, name, content_id, slot_date, meal, eater_ids, extra_portions, ingredient_swaps, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         toId,
         listId,
@@ -233,6 +234,7 @@ export async function repeatPlannedMeal(
         to.slot,
         eaters,
         source.extra_portions,
+        source.ingredient_swaps ?? '{}',
         now,
         now,
       ],
@@ -250,7 +252,7 @@ export async function movePlannedMeal(
 
   await powersync.writeTransaction(async (tx) => {
     const source = (await tx.getOptional(
-      `SELECT recipe_id, variant_id, name, content_id, eater_ids, extra_portions, shopping_reviewed_variant_id FROM planned_meals WHERE id = ?`,
+      `SELECT recipe_id, variant_id, name, content_id, eater_ids, extra_portions, shopping_reviewed_variant_id, ingredient_swaps FROM planned_meals WHERE id = ?`,
       [fromId],
     )) as Slot | null | undefined;
     if (!source) throw new Error("Planned meal not found");
@@ -259,7 +261,7 @@ export async function movePlannedMeal(
     if (fromId === toId) return;
 
     const target = (await tx.getOptional(
-      `SELECT recipe_id, variant_id, name, content_id, eater_ids, extra_portions, shopping_reviewed_variant_id FROM planned_meals WHERE id = ?`,
+      `SELECT recipe_id, variant_id, name, content_id, eater_ids, extra_portions, shopping_reviewed_variant_id, ingredient_swaps FROM planned_meals WHERE id = ?`,
       [toId],
     )) as Slot | null | undefined;
 
@@ -268,7 +270,7 @@ export async function movePlannedMeal(
     if (target) {
       // Keep slot ids and carry the actual shopping rows, including purchases.
       await tx.execute(
-        `UPDATE planned_meals SET recipe_id = ?, variant_id = ?, name = ?, content_id = ?, eater_ids = ?, extra_portions = ?, shopping_reviewed_variant_id = ?, updated_at = ? WHERE id = ?`,
+        `UPDATE planned_meals SET recipe_id = ?, variant_id = ?, name = ?, content_id = ?, eater_ids = ?, extra_portions = ?, shopping_reviewed_variant_id = ?, ingredient_swaps = ?, updated_at = ? WHERE id = ?`,
         [
           source.recipe_id,
           source.variant_id,
@@ -277,12 +279,13 @@ export async function movePlannedMeal(
           source.eater_ids,
           source.extra_portions,
           source.shopping_reviewed_variant_id,
+          source.ingredient_swaps ?? '{}',
           now,
           toId,
         ],
       );
       await tx.execute(
-        `UPDATE planned_meals SET recipe_id = ?, variant_id = ?, name = ?, content_id = ?, eater_ids = ?, extra_portions = ?, shopping_reviewed_variant_id = ?, updated_at = ? WHERE id = ?`,
+        `UPDATE planned_meals SET recipe_id = ?, variant_id = ?, name = ?, content_id = ?, eater_ids = ?, extra_portions = ?, shopping_reviewed_variant_id = ?, ingredient_swaps = ?, updated_at = ? WHERE id = ?`,
         [
           target.recipe_id,
           target.variant_id,
@@ -291,6 +294,7 @@ export async function movePlannedMeal(
           target.eater_ids,
           target.extra_portions,
           target.shopping_reviewed_variant_id,
+          target.ingredient_swaps ?? '{}',
           now,
           fromId,
         ],
@@ -303,8 +307,8 @@ export async function movePlannedMeal(
     } else {
       // Create the destination before moving rows so their FK stays valid on upload.
       await tx.execute(
-        `INSERT INTO planned_meals (id, list_id, recipe_id, variant_id, name, content_id, slot_date, meal, eater_ids, extra_portions, shopping_reviewed_variant_id, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO planned_meals (id, list_id, recipe_id, variant_id, name, content_id, slot_date, meal, eater_ids, extra_portions, shopping_reviewed_variant_id, ingredient_swaps, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           toId,
           listId,
@@ -317,6 +321,7 @@ export async function movePlannedMeal(
           source.eater_ids,
           source.extra_portions,
           source.shopping_reviewed_variant_id,
+          source.ingredient_swaps ?? '{}',
           now,
           now,
         ],

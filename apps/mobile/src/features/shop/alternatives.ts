@@ -1,4 +1,4 @@
-import { itemNameKey as nameKey, lineForItem, type IngredientLine } from "@estra/meals";
+import { ingredientOptions, itemNameKey as nameKey, lineForItem, type IngredientLine } from "@estra/meals";
 import { z } from "zod";
 
 import { IngredientLineSchema } from "../../db/schemas";
@@ -16,6 +16,7 @@ const linesSchema = z.array(IngredientLineSchema);
 export function alternativesForItem(
   name: string,
   raw: string | null,
+  ingredientId?: number | null,
 ): Alternative[] {
   let json: unknown;
   try {
@@ -25,21 +26,15 @@ export function alternativesForItem(
   }
   const parsed = linesSchema.safeParse(json);
   if (!parsed.success) return [];
-  const match = lineForItem(name, parsed.data);
-  if (!match) return [];
-  return alternativesForLine(match.line);
+  const line = ingredientId != null
+    ? parsed.data.find((line) => line.id === ingredientId)
+    : lineForItem(name, parsed.data)?.line;
+  return line ? alternativesForLine(line) : [];
 }
 
 /** The line's own ingredient first, then its swaps, without duplicates. */
 export function alternativesForLine(line: IngredientLine): Alternative[] {
-  const seen = new Set<string>();
-  return [line, ...(line.swaps ?? [])]
-    .filter((option) => {
-      const key = nameKey(option.item_name);
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    })
+  return ingredientOptions(line)
     .map((option) => ({
       name: option.item_name,
       qtyText: option.qty_text,

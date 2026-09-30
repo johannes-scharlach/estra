@@ -6,42 +6,7 @@ import {
 
 import { env } from "../lib/env";
 import { supabase } from "../lib/supabase";
-
-const JSON_COLUMNS: Record<string, readonly string[]> = {
-  variants: ["ingredient_lines", "instructions"],
-  // jsonb array on the server; a raw string would arrive as a JSON string
-  // scalar and fail the jsonb_typeof(eater_ids) = 'array' check (ADR 12).
-  planned_meals: ["eater_ids"],
-  household_profiles: [
-    "goals",
-    "kitchen_equipment",
-    "pantry",
-    "fresh_ingredients",
-  ],
-};
-
-/** Decode a raw SQLite row map for upload — string -> object for Postgres jsonb. */
-function decodeForUpload(
-  table: string,
-  data: Record<string, unknown>,
-): Record<string, unknown> {
-  const out: Record<string, unknown> = { ...data };
-  for (const col of JSON_COLUMNS[table] ?? []) {
-    const v = out[col];
-    if (typeof v === "string") {
-      try {
-        out[col] = JSON.parse(v);
-      } catch (e) {
-        const err = new Error(
-          `Invalid JSON in ${col}: ${e instanceof Error ? e.message : String(e)}`,
-        ) as Error & { code: string };
-        err.code = "22P02";
-        throw err;
-      }
-    }
-  }
-  return out;
-}
+import { decodeForUpload } from "./upload-data";
 
 /**
  * Postgres error codes that mean "this write will never succeed" — a bad

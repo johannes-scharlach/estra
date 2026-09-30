@@ -2,6 +2,8 @@
 
 Date: 2026-09-18
 Status: Accepted
+Superseded in part by [ADR 20](0020-meal-owned-ingredient-choices.md): meal-owned
+choices and identity-based shopping reconciliation replace list-owned swaps.
 
 ## Context
 

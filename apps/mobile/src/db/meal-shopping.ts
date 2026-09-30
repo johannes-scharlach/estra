@@ -1,4 +1,4 @@
-import { itemNameKey, type MealItem } from "@estra/meals";
+import { itemNameKey, parseMealSwaps, type MealItem } from "@estra/meals";
 import * as Crypto from "expo-crypto";
 
 import {
@@ -17,13 +17,16 @@ export async function saveMealShoppingReview(opts: {
   contentId: string;
   variantId: string;
   selections: { lineIndex: number; optionIndex: number }[];
+  /** Includes choices for ingredients already at home. */
+  choices?: { lineIndex: number; optionIndex: number }[];
 }): Promise<void> {
   await powersync.writeTransaction(async (tx) => {
     const meal = await tx.getOptional<{
       content_id: string;
       variant_id: string | null;
+      ingredient_swaps: string | null;
     }>(
-      "SELECT content_id, variant_id FROM planned_meals WHERE id = ? AND list_id = ?",
+      "SELECT content_id, variant_id, ingredient_swaps FROM planned_meals WHERE id = ? AND list_id = ?",
       [opts.mealId, opts.listId],
     );
     if (
@@ -36,10 +39,11 @@ export async function saveMealShoppingReview(opts: {
     if (!variant)
       throw new Error("The recipe hasn't synced yet. Try again shortly.");
     const items = await tx.getAll<MealItem & { id: string }>(
-      "SELECT id, name, spec, status FROM list_items WHERE planned_meal_id = ?",
+      "SELECT id, name, spec, status, ingredient_id FROM list_items WHERE planned_meal_id = ?",
       [opts.mealId],
     );
-    const review = shoppingReview(variant.ingredientLines, items);
+    const swaps = parseMealSwaps(meal.ingredient_swaps);
+    const review = shoppingReview(variant.ingredientLines, items, swaps);
     const selected = new Map(
       opts.selections.map(({ lineIndex, optionIndex }) => [
         lineIndex,
@@ -58,10 +62,22 @@ export async function saveMealShoppingReview(opts: {
       selected.size !== opts.selections.length
     )
       throw new Error("These ingredients have changed. Open them again.");
+    for (const { lineIndex, optionIndex } of opts.choices ?? opts.selections) {
+      const line = variant.ingredientLines[lineIndex];
+      if (
+        !Number.isInteger(lineIndex) ||
+        !line?.id ||
+        !Number.isInteger(optionIndex) ||
+        !optionsForLine(line)[optionIndex]
+      )
+        throw new Error("These ingredients have changed. Open them again.");
+      if (optionIndex) swaps[line.id] = optionIndex;
+      else delete swaps[line.id];
+    }
     const now = new Date().toISOString();
     await tx.execute(
-      "UPDATE planned_meals SET shopping_reviewed_variant_id = ?, updated_at = ? WHERE id = ?",
-      [opts.variantId, now, opts.mealId],
+      "UPDATE planned_meals SET shopping_reviewed_variant_id = ?, ingredient_swaps = ?, updated_at = ? WHERE id = ?",
+      [opts.variantId, JSON.stringify(swaps), now, opts.mealId],
     );
     for (const { index, line, item } of review) {
       const optionIndex = selected.get(index);
@@ -72,26 +88,14 @@ export async function saveMealShoppingReview(opts: {
         continue;
       }
       const option = optionsForLine(line)[optionIndex];
-      if (!option)
+      if (!option || !line.id)
         throw new Error("These ingredients have changed. Open them again.");
       if (item) {
-        await tx.execute(
-          "UPDATE list_items SET name = ?, name_key = ?, category_id = ?, spec = ?, variant_id = ?, updated_at = ? WHERE id = ?",
-          [
-            option.item_name,
-            itemNameKey(option.item_name),
-            option.category_id ?? null,
-            ingredientSpec(option),
-            opts.variantId,
-            now,
-            item.id,
-          ],
-        );
         continue;
       }
       await tx.execute(
-        `INSERT INTO list_items (id, list_id, name, name_key, category_id, spec, status, purchase_count, created_at, updated_at, planned_meal_id, variant_id)
-         VALUES (?, ?, ?, ?, ?, ?, 'active', 0, ?, ?, ?, ?)`,
+        `INSERT INTO list_items (id, list_id, name, name_key, category_id, spec, status, purchase_count, created_at, updated_at, planned_meal_id, variant_id, ingredient_id)
+          VALUES (?, ?, ?, ?, ?, ?, 'active', 0, ?, ?, ?, ?, ?)`,
         [
           Crypto.randomUUID(),
           opts.listId,
@@ -103,6 +107,7 @@ export async function saveMealShoppingReview(opts: {
           now,
           opts.mealId,
           opts.variantId,
+          line.id,
         ],
       );
     }

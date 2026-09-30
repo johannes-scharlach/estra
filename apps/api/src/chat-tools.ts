@@ -209,7 +209,7 @@ export function buildChatTools(
 
     updateRecipe: tool({
       description:
-        "Apply an explicitly requested change by writing the complete recipe as a new variant. For this chat's associated upcoming meal, also updates that meal and previously chosen unbought shopping items, preserving bought items. Never adds new ingredients to shopping; the user chooses those separately. Returns a link and the actual shopping changes.",
+        "Apply an explicitly requested change by writing the complete recipe as a new variant. Preserve ingredient ids from the base variant through substitutions, scaling and reordering; omit ids only for new ingredients. For this chat's associated upcoming meal, read its ingredientChoices and incorporate them into the recipe, preserving the chosen item_name. Applied choices clear; choices not applied must remain available as alternatives. Also updates that meal and previously chosen unbought shopping items, preserving bought snapshots. Never adds new ingredients to shopping; the user chooses those separately. Returns a link and the actual shopping changes.",
       inputSchema: z.object({
         variantId: z.uuid().describe("id of the version being changed"),
         recipe: CookRecipeSchema,

@@ -11,6 +11,9 @@ and `apps/mobile/src/db/schema.ts`.
 - Local SQLite has only `text`, `integer`, `real`: booleans are 0/1,
   timestamps are ISO strings. Use `double precision`, never `numeric`, in
   Postgres.
+- JSON columns also need an entry in `apps/mobile/src/db/upload-data.ts`.
+  SQLite text must be decoded before upload or Postgres receives a JSON
+  string scalar rather than the intended object or array.
 
 ## New synced table
 

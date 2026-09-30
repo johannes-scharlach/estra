@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Text } from "@/components/ui/text";
 import { applySwap, setItemStatus } from "@/db/items";
+import { resolveShoppingItem } from "@/db/meal-ingredients";
 import type { List } from "@/db/schema";
 import { MEALS_WITH_SHOPPING, type ShoppingMeal } from "@/db/shopping-meals";
 import {
@@ -130,21 +131,43 @@ function ListScreen({
     };
   });
 
-  const { data: rows } = useQuery<ShopRow>(
-    `SELECT i.*, c.name AS category_name, v.ingredient_lines,
+  const { data: rawRows } = useQuery<ShopRow>(
+    `SELECT i.*, c.name AS category_name, v.ingredient_lines, pm.ingredient_swaps,
             pm.slot_date AS slot_date, pm.meal AS meal
        FROM list_items i
        LEFT JOIN categories c ON c.id = i.category_id
        LEFT JOIN planned_meals pm ON pm.id = i.planned_meal_id
-       LEFT JOIN variants v ON v.id = i.variant_id
+       LEFT JOIN variants v ON v.id = pm.variant_id
       WHERE i.list_id = ?
       ORDER BY i.status,
                CASE WHEN i.status = 'purchased' THEN i.updated_at END DESC,
                COALESCE(c.sort_order, 999), COALESCE(c.name, 'zzz'), i.name, i.id`,
     [list.id],
   );
+  const { data: categories } = useQuery<{
+    id: string;
+    name: string;
+    sort_order: number;
+  }>("SELECT id, name, sort_order FROM categories");
+  const categoryById = new Map(
+    categories.map((category) => [category.id, category]),
+  );
+  const rows = rawRows.map((row) => {
+    const resolved = resolveShoppingItem(row);
+    return {
+      ...resolved,
+      category_name: categoryById.get(resolved.category_id ?? "")?.name ?? null,
+    };
+  });
+  // Resolve category and name before sorting outstanding ingredients. Purchases
+  // keep the SQL query's check-off order and their captured details.
+  const outstanding = rows.filter((item) => item.status === "active").sort((a, b) =>
+    (categoryById.get(a.category_id ?? "")?.sort_order ?? 999) -
+    (categoryById.get(b.category_id ?? "")?.sort_order ?? 999) ||
+    (a.name ?? "").localeCompare(b.name ?? "") || a.id.localeCompare(b.id),
+  );
   const active = holdPositions(
-    rows.filter((item) => item.status === "active"),
+    outstanding,
     [...browsing.values()].map((held) => held.hold),
   );
   const checked = rows
@@ -180,11 +203,12 @@ function ListScreen({
   }
 
   function swap(item: ShopRow, direction: 1 | -1) {
+    if (item.ingredient_id == null || item.status === "purchased") return false;
     let session = sessions.current.get(item.id);
     if (!session) {
       const options = orderedAlternatives(
         item.name ?? "",
-        alternativesForItem(item.name ?? "", item.ingredient_lines),
+        alternativesForItem(item.name ?? "", item.ingredient_lines, item.ingredient_id),
       );
       if (options.length < 2) return false;
       const hold: HeldPosition = {
@@ -201,7 +225,7 @@ function ListScreen({
         }),
       );
       session = new SwapSession(options, {
-        save: (option) => applySwap(item.id, option),
+        save: (option) => applySwap(item.id, option.name),
         change: (option) =>
           setBrowsing((current) => {
             const held = current.get(item.id);

@@ -3,6 +3,9 @@ import { itemNameKey } from "@estra/meals";
 import { estraUuidV5 } from "@/lib/estra-uuid";
 
 import { powersync } from './system';
+import { resolveShoppingItem, writeMealSwap, type MealItemContext } from './meal-ingredients';
+import type { ListItem } from './schema';
+import { parseIngredientLines } from './variants';
 
 // The dedupe key lives in @estra/meals so the API projects the same
 // name_key; re-exported here because every item write in the app uses it.
@@ -98,16 +101,39 @@ export async function setItemStatus(id: string, status: 'active' | 'purchased') 
 
   // purchase_count only climbs on the active -> purchased edge, so
   // toggling a checkbox back and forth does not inflate the ranking.
-  await powersync.execute(
-    `UPDATE list_items
-        SET status = ?,
+  await powersync.writeTransaction(async (tx) => {
+    const row = await tx.getOptional<ListItem & MealItemContext>(
+      `SELECT i.*, v.ingredient_lines, pm.ingredient_swaps FROM list_items i
+       LEFT JOIN planned_meals pm ON pm.id = i.planned_meal_id
+       LEFT JOIN variants v ON v.id = pm.variant_id WHERE i.id = ?`,
+      [id],
+    );
+    if (!row) return;
+    const snapshot = resolveShoppingItem(row);
+    const orphan = status === 'active' && row.ingredient_id != null &&
+      !parseIngredientLines(row.ingredient_lines).some((line) => line.id === row.ingredient_id);
+    await tx.execute(
+      `UPDATE list_items
+         SET status = ?,
+             name = ?, name_key = ?, spec = ?, category_id = ?, ingredient_id = ?,
             purchase_count = purchase_count + CASE
               WHEN ? = 'purchased' AND status = 'active' THEN 1 ELSE 0
             END,
             updated_at = ?
       WHERE id = ?`,
-    [status, status, now, id],
-  );
+      [
+        status,
+        snapshot.name,
+        itemNameKey(snapshot.name ?? ''),
+        snapshot.spec,
+        snapshot.category_id,
+        orphan ? null : row.ingredient_id,
+        status,
+        now,
+        id,
+      ],
+    );
+  });
 }
 
 export async function setItemCategory(id: string, categoryId: string | null) {
@@ -128,21 +154,31 @@ export async function renameItem(id: string, name: string) {
 }
 
 /**
- * Apply a variant swap to a list item: new clean name plus the swap's qty
- * and prep note folded into spec, so the row re-files under the right
- * section and still reads like a shopping-list line.
+ * Shopping edits the meal's choice. It never rewrites a purchased snapshot.
  */
 export async function applySwap(
   id: string,
-  opts: { name: string; qtyText: string | null; prepNote: string | null; categoryId: string | null },
+  name: string,
 ) {
-  const trimmed = opts.name.trim();
-  if (!trimmed) return;
-  const spec = [(opts.qtyText ?? '').trim(), opts.prepNote].filter(Boolean).join(', ') || null;
-  await powersync.execute(
-    `UPDATE list_items SET name = ?, name_key = ?, spec = ?, category_id = ?, updated_at = ? WHERE id = ?`,
-    [trimmed, itemNameKey(trimmed), spec, opts.categoryId, new Date().toISOString(), id],
-  );
+  await powersync.writeTransaction(async (tx) => {
+    const item = await tx.getOptional<ListItem>(
+      "SELECT * FROM list_items WHERE id = ?", [id],
+    );
+    if (
+      !item?.planned_meal_id || !item.variant_id ||
+      item.ingredient_id == null || item.status === 'purchased'
+    ) {
+      throw new Error(
+        "This item cannot be swapped. Open its meal to choose an ingredient.",
+      );
+    }
+    await writeMealSwap(tx, {
+      mealId: item.planned_meal_id,
+      variantId: item.variant_id,
+      ingredientId: item.ingredient_id,
+      name,
+    });
+  });
 }
 
 export async function removeItem(id: string) {

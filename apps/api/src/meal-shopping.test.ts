@@ -14,8 +14,8 @@ test("meal shopping is scoped, retry-safe, and preserves purchased items without
   try {
     await client.query("BEGIN");
     await client.query(`
-      CREATE TEMP TABLE planned_meals (id uuid PRIMARY KEY, list_id uuid, variant_id uuid, name text, content_id uuid NOT NULL DEFAULT gen_random_uuid());
-      CREATE TEMP TABLE list_items (id uuid PRIMARY KEY, list_id uuid, name text, name_key text, spec text, category_id text, status text, planned_meal_id uuid REFERENCES planned_meals, variant_id uuid);
+      CREATE TEMP TABLE planned_meals (id uuid PRIMARY KEY, list_id uuid, variant_id uuid, name text, ingredient_swaps jsonb NOT NULL DEFAULT '{}', content_id uuid NOT NULL DEFAULT gen_random_uuid());
+      CREATE TEMP TABLE list_items (id uuid PRIMARY KEY, list_id uuid, name text, name_key text, spec text, category_id text, status text, planned_meal_id uuid REFERENCES planned_meals, variant_id uuid, ingredient_id integer);
     `);
     const listId = "00000000-0000-4000-8000-000000000001";
     const mealId = "00000000-0000-4000-8000-000000000002";

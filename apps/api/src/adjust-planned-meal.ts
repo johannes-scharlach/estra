@@ -1,9 +1,8 @@
-import { mealDelta, type IngredientLine } from "@estra/meals";
+import { ingredientSpec, mealIngredients, type MealSwaps, type IngredientLine } from "@estra/meals";
 import type { PoolClient } from "pg";
 
 import { inTransaction, pool } from "./db.js";
 import {
-  PlannedMealChangedError,
   PlannedMealNotFoundError,
   VariantNotFoundError,
 } from "./errors.js";
@@ -13,12 +12,12 @@ import {
 } from "./list-authorization.js";
 import type { CookRecipeInput } from "./recipe-schema.js";
 import { findVariantIdentity, insertVariant } from "./variants.js";
+import { repointMealVariant } from "./reconcile-meal-shopping.js";
 
 /**
  * Adjusting a planned meal (ADR 13): a new variant under the same recipe,
- * sized for the meal's eaters and extra with the shopping list's swaps
- * folded in. The meal is repointed; its list items are never reprojected,
- * because they are the input.
+ * sized for the meal's eaters and extra with its choices folded in.
+ * Shopping links reconcile by ingredient id; purchases retain their snapshots.
  */
 
 type MealRow = {
@@ -30,6 +29,7 @@ type MealRow = {
   meal: string;
   eater_ids: string[];
   extra_portions: number;
+  ingredient_swaps: MealSwaps;
 };
 type VariantRow = {
   name: string;
@@ -43,7 +43,6 @@ type VariantRow = {
   ingredient_lines: IngredientLine[];
   instructions: unknown[];
 };
-type ItemRow = { name: string; spec: string | null; status: string };
 type Person = {
   id: string;
   name: string;
@@ -55,7 +54,6 @@ type Person = {
 export type AdjustContext = {
   meal: MealRow;
   variant: VariantRow;
-  items: ItemRow[];
   eaters: Person[];
 };
 
@@ -71,7 +69,7 @@ export async function loadAdjustContext(
   try {
     const meal = (
       await client.query<MealRow>(
-        `SELECT id, list_id, recipe_id, variant_id, slot_date, meal, eater_ids, extra_portions
+        `SELECT id, list_id, recipe_id, variant_id, slot_date, meal, eater_ids, extra_portions, ingredient_swaps
          FROM planned_meals WHERE id = $1`,
         [plannedMealId],
       )
@@ -92,12 +90,6 @@ export async function loadAdjustContext(
     ).rows[0];
     if (!variant) throw new VariantNotFoundError();
 
-    const items = (
-      await client.query<ItemRow>(
-        "SELECT name, spec, status FROM list_items WHERE planned_meal_id = $1 ORDER BY created_at, id",
-        [plannedMealId],
-      )
-    ).rows;
     const people = (
       await client.query<Person>(
         "SELECT id, name, age_group, diet, diet_other FROM household_people WHERE list_id = $1 ORDER BY created_at, id",
@@ -106,7 +98,7 @@ export async function loadAdjustContext(
     ).rows;
     // People removed from the household since are not eating anymore.
     const eaters = people.filter((p) => meal.eater_ids.includes(p.id));
-    return { context: { meal, variant, items, eaters } };
+    return { context: { meal, variant, eaters } };
   } finally {
     client.release();
   }
@@ -121,19 +113,14 @@ const joinNames = (names: string[]) =>
 export function adjustPrompt({
   meal,
   variant,
-  items,
   eaters,
 }: AdjustContext): string {
-  const delta = mealDelta(variant.ingredient_lines, items);
-  const swaps = delta.lines
-    .filter((s) => s.swap && s.item)
+  const swaps = mealIngredients(variant.ingredient_lines, meal.ingredient_swaps)
+    .filter((s) => s.swap)
     .map((s) => {
-      const spec = [s.item?.spec].filter(Boolean).join(", ");
-      return `- Use "${s.item?.name}"${spec ? ` (${spec})` : ""} instead of "${s.line.item_name}".`;
+      const spec = ingredientSpec(s.chosen);
+      return `- Ingredient id ${s.line.id}: use "${s.chosen.item_name}"${spec ? ` (${spec})` : ""} instead of "${s.line.item_name}". Preserve id ${s.line.id}.`;
     });
-  const extra = delta.extra.map(
-    (i) => `- ${i.name}${i.spec ? ` (${i.spec})` : ""}`,
-  );
   const who = eaters.map((p) => {
     const diet = p.diet === "other" ? p.diet_other : p.diet;
     return `${p.name} (${[p.age_group ?? "adult", diet].filter(Boolean).join(", ")})`;
@@ -146,6 +133,7 @@ export function adjustPrompt({
 
   return [
     "You are adjusting a saved recipe to the meal it is planned for. Return the complete recipe in the same JSON shape.",
+    "Preserve each continuing ingredient's id, including substitutions and quantity changes. Omit id only for genuinely new ingredients. Do not renumber ingredients when reordering or removing them.",
     "",
     `Keep the language (locale "${variant.locale}"), the voice, the structure and the order of steps, and every detail you are not told to change. Keep the dish name unless a swap replaces an ingredient the name mentions; then rename the dish to match. The name, description and instructions must agree with the ingredient lines you return: nothing may still name an ingredient that was swapped out. contentMarkdown is only for useful context not covered by the structured fields; do not put ingredients or steps there, and update contextual notes if a swap makes them inaccurate.`,
     `A swap may change how the food is cooked or how long it takes — often that is exactly why the cook picked it. Follow the consequence through: rewrite every step whose method, order or timing it affects, and set totalTime to the new wall-clock time from the first thing the cook does until the food is ready. Never keep the old time when the work changed. Say so in the description too, when a shortcut is what makes this version different.`,
@@ -156,15 +144,8 @@ export function adjustPrompt({
     "",
     ...(swaps.length
       ? [
-          "The shopping list swapped these ingredients. Make each the line's item_name with its own qty_text and prep_note, list the original as one of that line's swaps, and rewrite any step name or step text that names the original:",
+          "The meal uses these choices, whether bought or already at home. Make each the line's item_name exactly as named in the choice with its own qty_text and prep_note, list the original as one of that line's swaps, and rewrite any step name or step text that names the original:",
           ...swaps,
-          "",
-        ]
-      : []),
-    ...(extra.length
-      ? [
-          "Also on the shopping list for this meal, matching no line. If one is clearly a replacement for a recipe line, treat it as a swap; otherwise ignore it:",
-          ...extra,
           "",
         ]
       : []),
@@ -188,7 +169,7 @@ export function adjustPrompt({
   ].join("\n");
 }
 
-/** Insert the new version and repoint the meal. Never touches list item rows beyond variant_id. */
+/** Insert the new version, incorporate choices and reconcile shopping atomically. */
 export async function saveAdjusted(opts: {
   userId: string;
   plannedMealId: string;
@@ -218,21 +199,14 @@ export async function saveAdjusted(opts: {
       recipeId,
       variantId,
       recipe,
+      baseVariantId: oldVariantId,
       sizedFor: {
         eater_ids: context.meal.eater_ids,
         extra_portions: context.meal.extra_portions,
       },
     });
-    const repointed = await client.query(
-      "UPDATE planned_meals SET variant_id = $1, shopping_reviewed_variant_id = NULL, updated_at = now() WHERE id = $2 AND variant_id = $3",
-      [variantId, plannedMealId, oldVariantId],
-    );
-    if (!repointed.rowCount) throw new PlannedMealChangedError();
-    // Alternatives on the shop page resolve against the item's variant.
-    await client.query(
-      "UPDATE list_items SET variant_id = $1 WHERE planned_meal_id = $2",
-      [variantId, plannedMealId],
-    );
+    await repointMealVariant(client, { mealId: plannedMealId, variantId,
+      expectedVariantId: oldVariantId, expectedSwaps: context.meal.ingredient_swaps });
     return { recipeId, variantId };
   });
 }

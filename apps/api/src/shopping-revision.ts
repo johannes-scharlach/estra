@@ -1,4 +1,6 @@
-import { itemNameKey, type IngredientLine } from "@estra/meals";
+import type { IngredientLine } from "@estra/meals";
+
+export { ingredientSpec } from "@estra/meals";
 
 export type ShoppingItem = {
   id: string;
@@ -6,13 +8,8 @@ export type ShoppingItem = {
   spec: string | null;
   category_id: string | null;
   status: string;
+  ingredient_id?: number | null;
 };
-
-export function ingredientSpec(line: IngredientLine): string | null {
-  return (
-    [line.qty_text?.trim(), line.prep_note].filter(Boolean).join(", ") || null
-  );
-}
 
 /** Update already-chosen ingredients; a bought item remains a fact about a
  * purchase. New recipe ingredients need an explicit shopping choice. */
@@ -22,19 +19,14 @@ export function shoppingRevision(
 ) {
   const bought = items.filter((item) => item.status === "purchased");
   const remaining = items.filter((item) => item.status !== "purchased");
-  const availableBought = [...bought];
   const kept: { item: ShoppingItem; line: IngredientLine }[] = [];
-  for (const line of lines) {
-    const key = itemNameKey(line.item_name);
-    const purchasedIndex = availableBought.findIndex(
-      (item) => itemNameKey(item.name) === key,
-    );
-    if (purchasedIndex >= 0) {
-      availableBought.splice(purchasedIndex, 1);
-      continue;
-    }
-    const index = remaining.findIndex((item) => itemNameKey(item.name) === key);
-    if (index >= 0) kept.push({ item: remaining.splice(index, 1)[0]!, line });
+  const removed: ShoppingItem[] = [];
+  for (const item of remaining) {
+    // Unlinked extras (including written-meal shopping) are not recipe ingredients.
+    if (item.ingredient_id == null) continue;
+    const line = lines.find((line) => line.id === item.ingredient_id);
+    if (line) kept.push({ item, line });
+    else removed.push(item);
   }
-  return { bought, kept, removed: remaining };
+  return { bought, kept, removed };
 }

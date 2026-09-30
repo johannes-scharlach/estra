@@ -98,7 +98,7 @@ streams:
       SELECT planned_meals.id, planned_meals.list_id, planned_meals.recipe_id,
         planned_meals.variant_id, planned_meals.name, planned_meals.content_id, planned_meals.slot_date,
         planned_meals.meal, planned_meals.eater_ids, planned_meals.extra_portions,
-        planned_meals.shopping_reviewed_variant_id,
+        planned_meals.shopping_reviewed_variant_id, planned_meals.ingredient_swaps,
         planned_meals.created_at, planned_meals.updated_at FROM planned_meals
         INNER JOIN list_members ON list_members.list_id = planned_meals.list_id
       WHERE list_members.user_id = auth.user_id()

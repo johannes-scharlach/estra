@@ -31,6 +31,7 @@ import {
   setItemStatus,
 } from "@/db/items";
 import type { ListItem } from "@/db/schema";
+import { resolveShoppingItem } from "@/db/meal-ingredients";
 import { slotWhen } from "@/features/meals/slots";
 import { alternativesForItem } from "@/features/shop/alternatives";
 import { CategoryMenu } from "@/features/shop/category-menu";
@@ -48,6 +49,7 @@ type ItemRow = ListItem & {
   meal: string | null;
   variant_name: string | null;
   ingredient_lines: string | null;
+  ingredient_swaps: string | null;
   category_name: string | null;
 };
 
@@ -64,21 +66,27 @@ export default function ShopItemSheet() {
   );
 
   const { data: rows, isLoading } = useQuery<ItemRow>(
-    `SELECT i.*, pm.slot_date AS slot_date, pm.meal AS meal,
+    `SELECT i.*, pm.slot_date AS slot_date, pm.meal AS meal, pm.ingredient_swaps,
             COALESCE(v.name, pm.name) AS variant_name, v.ingredient_lines AS ingredient_lines,
             c.name AS category_name
        FROM list_items i
        LEFT JOIN planned_meals pm ON pm.id = i.planned_meal_id
-       LEFT JOIN variants v ON v.id = i.variant_id
+        LEFT JOIN variants v ON v.id = pm.variant_id
        LEFT JOIN categories c ON c.id = i.category_id
       WHERE i.id = ? LIMIT 1`,
     [itemId ?? ""],
   );
-  const item = rows[0];
+  const rawItem = rows[0];
+  const item = useMemo(
+    () => rawItem ? resolveShoppingItem(rawItem) : undefined,
+    [rawItem],
+  );
 
   const suggestions = useMemo(() => {
-    if (!item?.variant_id) return [];
-    return alternativesForItem(item.name ?? "", item.ingredient_lines).filter(
+    if (!item?.variant_id || item.ingredient_id == null || item.status === "purchased") return [];
+    return alternativesForItem(
+      item.name ?? "", item.ingredient_lines, item.ingredient_id,
+    ).filter(
       (alternative) =>
         alternative.name.trim().toLowerCase() !==
         item.name?.trim().toLowerCase(),
@@ -124,7 +132,11 @@ export default function ShopItemSheet() {
     }
   }
 
-  const category = (
+  const category = item.ingredient_id != null ? (
+    <Text variant="muted">
+      {categories.find((category) => category.id === item.category_id)?.name ?? "Uncategorised"}
+    </Text>
+  ) : (
     <CategoryMenu
       categories={categories}
       categoryId={item.category_id}
@@ -166,7 +178,7 @@ export default function ShopItemSheet() {
                 <Pressable
                   key={s.name}
                   disabled={saving}
-                  onPress={() => void close(() => applySwap(item.id, s))}
+                  onPress={() => void close(() => applySwap(item.id, s.name))}
                   className="min-h-12 flex-row items-baseline gap-3 px-4 py-3 active:bg-accent"
                 >
                   <View className="flex-1 gap-0.5">

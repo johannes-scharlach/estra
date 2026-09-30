@@ -342,6 +342,7 @@ export type Database = {
       }
       list_items: {
         Row: {
+          ingredient_id: number | null
           added_by: string | null
           category_id: string | null
           created_at: string
@@ -364,6 +365,7 @@ export type Database = {
           list_id: string
           name: string
           name_key: string
+          ingredient_id?: number | null
           planned_meal_id?: string | null
           purchase_count?: number
           spec?: string | null
@@ -379,6 +381,7 @@ export type Database = {
           list_id?: string
           name?: string
           name_key?: string
+          ingredient_id?: number | null
           planned_meal_id?: string | null
           purchase_count?: number
           spec?: string | null
@@ -475,6 +478,7 @@ export type Database = {
       }
       planned_meals: {
         Row: {
+          ingredient_swaps: Json
           content_id: string
           created_at: string
           id: string
@@ -500,6 +504,7 @@ export type Database = {
           name?: string | null
           recipe_id?: string | null
           slot_date: string
+          ingredient_swaps?: Json
           shopping_reviewed_variant_id?: string | null
           updated_at?: string
           variant_id?: string | null
@@ -515,6 +520,7 @@ export type Database = {
           name?: string | null
           recipe_id?: string | null
           slot_date?: string
+          ingredient_swaps?: Json
           shopping_reviewed_variant_id?: string | null
           updated_at?: string
           variant_id?: string | null
@@ -552,6 +558,7 @@ export type Database = {
       }
       recipes: {
         Row: {
+          next_ingredient_id: number
           created_at: string
           created_by: string | null
           from_name: string | null
@@ -565,6 +572,7 @@ export type Database = {
           from_name?: string | null
           from_url?: string | null
           id?: string
+          next_ingredient_id?: number
           updated_at?: string
         }
         Update: {
@@ -573,6 +581,7 @@ export type Database = {
           from_name?: string | null
           from_url?: string | null
           id?: string
+          next_ingredient_id?: number
           updated_at?: string
         }
         Relationships: []

@@ -1,4 +1,4 @@
-import { itemNameKey, mealDelta, mealSync } from "@estra/meals";
+import { itemNameKey, mealIngredients, mealSync, parseMealSwaps } from "@estra/meals";
 import { useQuery } from "@powersync/react";
 import * as Crypto from "expo-crypto";
 import {
@@ -44,9 +44,9 @@ import { useResolveClassNames } from "uniwind";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Text } from "@/components/ui/text";
-import { applySwap } from "@/db/items";
+import { setMealSwap } from "@/db/meal-ingredients";
 import { useAuth } from "@/db/provider";
-import type { ListItem, PlannedMeal, Variant, Recipe } from "@/db/schema";
+import type { PlannedMeal, Variant, Recipe } from "@/db/schema";
 import { parseVariant } from "@/db/variants";
 import { Composer } from "@/features/chat/composer";
 import { adjustRecipeMessage } from "@/features/chat/compose";
@@ -129,9 +129,7 @@ type RowModel = {
   prepNote: string | null;
   /** The recipe's own line when a swap replaced it. */
   swappedFrom: string | null;
-  /** Everything the recipe allows here, its own line first, when the row
-   *  can still change. Empty once the item is bought: the list is settled
-   *  then. */
+  /** Everything the recipe allows here, its own line first. */
   options: Alternative[];
 };
 
@@ -523,10 +521,6 @@ export default function VariantPage() {
       }),
     [meals, id, plannedMealId, today],
   );
-  const { data: items, isFetching: itemsFetching } = useQuery<ListItem>(
-    "SELECT * FROM list_items WHERE planned_meal_id = ?",
-    [meal?.id ?? ""],
-  );
   const { data: peopleRows, isFetching: peopleFetching } = useQuery<{
     id: string;
     name: string;
@@ -535,14 +529,11 @@ export default function VariantPage() {
     "SELECT id, name, user_id FROM household_people WHERE list_id = ? ORDER BY created_at, id",
     [meal?.list_id ?? ""],
   );
-  // The meal's items and people arrive a render after the meal itself.
-  // Drawing before then shows the rows without their list column and the
-  // eaters as "Nobody", then jumps; so the skeleton holds until the first
-  // fetch for this meal is in. Later refetches (a tick toggled) don't hold.
+  // Hold until the meal's people arrive to avoid briefly showing "Nobody".
   const [loadedMealId, setLoadedMealId] = useState<string | null>(null);
   const mealId = meal?.id ?? null;
   const mealReady = !mealId || loadedMealId === mealId;
-  if (mealId && !mealReady && !itemsFetching && !peopleFetching) {
+  if (mealId && !mealReady && !peopleFetching) {
     setLoadedMealId(mealId);
   }
   const people = useMemo(
@@ -570,12 +561,12 @@ export default function VariantPage() {
   const [activeSwaps, setActiveSwaps] = useState<Record<number, number>>({});
   // The blurb is clamped; a tap opens it.
   const [descriptionOpen, setDescriptionOpen] = useState(false);
-  // Planned: the shopping list says what each line is right now.
-  const delta = useMemo(
-    () => mealDelta(ingredientLines, meal ? items : []),
-    [ingredientLines, items, meal],
+  // Planned: ingredient choices belong to the meal, including ingredients at home.
+  const chosenIngredients = useMemo(
+    () => mealIngredients(ingredientLines, parseMealSwaps(meal?.ingredient_swaps)),
+    [ingredientLines, meal?.ingredient_swaps],
   );
-  // Does the recipe still describe the meal? Swaps the list made since,
+  // Does the recipe still describe the meal? Choices made since,
   // and who the adjust route sized it for (spec 0004).
   const sync = useMemo(
     () =>
@@ -586,10 +577,10 @@ export default function VariantPage() {
               eater_ids: parseEaterIds(meal.eater_ids),
               extra_portions: meal.extra_portions ?? 0,
             },
-            delta,
+            chosenIngredients,
           )
         : null,
-    [meal, parsed, delta],
+    [meal, parsed, chosenIngredients],
   );
 
   const rows = useMemo(
@@ -608,18 +599,17 @@ export default function VariantPage() {
             options: alternativesForLine(line),
           };
         }
-        const state = delta.lines[idx];
+        const state = chosenIngredients[idx];
         const display = state?.swap ?? line;
-        const bought = state?.item?.status === "purchased";
         return {
           qtyText: display.qty_text,
           name: display.item_name,
           prepNote: display.prep_note ?? null,
           swappedFrom: state?.swap ? line.item_name : null,
-          options: state?.item && !bought ? alternativesForLine(line) : [],
+          options: alternativesForLine(line),
         };
       }),
-    [ingredientLines, meal, activeSwaps, delta],
+    [ingredientLines, meal, activeSwaps, chosenIngredients],
   );
 
   const handlePick = useCallback(
@@ -627,10 +617,13 @@ export default function VariantPage() {
       const line = ingredientLines[idx];
       if (!line) return;
       if (meal) {
-        const item = delta.lines[idx]?.item;
-        if (!item || item.status === "purchased") return;
-        // Same write as the shop page: the list is the record of swaps.
-        applySwap(item.id, alternative).catch(() =>
+        if (!line.id || !meal.variant_id) return;
+        setMealSwap({
+          mealId: meal.id,
+          variantId: meal.variant_id,
+          ingredientId: line.id,
+          name: alternative.name,
+        }).catch(() =>
           Alert.alert("Couldn't swap item", "Please try again."),
         );
         return;
@@ -645,7 +638,7 @@ export default function VariantPage() {
         return copy;
       });
     },
-    [ingredientLines, meal, delta],
+    [ingredientLines, meal],
   );
 
   const handleSwap = useCallback(
@@ -654,16 +647,19 @@ export default function VariantPage() {
       if (!line) return;
 
       if (meal) {
-        const item = delta.lines[idx]?.item;
-        if (!item || item.status === "purchased") return;
+        if (!line.id || !meal.variant_id) return;
         const next = adjacentAlternative(
-          item.name ?? "",
+          chosenIngredients[idx]?.chosen.item_name ?? line.item_name,
           alternativesForLine(line),
           direction === "next" ? 1 : -1,
         );
         if (!next) return;
-        // Same write as the shop page: the list is the record of swaps.
-        applySwap(item.id, next).catch(() =>
+        setMealSwap({
+          mealId: meal.id,
+          variantId: meal.variant_id,
+          ingredientId: line.id,
+          name: next.name,
+        }).catch(() =>
           Alert.alert("Couldn't swap item", "Please try again."),
         );
         return;
@@ -688,7 +684,7 @@ export default function VariantPage() {
         return { ...prev, [idx]: next };
       });
     },
-    [ingredientLines, meal, delta],
+    [ingredientLines, meal, chosenIngredients],
   );
 
   const conversationListId = meal?.list_id ?? list?.id;
@@ -817,11 +813,11 @@ export default function VariantPage() {
         people,
         eaterIds: parseEaterIds(meal.eater_ids),
         extraPortions: meal.extra_portions ?? 0,
-        swaps: delta.lines
-          .filter((line) => line.swap && line.item)
+        swaps: chosenIngredients
+          .filter((line) => line.swap)
           .map((line) => ({
             from: line.line.item_name,
-            to: line.item!.name ?? "",
+            to: line.chosen.item_name,
           })),
       }),
     );

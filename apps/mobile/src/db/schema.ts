@@ -90,6 +90,7 @@ const household_activity_recipients = new Table(
 );
 
 const recipes = new Table({
+  next_ingredient_id: column.integer,
   from_name: column.text,
   from_url: column.text,
   created_by: column.text,
@@ -107,7 +108,7 @@ const variants = new Table({
   content_markdown: column.text,
   recipe_category: column.text,
   recipe_cuisine: column.text,
-  /** JSON array of {qty_text, item_name, prep_note, category_id, shopping_hint?, swaps:[{qty_text,item_name,prep_note,category_id}]} */
+  /** JSON array of {id, qty_text, item_name, prep_note, category_id, shopping_hint?, swaps:[{qty_text,item_name,prep_note,category_id}]} */
   ingredient_lines: column.text,
   instructions: column.text,
   /** JSON {eater_ids, extra_portions} the adjust route sized this for; null as imported. */
@@ -132,6 +133,8 @@ const planned_meals = new Table(
     extra_portions: column.real,
     /** The recipe variant whose shopping was last reviewed by anyone in the household. */
     shopping_reviewed_variant_id: column.text,
+    /** JSON map of stable ingredient id to alternative index in this variant. */
+    ingredient_swaps: column.text,
     created_at: column.text,
     updated_at: column.text,
   },
@@ -141,6 +144,7 @@ const planned_meals = new Table(
 const list_items = new Table(
   {
     list_id: column.text,
+    /** Standalone name, or a fallback snapshot for a linked meal ingredient. */
     name: column.text,
     /** Normalised name; see itemNameKey(). Dedupe key across devices. */
     name_key: column.text,
@@ -155,6 +159,8 @@ const list_items = new Table(
     /** Null for standalone; set for meal-derived rows (ADR 7). */
     planned_meal_id: column.text,
     variant_id: column.text,
+    /** Active details resolve via the meal; purchased details are frozen. */
+    ingredient_id: column.integer,
   },
   {
     indexes: {
