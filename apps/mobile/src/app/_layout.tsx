@@ -218,7 +218,12 @@ export default function RootLayout() {
                         presentation: "pageSheet",
                         headerShown: true,
                         title: "Add items",
-                        contentStyle: { backgroundColor: "transparent" },
+                        // iOS supplies the sheet surface; Android needs an
+                        // opaque screen so content cannot overlap during pushes.
+                        contentStyle:
+                          Platform.OS === "ios"
+                            ? { backgroundColor: "transparent" }
+                            : undefined,
                       }}
                     />
                     {/* The conversation: pushed from the Home entry, no tab bar.
@@ -235,7 +240,10 @@ export default function RootLayout() {
                         presentation: "pageSheet",
                         headerShown: true,
                         title: "Start from an idea",
-                        contentStyle: { backgroundColor: "transparent" },
+                        contentStyle:
+                          Platform.OS === "ios"
+                            ? { backgroundColor: "transparent" }
+                            : undefined,
                       }}
                     />
                     <Stack.Screen
@@ -244,7 +252,10 @@ export default function RootLayout() {
                         presentation: "pageSheet",
                         headerShown: true,
                         title: "Chats",
-                        contentStyle: { backgroundColor: "transparent" },
+                        contentStyle:
+                          Platform.OS === "ios"
+                            ? { backgroundColor: "transparent" }
+                            : undefined,
                       }}
                     />
                     <Stack.Screen

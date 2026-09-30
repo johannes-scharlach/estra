@@ -1,4 +1,9 @@
-import { itemNameKey, mealIngredients, mealSync, parseMealSwaps } from "@estra/meals";
+import {
+  itemNameKey,
+  mealIngredients,
+  mealSync,
+  parseMealSwaps,
+} from "@estra/meals";
 import { useQuery } from "@powersync/react";
 import * as Crypto from "expo-crypto";
 import {
@@ -11,7 +16,7 @@ import { SymbolView } from "expo-symbols";
 import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
 import { LinearGradient } from "expo-linear-gradient";
 import { MenuView } from "@expo/ui/community/menu";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ColorValue } from "react-native";
 import {
   ActivityIndicator,
@@ -157,8 +162,8 @@ function IngredientRow({
   const opacity = useSharedValue(1);
 
   // The line flips like a card: the old text leaves the way the finger
-  // went, the new one comes in from the other side. The content itself
-  // changes a moment later, while the text is out of view.
+  // went, the new one comes in from the other side. The choice updates
+  // immediately; the meal write follows and rolls back if it fails.
   const animateSwap = useCallback(
     (direction: SwapDirection) => {
       const out = direction === "next" ? -56 : 56;
@@ -562,10 +567,33 @@ export default function VariantPage() {
   // The blurb is clamped; a tap opens it.
   const [descriptionOpen, setDescriptionOpen] = useState(false);
   // Planned: ingredient choices belong to the meal, including ingredients at home.
-  const chosenIngredients = useMemo(
-    () => mealIngredients(ingredientLines, parseMealSwaps(meal?.ingredient_swaps)),
-    [ingredientLines, meal?.ingredient_swaps],
+  // The choice shows immediately; the meal write follows and rolls back on failure.
+  const mealKey = `${meal?.id ?? ""}@${meal?.variant_id ?? ""}`;
+  const [pending, setPending] = useState<{
+    key: string;
+    swaps: Record<number, number>;
+  }>({ key: mealKey, swaps: {} });
+  if (pending.key !== mealKey) setPending({ key: mealKey, swaps: {} });
+  const setPendingSwaps = useCallback(
+    (updater: (prev: Record<number, number>) => Record<number, number>) =>
+      setPending((prev) =>
+        prev.key === mealKey
+          ? { key: prev.key, swaps: updater(prev.swaps) }
+          : prev,
+      ),
+    [mealKey],
   );
+  const chosenIngredients = useMemo(() => {
+    const base = parseMealSwaps(meal?.ingredient_swaps);
+    const merged = { ...base };
+    for (const [id, index] of Object.entries(pending.swaps)) {
+      // The query confirms the write a moment later; confirmed entries are inert.
+      if ((base[id] ?? 0) === index) continue;
+      if (index > 0) merged[id] = index;
+      else delete merged[id];
+    }
+    return mealIngredients(ingredientLines, merged);
+  }, [ingredientLines, meal?.ingredient_swaps, pending.swaps]);
   // Does the recipe still describe the meal? Choices made since,
   // and who the adjust route sized it for (spec 0004).
   const sync = useMemo(
@@ -612,20 +640,53 @@ export default function VariantPage() {
     [ingredientLines, meal, activeSwaps, chosenIngredients],
   );
 
+  // Meal writes queue so rapid swaps cannot lose each other between read and write.
+  const swapQueue = useRef(Promise.resolve());
+  const persistSwap = useCallback(
+    (ingredientId: number, optionIndex: number, name: string) => {
+      const persistMealId = meal?.id;
+      const persistVariantId = meal?.variant_id;
+      if (!persistMealId || !persistVariantId) return;
+      // Keep an explicit 0 until the query confirms it: deleting the entry
+      // would resurface the stale persisted swap still underneath it.
+      setPendingSwaps((prev) => {
+        if (prev[ingredientId] === optionIndex) return prev;
+        return { ...prev, [ingredientId]: optionIndex };
+      });
+      const run = swapQueue.current.then(() =>
+        setMealSwap({
+          mealId: persistMealId,
+          variantId: persistVariantId,
+          ingredientId,
+          name,
+        }),
+      );
+      swapQueue.current = run.catch(() => {});
+      run.catch(() => {
+        setPendingSwaps((prev) => {
+          if (prev[ingredientId] !== optionIndex) return prev;
+          const next = { ...prev };
+          delete next[ingredientId];
+          return next;
+        });
+        Alert.alert("Couldn't swap item", "Please try again.");
+      });
+    },
+    [meal?.id, meal?.variant_id, setPendingSwaps],
+  );
+
   const handlePick = useCallback(
     (idx: number, alternative: Alternative) => {
       const line = ingredientLines[idx];
       if (!line) return;
       if (meal) {
-        if (!line.id || !meal.variant_id) return;
-        setMealSwap({
-          mealId: meal.id,
-          variantId: meal.variant_id,
-          ingredientId: line.id,
-          name: alternative.name,
-        }).catch(() =>
-          Alert.alert("Couldn't swap item", "Please try again."),
+        if (!line.id) return;
+        const optionIndex = alternativesForLine(line).findIndex(
+          (option) =>
+            itemNameKey(option.name) === itemNameKey(alternative.name),
         );
+        if (optionIndex < 0) return;
+        persistSwap(line.id, optionIndex, alternative.name);
         return;
       }
       const swapIdx = (line.swaps ?? []).findIndex(
@@ -638,7 +699,7 @@ export default function VariantPage() {
         return copy;
       });
     },
-    [ingredientLines, meal],
+    [ingredientLines, meal, persistSwap],
   );
 
   const handleSwap = useCallback(
@@ -647,21 +708,19 @@ export default function VariantPage() {
       if (!line) return;
 
       if (meal) {
-        if (!line.id || !meal.variant_id) return;
+        if (!line.id) return;
+        const options = alternativesForLine(line);
         const next = adjacentAlternative(
           chosenIngredients[idx]?.chosen.item_name ?? line.item_name,
-          alternativesForLine(line),
+          options,
           direction === "next" ? 1 : -1,
         );
         if (!next) return;
-        setMealSwap({
-          mealId: meal.id,
-          variantId: meal.variant_id,
-          ingredientId: line.id,
-          name: next.name,
-        }).catch(() =>
-          Alert.alert("Couldn't swap item", "Please try again."),
+        const optionIndex = options.findIndex(
+          (option) => itemNameKey(option.name) === itemNameKey(next.name),
         );
+        if (optionIndex < 0) return;
+        persistSwap(line.id, optionIndex, next.name);
         return;
       }
 
@@ -684,7 +743,7 @@ export default function VariantPage() {
         return { ...prev, [idx]: next };
       });
     },
-    [ingredientLines, meal, chosenIngredients],
+    [ingredientLines, meal, chosenIngredients, persistSwap],
   );
 
   const conversationListId = meal?.list_id ?? list?.id;

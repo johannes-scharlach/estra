@@ -4,6 +4,10 @@
       "android": {
         "buildType": "apk"
       },
+      "ios": {
+        "distribution": "store",
+        "autoIncrement": true
+      },
       "env": {
         "APP_ENV": "prod",
         "EXPO_PUBLIC_SUPABASE_URL": "https://hipfjgdphtdzumzsltog.supabase.co",
