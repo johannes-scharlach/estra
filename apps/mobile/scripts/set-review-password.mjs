@@ -67,9 +67,11 @@ async function main() {
     });
     terminal.on("SIGINT", cancel);
     terminal.on("close", cancel);
-    stdout.write(label);
+    if (secret) stdout.write(label);
     try {
-      return await terminal.question("", { signal: cancelled.signal });
+      return await terminal.question(secret ? "" : label, {
+        signal: cancelled.signal,
+      });
     } finally {
       terminal.removeListener("close", cancel);
       terminal.close();
