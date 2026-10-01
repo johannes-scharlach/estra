@@ -16,5 +16,8 @@
         "EXPO_PUBLIC_API_URL": "https://estra-api.fly.dev"
       }
     }
+  },
+  "cli": {
+    "appVersionSource": "remote"
   }
 }

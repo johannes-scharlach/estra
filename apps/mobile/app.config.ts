@@ -31,14 +31,20 @@ const config: ExpoConfig = {
     icon: "./assets/expo.icon",
     bundleIdentifier: `com.estra.app${variant.idSuffix}`,
     supportsTablet: true,
-    // local/dev point at plain-HTTP backends (supabase start, docker PowerSync,
-    // Tailscale IP). ATS blocks those without this exception. Prod is https.
-    infoPlist:
-      APP_ENV === "prod"
-        ? undefined
+    infoPlist: {
+      ...(APP_ENV === "prod"
+        ? {
+            // Declares standard/exempt encryption (HTTPS-only); stops the
+            // export compliance question on every submit. Only true of prod —
+            // local/dev talk plain HTTP and are never submitted.
+            ITSAppUsesNonExemptEncryption: false,
+          }
         : {
+            // local/dev point at plain-HTTP backends (supabase start, docker
+            // PowerSync, Tailscale IP). ATS blocks those without this exception.
             NSAppTransportSecurity: { NSAllowsArbitraryLoads: true },
-          },
+          }),
+    },
   },
   android: {
     package: `com.estra.app${variant.idSuffix}`,
