@@ -4,6 +4,7 @@ import { Hono } from "hono";
 import { z } from "zod";
 
 import type { AppBindings } from "../auth.js";
+import { posthogApiLogger } from "../posthog-logs.js";
 import { env } from "../env.js";
 import { AppError } from "../errors.js";
 import { CATEGORIES } from "../recipe-schema.js";
@@ -64,12 +65,16 @@ items.post("/categorize", async (c) => {
     });
 
     const output = result.output;
-    if (!output?.categoryId) {
-      return c.json({ categoryId: "other" });
-    }
-
-    return c.json({ categoryId: output.categoryId });
+    posthogApiLogger.info("shopping item categorization completed", {
+      operation: "shopping_item_categorization",
+      outcome: output?.categoryId ? "success" : "fallback",
+    });
+    return c.json({ categoryId: output?.categoryId ?? "other" });
   } catch (error) {
+    posthogApiLogger.warn("shopping item categorization failed", {
+      operation: "shopping_item_categorization",
+      outcome: "fallback",
+    });
     console.error("Failed to categorize item:", error);
     // Graceful fallback to other rather than failing the client request
     return c.json({ categoryId: "other" });

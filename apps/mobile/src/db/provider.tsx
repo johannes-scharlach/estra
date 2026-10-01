@@ -11,6 +11,7 @@ import {
   type ReactNode,
 } from "react";
 
+import { posthog } from "../lib/posthog";
 import { supabase } from "../lib/supabase";
 import { connectPowerSync, disconnectPowerSync, powersync } from "./system";
 
@@ -51,6 +52,7 @@ export function SystemProvider({ children }: { children: ReactNode }) {
   const [attempt, setAttempt] = useState(0);
   const connection = useRef(Promise.resolve());
   const connectedUser = useRef<string | null | undefined>(undefined);
+  const identifiedUser = useRef<string | null | undefined>(undefined);
   const userId = session?.user.id ?? null;
 
   useEffect(() => {
@@ -93,6 +95,20 @@ export function SystemProvider({ children }: { children: ReactNode }) {
       subscription.subscription.unsubscribe();
     };
   }, [attempt]);
+
+  useEffect(() => {
+    if (!ready || identifiedUser.current === userId) return;
+
+    if (userId) {
+      if (identifiedUser.current) posthog?.reset();
+      posthog?.identify(userId, {
+        $set: session?.user.email ? { email: session.user.email } : {},
+      });
+    } else {
+      posthog?.reset();
+    }
+    identifiedUser.current = userId;
+  }, [ready, session, userId]);
 
   useEffect(() => {
     if (!ready) return;

@@ -44,6 +44,7 @@ import {
 } from "@/features/chat/stream";
 import { latestRecipeResult } from "@/features/chat/recipe-results";
 import { useActiveList } from "@/features/onboarding/access";
+import { posthog } from "@/lib/posthog";
 
 type Shown = { id: string; role: string; parts: Parts };
 
@@ -185,6 +186,9 @@ export default function ChatScreen() {
     attachments: ImageAttachment[] = [],
     id2 = Crypto.randomUUID(),
   ) {
+    posthog?.capture("chat_message_sent", {
+      has_attachments: attachments.length > 0,
+    });
     await runTurn({ message: userMessage(text, id2), attachments });
   }
 

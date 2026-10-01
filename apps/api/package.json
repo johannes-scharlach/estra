@@ -12,10 +12,15 @@
     "lint": "eslint ."
   },
   "dependencies": {
+    "@ai-sdk/google": "^4.0.47",
     "@estra/meals": "workspace:*",
     "@estra/profile": "workspace:*",
-    "@ai-sdk/google": "^4.0.47",
     "@hono/node-server": "^2.1.1",
+    "@opentelemetry/api-logs": "^0.222.0",
+    "@opentelemetry/exporter-logs-otlp-http": "^0.222.0",
+    "@opentelemetry/resources": "^2.11.0",
+    "@opentelemetry/sdk-logs": "^0.222.0",
+    "@opentelemetry/sdk-node": "^0.222.0",
     "ai": "^7.0.70",
     "hono": "^4.13.3",
     "jose": "^6.2.9",

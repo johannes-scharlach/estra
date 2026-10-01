@@ -42,6 +42,7 @@ import { capitalize } from "@/features/shop/text";
 import { Action } from "@/components/action";
 import { useToday } from "@/hooks/use-today";
 import { mealAge } from "@/features/shop/meal-age";
+import { posthog } from "@/lib/posthog";
 
 /** Row shape: the list item plus its meal provenance, if any. */
 type ItemRow = ListItem & {
@@ -78,14 +79,21 @@ export default function ShopItemSheet() {
   );
   const rawItem = rows[0];
   const item = useMemo(
-    () => rawItem ? resolveShoppingItem(rawItem) : undefined,
+    () => (rawItem ? resolveShoppingItem(rawItem) : undefined),
     [rawItem],
   );
 
   const suggestions = useMemo(() => {
-    if (!item?.variant_id || item.ingredient_id == null || item.status === "purchased") return [];
+    if (
+      !item?.variant_id ||
+      item.ingredient_id == null ||
+      item.status === "purchased"
+    )
+      return [];
     return alternativesForItem(
-      item.name ?? "", item.ingredient_lines, item.ingredient_id,
+      item.name ?? "",
+      item.ingredient_lines,
+      item.ingredient_id,
     ).filter(
       (alternative) =>
         alternative.name.trim().toLowerCase() !==
@@ -120,10 +128,18 @@ export default function ShopItemSheet() {
 
   const isMealDerived = !!item.planned_meal_id;
 
-  async function close(action: () => Promise<void>) {
+  async function close(
+    action: () => Promise<void>,
+    event?: "shopping_item_purchased",
+  ) {
     setSaving(true);
     try {
       await action();
+      if (event) {
+        posthog?.capture(event, {
+          item_type: isMealDerived ? "meal" : "standalone",
+        });
+      }
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.back();
     } catch {
@@ -132,21 +148,23 @@ export default function ShopItemSheet() {
     }
   }
 
-  const category = item.ingredient_id != null ? (
-    <Text variant="muted">
-      {categories.find((category) => category.id === item.category_id)?.name ?? "Uncategorised"}
-    </Text>
-  ) : (
-    <CategoryMenu
-      categories={categories}
-      categoryId={item.category_id}
-      categoryName={item.category_name}
-      onSelect={(nextCat) => {
-        void setItemCategory(item.id, nextCat);
-        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      }}
-    />
-  );
+  const category =
+    item.ingredient_id != null ? (
+      <Text variant="muted">
+        {categories.find((category) => category.id === item.category_id)
+          ?.name ?? "Uncategorised"}
+      </Text>
+    ) : (
+      <CategoryMenu
+        categories={categories}
+        categoryId={item.category_id}
+        categoryName={item.category_name}
+        onSelect={(nextCat) => {
+          void setItemCategory(item.id, nextCat);
+          void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        }}
+      />
+    );
 
   return (
     <View collapsable={false} className="gap-5 px-6 pb-6 pt-4">
@@ -205,7 +223,12 @@ export default function ShopItemSheet() {
         <Action
           label="Check off"
           disabled={saving}
-          onPress={() => void close(() => setItemStatus(item.id, "purchased"))}
+          onPress={() =>
+            void close(
+              () => setItemStatus(item.id, "purchased"),
+              "shopping_item_purchased",
+            )
+          }
         />
         <Pressable
           accessibilityRole="button"

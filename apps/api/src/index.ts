@@ -2,6 +2,7 @@ import { serve } from '@hono/node-server';
 
 import { app } from './app.js';
 import { env } from './env.js';
+import { shutdownTelemetry } from './instrumentation.js';
 
 const server = serve({ fetch: app.fetch, port: env.port, hostname: '0.0.0.0' }, (info) => {
   console.log(`api listening on http://localhost:${info.port}`);
@@ -14,6 +15,8 @@ const server = serve({ fetch: app.fetch, port: env.port, hostname: '0.0.0.0' }, 
  */
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   process.on(signal, () => {
-    server.close(() => process.exit(0));
+    server.close(() => {
+      void shutdownTelemetry().finally(() => process.exit(0));
+    });
   });
 }

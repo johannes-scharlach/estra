@@ -20,6 +20,7 @@ import {
   previewInvitation,
 } from "@/features/invitations/api";
 import { Field, FormError, FormScreen } from "@/features/profile/form";
+import { posthog } from "@/lib/posthog";
 
 export default function JoinHousehold() {
   const { session, ready } = useAuth();
@@ -143,12 +144,14 @@ function ChoosePerson({ code, userId }: { code: string; userId: string }) {
     setBusy(true);
     setError(null);
     try {
-      setJoinedId(
-        await acceptInvitation(
-          code,
-          selected === "new" ? { name: name.trim() } : { person_id: selected },
-        ),
+      const listId = await acceptInvitation(
+        code,
+        selected === "new" ? { name: name.trim() } : { person_id: selected },
       );
+      posthog?.capture("household_joined", {
+        joined_as: selected === "new" ? "new_person" : "existing_person",
+      });
+      setJoinedId(listId);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not join. Try again.");
       if (e instanceof InvitationError && e.status === 409) {

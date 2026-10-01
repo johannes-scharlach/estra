@@ -9,6 +9,7 @@ import { invitationUrl } from "@/features/invitations/links";
 import { useActiveList } from "@/features/onboarding/access";
 import { FormError } from "@/features/profile/form";
 import { env } from "@/lib/env";
+import { posthog } from "@/lib/posthog";
 
 export default function InviteHousehold() {
   const router = useRouter();
@@ -27,6 +28,9 @@ export default function InviteHousehold() {
         message: `Join ${list.name} on Estra:\n${
           invitationUrl(env.apiUrl, code)
         }`,
+      });
+      posthog?.capture("household_invite_shared", {
+        invite_link_reset: resetLink,
       });
     } catch (e) {
       setError(

@@ -10,6 +10,8 @@ import { Text } from "@/components/ui/text";
 import { importRecipe } from "@/features/meals/import-adapters";
 import { PrimaryAction } from "@/components/action";
 import { SheetActions } from "@/components/sheet-actions";
+import { posthog } from "@/lib/posthog";
+import { posthogLogger } from "@/lib/posthog-logs";
 
 /** Native formSheet: detents, grabber, swipe-to-dismiss. Unmounts on close,
  *  so the URL draft is always fresh. Same pattern as variant/plan. */
@@ -31,9 +33,18 @@ export default function ImportRecipeSheet() {
       }
       await importRecipe(operation.current);
 
+      posthog?.capture("recipe_imported");
+      posthogLogger.info("recipe import completed", {
+        operation: "recipe_import",
+        outcome: "success",
+      });
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.back();
     } catch (e) {
+      posthogLogger.warn("recipe import failed", {
+        operation: "recipe_import",
+        outcome: "failure",
+      });
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       setError(e instanceof Error ? e.message : String(e));
       setImporting(false);

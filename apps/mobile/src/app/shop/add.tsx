@@ -26,6 +26,7 @@ import { addItem, itemNameKey, setItemSpec } from "@/db/items";
 import type { ListItem } from "@/db/schema";
 import { categorizeItemAsync } from "@/features/shop/categorize";
 import { capitalize } from "@/features/shop/text";
+import { posthog } from "@/lib/posthog";
 
 /** `existing`: it was already on the List, so this only touched it. */
 type Added = {
@@ -125,6 +126,10 @@ export default function AddItemSheet() {
         { id: item.id, name: item.name, spec: item.spec, existing },
       ]);
       setDetails((current) => ({ ...current, [item.id]: item.spec ?? "" }));
+      posthog?.capture("shopping_item_added", {
+        reactivated_existing_item: existing,
+        needs_category: !item.categoryId,
+      });
       setDraft((current) => (current === submittedDraft ? "" : current));
       inputRef.current?.focus();
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);

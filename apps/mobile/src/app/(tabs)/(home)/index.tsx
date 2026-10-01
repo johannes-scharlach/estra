@@ -32,6 +32,7 @@ import {
 } from "@/features/onboarding/access";
 import { WeekGlance } from "@/features/meals/week-glance";
 import { HouseholdAvatars } from "@/features/profile/household-avatars";
+import { posthog } from "@/lib/posthog";
 
 const HISTORY_ICON = {
   ios: "clock.arrow.circlepath",
@@ -130,6 +131,12 @@ export default function Home() {
 
   function start() {
     if (!canStart) return;
+    posthog?.capture("meal_ideas_started", {
+      entry_type: entry,
+      ingredient_count:
+        entry === "ingredients" ? chips.length + Number(!!trimmed) : 0,
+      attachment_count: entry === "ingredients" ? attachments.length : 0,
+    });
     startChat(
       entry === "dish"
         ? dishMessage(dish)
@@ -354,7 +361,15 @@ export default function Home() {
               </Pressable>
             </Link>
           </View>
-          <SeededDeck preview onPick={startChat} />
+          <SeededDeck
+            preview
+            onPick={(text) => {
+              posthog?.capture("meal_ideas_started", {
+                entry_type: "seeded_idea",
+              });
+              startChat(text);
+            }}
+          />
         </View>
       </HouseholdActivityFeed>
     </>

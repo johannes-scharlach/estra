@@ -26,6 +26,7 @@ import { OnboardingProvider } from "@/features/onboarding/provider";
 import { NotificationPrompt } from "@/features/notifications/prompt";
 import { NotificationProvider } from "@/features/notifications/provider";
 import { useColorScheme } from "@/hooks/use-color-scheme";
+import { PostHogRoot } from "@/lib/posthog";
 
 // A deep link into a pushed screen (a shared recipe, a meal notification)
 // still gets the tabs beneath it, so the system Back button and swipe-back
@@ -56,8 +57,9 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <KeyboardProvider>
-        <SystemProvider>
-          <HouseholdAccessProvider>
+        <PostHogRoot>
+          <SystemProvider>
+            <HouseholdAccessProvider>
             <OnboardingProvider>
               <NotificationProvider>
                 <ThemeProvider value={theme}>
@@ -271,8 +273,9 @@ export default function RootLayout() {
                 </ThemeProvider>
               </NotificationProvider>
             </OnboardingProvider>
-          </HouseholdAccessProvider>
-        </SystemProvider>
+            </HouseholdAccessProvider>
+          </SystemProvider>
+        </PostHogRoot>
       </KeyboardProvider>
     </GestureHandlerRootView>
   );

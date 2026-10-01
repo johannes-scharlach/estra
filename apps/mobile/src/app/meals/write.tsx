@@ -11,6 +11,7 @@ import { setWrittenMeal } from "@/db/planned-meals";
 import type { MealSlot } from "@/features/meals/slots";
 import { mealLabel } from "@/features/meals/variant-meals";
 import { useActiveList } from "@/features/onboarding/access";
+import { posthog } from "@/lib/posthog";
 
 export default function WriteMeal() {
   const {
@@ -36,6 +37,10 @@ export default function WriteMeal() {
         meal: slot,
         name,
         expectedName: initialName,
+      });
+      posthog?.capture("written_meal_saved", {
+        meal_slot: slot,
+        is_edit: initialName !== undefined,
       });
       router.back();
     } catch (caught) {

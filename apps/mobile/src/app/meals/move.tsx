@@ -19,6 +19,7 @@ import {
 import { useImportJobs } from "@/features/meals/use-import-jobs";
 import { PrimaryAction } from "@/components/action";
 import { SheetActions } from "@/components/sheet-actions";
+import { posthog } from "@/lib/posthog";
 
 export default function MoveMealSheet() {
   const { listId, date, slot, variantId, mode } = useLocalSearchParams<{
@@ -83,6 +84,13 @@ export default function MoveMealSheet() {
         listId,
         { date, slot, variantId: variantId || null },
         { date: destinationDate, slot: destinationSlot },
+      );
+      posthog?.capture(
+        repeating ? "planned_meal_repeated" : "planned_meal_moved",
+        {
+          destination_slot: destinationSlot,
+          replaced_existing_meal: !!destination,
+        },
       );
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.back();

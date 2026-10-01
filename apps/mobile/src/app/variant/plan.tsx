@@ -28,6 +28,8 @@ import {
   type MealSlot,
 } from "@/features/meals/slots";
 import { useActiveList } from "@/features/onboarding/access";
+import { posthog } from "@/lib/posthog";
+import { posthogLogger } from "@/lib/posthog-logs";
 
 type PersonRow = { id: string; name: string; user_id: string | null };
 
@@ -114,12 +116,34 @@ export default function PlanVariantSheet() {
         extraPortions,
       });
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      posthog?.capture("recipe_planned", {
+        meal_slot: selectedMeal,
+        eater_count: eaterIds.length,
+        extra_portions: extraPortions,
+        review_ingredients: reviewIngredients,
+      });
+      posthogLogger.info("recipe planning completed", {
+        operation: "recipe_planning",
+        meal_slot: selectedMeal,
+        eater_count: eaterIds.length,
+        review_ingredients: reviewIngredients,
+      });
       if (reviewIngredients) {
-        router.replace({ pathname: "/meals/shopping", params: { id: plannedMealId(effectiveListId, selectedDate, selectedMeal) } });
+        router.replace({
+          pathname: "/meals/shopping",
+          params: {
+            id: plannedMealId(effectiveListId, selectedDate, selectedMeal),
+          },
+        });
       } else {
         router.back();
       }
     } catch (e) {
+      posthogLogger.warn("recipe planning failed", {
+        operation: "recipe_planning",
+        meal_slot: selectedMeal,
+        review_ingredients: reviewIngredients,
+      });
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       setError(e instanceof Error ? e.message : "Could not add to plan");
     } finally {
@@ -229,7 +253,11 @@ export default function PlanVariantSheet() {
           disabled={saving || (!pending && !effectiveListId)}
         />
         {!pending ? (
-          <Action label="Plan & choose ingredients" onPress={() => void onAdd(true)} disabled={saving || !effectiveListId} />
+          <Action
+            label="Plan & choose ingredients"
+            onPress={() => void onAdd(true)}
+            disabled={saving || !effectiveListId}
+          />
         ) : null}
       </SheetActions>
     </View>

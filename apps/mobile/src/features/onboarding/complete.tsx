@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { Text } from "@/components/ui/text";
 import { useAuth } from "@/db/provider";
 import { powersync } from "@/db/system";
+import { posthog } from "@/lib/posthog";
 import { supabase } from "@/lib/supabase";
 import { FormError } from "@/features/profile/form";
 import { onboardingArt } from "./art";
@@ -70,6 +71,9 @@ export function CompleteSetup() {
         waitForLocalHousehold(bound.list_id, session!.user.id),
       ]);
       await clear();
+      posthog?.capture("household_setup_completed", {
+        household_member_count: bound.people.length,
+      });
       endPreparation();
     }
     finish().catch((e: unknown) => {

@@ -84,6 +84,8 @@ const config: ExpoConfig = {
   },
   extra: {
     appEnv: APP_ENV,
+    posthogProjectToken: process.env.EXPO_PUBLIC_POSTHOG_PROJECT_TOKEN,
+    posthogHost: process.env.EXPO_PUBLIC_POSTHOG_HOST,
     eas: {
       projectId: "9d346f03-cba0-486d-b35c-7a4755567232",
     },
