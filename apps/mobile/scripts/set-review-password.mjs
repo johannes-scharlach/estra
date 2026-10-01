@@ -46,32 +46,34 @@ async function main() {
     );
   }
 
-  // Silence readline's echo for credentials; history is disabled below.
-  let hidden = false;
-  const output = new Writable({
-    write(chunk, _encoding, callback) {
-      if (!hidden) stdout.write(chunk);
-      callback();
-    },
-  });
-  const terminal = createInterface({
-    input: stdin,
-    output,
-    terminal: true,
-    historySize: 0,
-  });
   const cancelled = new AbortController();
-  terminal.on("SIGINT", () => cancelled.abort());
-  terminal.on("close", () => cancelled.abort());
+  const cancel = () => cancelled.abort();
+  process.on("SIGINT", cancel);
 
   async function ask(label, secret = false) {
     cancelled.signal.throwIfAborted();
+    // Fresh editing buffers prevent deleted secrets being replayed later.
+    const output = new Writable({
+      write(chunk, _encoding, callback) {
+        if (!secret) stdout.write(chunk);
+        callback();
+      },
+    });
+    const terminal = createInterface({
+      input: stdin,
+      output,
+      terminal: true,
+      historySize: 0,
+    });
+    terminal.on("SIGINT", cancel);
+    terminal.on("close", cancel);
     stdout.write(label);
-    hidden = secret;
     try {
       return await terminal.question("", { signal: cancelled.signal });
     } finally {
-      hidden = false;
+      terminal.removeListener("close", cancel);
+      terminal.close();
+      output.destroy();
       if (secret) stdout.write("\n");
     }
   }
@@ -156,7 +158,6 @@ async function main() {
       "Password set. The existing account and household are unchanged. Test sign-in in the iOS app.",
     );
   } finally {
-    terminal.close();
     if (supabase) {
       const result = await supabase.auth
         .signOut({ scope: "local" })
@@ -167,6 +168,7 @@ async function main() {
         );
       }
     }
+    process.removeListener("SIGINT", cancel);
   }
 }
 
