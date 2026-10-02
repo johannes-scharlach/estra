@@ -52,6 +52,13 @@ During shaping, ask "What would Kent Beck say?" to avoid premature abstractions 
 
 During implementation, also ask "What would Kent Beck say?" to write clear code and refactor well. Prefer simple things, small safe steps, and designs that match the problem.
 
+## Testing philosophy
+
+Tests are supposed to guide us _to the right design faster_. Antipattern: first write the code and then think about testing.
+The right way: think of how you want to test the behavior we want to implement. Write the simplest test that gives honest confidence. Then implement. Then repeat until everything is done.
+
+There are two levers: discovering the right design and being faster. Both are key. Writing tests after implementation is inherently bad and if you ever feel the need to do that, you must get explicit user permission. It only makes sense to write tests for existing code if we're about to refactor or change behavior.
+
 ## Environment control
 
 You're a guest on the user's machine. You never erase data, start or stop services without explicit user consent.
