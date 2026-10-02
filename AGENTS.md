@@ -58,6 +58,8 @@ You're a guest on the user's machine. You never erase data, start or stop servic
 
 This also extends to things like build and dev scripts. The user owns those and you only advise on it. It's normal for the user to always have the dev script running.
 
+Never run deployments or trigger deployment workflows. The user or CI handles deployments.
+
 ## Delegation
 
 Generally avoid delegating implementation. In particular implementation where craft truly shines. You can of course delegate anything where details don't matter so much.

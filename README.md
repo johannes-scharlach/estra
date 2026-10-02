@@ -137,6 +137,25 @@ pnpm api:deploy
 `pnpm api:deploy` runs from the repo root on purpose — the Docker build
 needs the pnpm lockfile, which is above `apps/api`.
 
+## Edge Function deployments
+
+`.github/workflows/supabase-functions-deploy.yml` checks and tests the Edge
+Functions, then deploys all of them to the production Estra project. It runs
+on pushes to `main` that change function code, `supabase/config.toml`, the
+root package/lockfile, or the workflow itself. You can also run it manually
+from GitHub Actions, choosing `main`.
+
+Add a repository Actions secret named `SUPABASE_ACCESS_TOKEN`: a Supabase
+personal access token with access to the Estra project. Function runtime
+secrets remain in Supabase, not GitHub.
+
+CI uses the lockfile-pinned CLI and server-side bundling (no Docker), and
+honors each function's `verify_jwt` setting in `supabase/config.toml`.
+The deploy step skips local Auth validation because signing keys are not
+committed; hosted Auth is unchanged.
+It does not apply database migrations or update function secrets.
+Deployments are handled by the user or CI, never by an agent.
+
 ## Changing the schema
 
 The schema lives in three files. Change them together — see

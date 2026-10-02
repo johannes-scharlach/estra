@@ -1,0 +1,50 @@
+# Deploys all Edge Functions, including shared code and per-function settings.
+# Requires repo secret SUPABASE_ACCESS_TOKEN with access to the Estra project.
+# Database migrations and function secrets are managed separately.
+name: supabase-functions-deploy
+on:
+  push:
+    branches: [main]
+    paths:
+      - "supabase/functions/**"
+      - "supabase/config.toml"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/supabase-functions-deploy.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: supabase-functions-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    # Manual runs must also use main, never an unmerged branch.
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - run: pnpm install --frozen-lockfile
+      - name: Check Edge Functions
+        run: deno check --no-lock --config supabase/functions/deno.json supabase/functions/*/index.ts
+      - name: Test Edge Functions
+        run: deno test --no-lock --config supabase/functions/deno.json supabase/functions
+      - name: Deploy Edge Functions
+        run: pnpm fn:deploy --project-ref "$SUPABASE_PROJECT_REF" --use-api --import-map supabase/functions/deno.json
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: hipfjgdphtdzumzsltog
+          # Skip local signing-key validation; hosted Auth is unchanged.
+          SUPABASE_AUTH_ENABLED: "false"
