@@ -1,6 +1,6 @@
 import {
   UpdateType,
-  type AbstractPowerSyncDatabase,
+  type CommonPowerSyncDatabase,
   type PowerSyncBackendConnector,
 } from "@powersync/react-native";
 
@@ -42,7 +42,7 @@ export class SupabaseConnector implements PowerSyncBackendConnector {
    * replays this until it returns without throwing, so it must be safe to
    * run twice — writes go through Supabase's REST API and inherit RLS.
    */
-  async uploadData(database: AbstractPowerSyncDatabase) {
+  async uploadData(database: CommonPowerSyncDatabase) {
     const transaction = await database.getNextCrudTransaction();
     if (!transaction) return;
 

@@ -56,7 +56,7 @@ export function buildChatTools(
         const plannedMealId = context.chat.planned_meal_id;
         const expectedContentId = context.chat.initial_meal_content_id;
         if (!plannedMealId || !expectedContentId) return { error: "Open a planned meal's shopping chat to add items to it." };
-        return inTransaction(async (client) => {
+        return inTransaction(userId, async (client) => {
           await assertListMemberUntilCommit(client, userId, listId);
           return addMealShoppingItems(client, { listId, plannedMealId, expectedContentId, items });
         });
@@ -77,14 +77,14 @@ export function buildChatTools(
         "Read the complete saved variant by id, including ingredients, instructions, creation date and sizing.",
       inputSchema: z.object({ variantId: z.uuid() }),
       execute: ({ variantId }) =>
-        inTransaction((client) => readChatVariant(client, listId, variantId)),
+        inTransaction(userId, (client) => readChatVariant(client, listId, variantId)),
     }),
     readPlannedMeal: tool({
       description:
         "Read a household planned meal's current variant, eaters, extra portions and shopping items, including which are bought. Read before rewriting a planned meal.",
       inputSchema: z.object({ plannedMealId: z.uuid() }),
       execute: ({ plannedMealId: id }) =>
-        inTransaction((client) => readChatMeal(client, listId, id)),
+        inTransaction(userId, (client) => readChatMeal(client, listId, id)),
     }),
     readPlan: tool({
       description:
@@ -131,7 +131,7 @@ export function buildChatTools(
           };
         }
         try {
-          return await inTransaction((client) =>
+          return await inTransaction(userId, (client) =>
             setPlannedMeal(client, {
               listId,
               slotDate: date,
@@ -158,7 +158,7 @@ export function buildChatTools(
         meal: z.enum(MEAL_SLOTS),
       }),
       execute: async ({ date, meal }) => ({
-        removed: await inTransaction((client) =>
+        removed: await inTransaction(userId, (client) =>
           clearPlannedMeal(client, listId, date, meal),
         ),
       }),
@@ -170,7 +170,7 @@ export function buildChatTools(
       inputSchema: AddToCookbookSchema,
       execute: async ({ sizedFor, ...recipe }) => {
         try {
-          const saved = await inTransaction(async (client) => {
+          const saved = await inTransaction(userId, async (client) => {
             if (sizedFor) {
               await assertListMemberUntilCommit(client, userId, listId);
               const people = await client.query<{ id: string }>(

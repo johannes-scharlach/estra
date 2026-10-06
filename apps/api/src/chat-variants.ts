@@ -200,7 +200,7 @@ export async function writeChatVariant(opts: {
   recipe: CookRecipeInput;
   sizedFor?: SizedFor;
 }) {
-  return inTransaction(async (client) => {
+  return inTransaction(opts.userId, async (client) => {
     await assertListMemberUntilCommit(client, opts.userId, opts.listId);
     const variantId = estraUuidV5(
       `chat:${opts.chatId}:${opts.messageId}:${opts.baseVariantId}`,

@@ -75,6 +75,13 @@ const household_activities = new Table(
     actor_user_id: column.text,
     actor_name: column.text,
     occurred_at: column.text,
+    // Meal activities (spec 0008): snapshots, null for joins.
+    meal_name: column.text,
+    slot_date: column.text,
+    meal: column.text,
+    previous_meal_name: column.text,
+    previous_slot_date: column.text,
+    previous_meal: column.text,
   },
   { indexes: { by_list_recent: ["list_id", "occurred_at"] } },
 );

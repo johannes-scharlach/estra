@@ -39,7 +39,7 @@ export async function saveImport(
   recipe: RecipeInput,
 ) {
   const variantId = deriveVariantIdForImport(userId, request);
-  return inTransaction(async (client) => {
+  return inTransaction(userId, async (client) => {
     if (request.plan)
       await assertListMemberUntilCommit(client, userId, request.plan.listId);
     await serializeImportSaves(client, variantId);

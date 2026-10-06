@@ -96,54 +96,54 @@ export type Database = {
       }
       chats: {
         Row: {
-          initial_meal_content_id: string | null
           created_at: string
           created_by: string | null
           id: string
-          list_id: string
-          recipe_id: string | null
+          initial_meal_content_id: string | null
           initial_variant_id: string | null
+          list_id: string
           planned_meal_id: string | null
+          recipe_id: string | null
           title: string | null
           updated_at: string
         }
         Insert: {
-          initial_meal_content_id?: string | null
           created_at?: string
           created_by?: string | null
           id?: string
-          list_id: string
-          recipe_id?: string | null
+          initial_meal_content_id?: string | null
           initial_variant_id?: string | null
+          list_id: string
           planned_meal_id?: string | null
+          recipe_id?: string | null
           title?: string | null
           updated_at?: string
         }
         Update: {
-          initial_meal_content_id?: string | null
           created_at?: string
           created_by?: string | null
           id?: string
-          list_id?: string
-          recipe_id?: string | null
+          initial_meal_content_id?: string | null
           initial_variant_id?: string | null
+          list_id?: string
           planned_meal_id?: string | null
+          recipe_id?: string | null
           title?: string | null
           updated_at?: string
         }
         Relationships: [
           {
-            foreignKeyName: "chats_recipe_id_fkey"
-            columns: ["recipe_id"]
-            isOneToOne: false
-            referencedRelation: "recipes"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "chats_initial_variant_id_fkey"
             columns: ["initial_variant_id"]
             isOneToOne: false
             referencedRelation: "variants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chats_list_id_fkey"
+            columns: ["list_id"]
+            isOneToOne: false
+            referencedRelation: "lists"
             referencedColumns: ["id"]
           },
           {
@@ -154,10 +154,10 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "chats_list_id_fkey"
-            columns: ["list_id"]
+            foreignKeyName: "chats_recipe_id_fkey"
+            columns: ["recipe_id"]
             isOneToOne: false
-            referencedRelation: "lists"
+            referencedRelation: "recipes"
             referencedColumns: ["id"]
           },
         ]
@@ -169,7 +169,13 @@ export type Database = {
           id: string
           kind: string
           list_id: string
+          meal: string | null
+          meal_name: string | null
           occurred_at: string
+          previous_meal: string | null
+          previous_meal_name: string | null
+          previous_slot_date: string | null
+          slot_date: string | null
         }
         Insert: {
           actor_name: string
@@ -177,7 +183,13 @@ export type Database = {
           id?: string
           kind: string
           list_id: string
+          meal?: string | null
+          meal_name?: string | null
           occurred_at?: string
+          previous_meal?: string | null
+          previous_meal_name?: string | null
+          previous_slot_date?: string | null
+          slot_date?: string | null
         }
         Update: {
           actor_name?: string
@@ -185,7 +197,13 @@ export type Database = {
           id?: string
           kind?: string
           list_id?: string
+          meal?: string | null
+          meal_name?: string | null
           occurred_at?: string
+          previous_meal?: string | null
+          previous_meal_name?: string | null
+          previous_slot_date?: string | null
+          slot_date?: string | null
         }
         Relationships: [
           {
@@ -342,11 +360,11 @@ export type Database = {
       }
       list_items: {
         Row: {
-          ingredient_id: number | null
           added_by: string | null
           category_id: string | null
           created_at: string
           id: string
+          ingredient_id: number | null
           list_id: string
           name: string
           name_key: string
@@ -362,10 +380,10 @@ export type Database = {
           category_id?: string | null
           created_at?: string
           id: string
+          ingredient_id?: number | null
           list_id: string
           name: string
           name_key: string
-          ingredient_id?: number | null
           planned_meal_id?: string | null
           purchase_count?: number
           spec?: string | null
@@ -378,10 +396,10 @@ export type Database = {
           category_id?: string | null
           created_at?: string
           id?: string
+          ingredient_id?: number | null
           list_id?: string
           name?: string
           name_key?: string
-          ingredient_id?: number | null
           planned_meal_id?: string | null
           purchase_count?: number
           spec?: string | null
@@ -476,52 +494,144 @@ export type Database = {
         }
         Relationships: []
       }
+      notification_deliveries: {
+        Row: {
+          activity_id: string
+          attempt_count: number
+          created_at: string
+          delivered_at: string | null
+          device_id: string
+          expo_ticket_id: string | null
+          id: string
+          last_error: string | null
+          lease_id: string | null
+          lease_until: string | null
+          list_id: string
+          next_attempt_at: string
+          receipt_due_at: string | null
+          recipient_id: string
+          status: string
+          ticket_sent_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          activity_id: string
+          attempt_count?: number
+          created_at?: string
+          delivered_at?: string | null
+          device_id: string
+          expo_ticket_id?: string | null
+          id?: string
+          last_error?: string | null
+          lease_id?: string | null
+          lease_until?: string | null
+          list_id: string
+          next_attempt_at?: string
+          receipt_due_at?: string | null
+          recipient_id: string
+          status?: string
+          ticket_sent_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          activity_id?: string
+          attempt_count?: number
+          created_at?: string
+          delivered_at?: string | null
+          device_id?: string
+          expo_ticket_id?: string | null
+          id?: string
+          last_error?: string | null
+          lease_id?: string | null
+          lease_until?: string | null
+          list_id?: string
+          next_attempt_at?: string
+          receipt_due_at?: string | null
+          recipient_id?: string
+          status?: string
+          ticket_sent_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_deliveries_activity_id_fkey"
+            columns: ["activity_id"]
+            isOneToOne: false
+            referencedRelation: "household_activities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notification_deliveries_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "push_devices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notification_deliveries_list_id_fkey"
+            columns: ["list_id"]
+            isOneToOne: false
+            referencedRelation: "lists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notification_deliveries_recipient_id_fkey"
+            columns: ["recipient_id"]
+            isOneToOne: false
+            referencedRelation: "household_activity_recipients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       planned_meals: {
         Row: {
-          ingredient_swaps: Json
           content_id: string
           created_at: string
-          id: string
-          list_id: string
-          meal: string
           eater_ids: Json
           extra_portions: number
+          id: string
+          ingredient_swaps: Json
+          list_id: string
+          meal: string
           name: string | null
           recipe_id: string | null
-          slot_date: string
           shopping_reviewed_variant_id: string | null
+          slot_date: string
           updated_at: string
           variant_id: string | null
         }
         Insert: {
           content_id?: string
           created_at?: string
-          id?: string
-          list_id: string
-          meal?: string
           eater_ids?: Json
           extra_portions?: number
+          id?: string
+          ingredient_swaps?: Json
+          list_id: string
+          meal?: string
           name?: string | null
           recipe_id?: string | null
-          slot_date: string
-          ingredient_swaps?: Json
           shopping_reviewed_variant_id?: string | null
+          slot_date: string
           updated_at?: string
           variant_id?: string | null
         }
         Update: {
           content_id?: string
           created_at?: string
-          id?: string
-          list_id?: string
-          meal?: string
           eater_ids?: Json
           extra_portions?: number
+          id?: string
+          ingredient_swaps?: Json
+          list_id?: string
+          meal?: string
           name?: string | null
           recipe_id?: string | null
-          slot_date?: string
-          ingredient_swaps?: Json
           shopping_reviewed_variant_id?: string | null
+          slot_date?: string
           updated_at?: string
           variant_id?: string | null
         }
@@ -541,29 +651,62 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "planned_meals_variant_id_fkey"
-            columns: ["variant_id"]
-            isOneToOne: false
-            referencedRelation: "variants"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "planned_meals_shopping_reviewed_variant_id_fkey"
             columns: ["shopping_reviewed_variant_id"]
             isOneToOne: false
             referencedRelation: "variants"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "planned_meals_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "variants"
+            referencedColumns: ["id"]
+          },
         ]
+      }
+      push_devices: {
+        Row: {
+          disabled_at: string | null
+          disabled_reason: string | null
+          expo_push_token: string
+          id: string
+          installation_id: string
+          platform: string
+          registered_at: string
+          user_id: string
+        }
+        Insert: {
+          disabled_at?: string | null
+          disabled_reason?: string | null
+          expo_push_token: string
+          id?: string
+          installation_id: string
+          platform: string
+          registered_at?: string
+          user_id: string
+        }
+        Update: {
+          disabled_at?: string | null
+          disabled_reason?: string | null
+          expo_push_token?: string
+          id?: string
+          installation_id?: string
+          platform?: string
+          registered_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       recipes: {
         Row: {
-          next_ingredient_id: number
           created_at: string
           created_by: string | null
           from_name: string | null
           from_url: string | null
           id: string
+          next_ingredient_id: number
           updated_at: string
         }
         Insert: {
@@ -600,6 +743,7 @@ export type Database = {
           recipe_cuisine: string | null
           recipe_id: string
           recipe_yield: string | null
+          sized_for: Json | null
           total_time: string | null
           updated_at: string
         }
@@ -616,6 +760,7 @@ export type Database = {
           recipe_cuisine?: string | null
           recipe_id: string
           recipe_yield?: string | null
+          sized_for?: Json | null
           total_time?: string | null
           updated_at?: string
         }
@@ -632,6 +777,7 @@ export type Database = {
           recipe_cuisine?: string | null
           recipe_id?: string
           recipe_yield?: string | null
+          sized_for?: Json | null
           total_time?: string | null
           updated_at?: string
         }
@@ -654,12 +800,45 @@ export type Database = {
         Args: { code: string; person_id?: string; person_name?: string }
         Returns: string
       }
+      claim_notification_deliveries: {
+        Args: { batch_size?: number; claim_id: string; lease_seconds?: number }
+        Returns: {
+          activity_id: string
+          actor_name: string
+          attempt_count: number
+          device_id: string
+          expo_push_token: string
+          expo_ticket_id: string
+          household_name: string
+          id: string
+          list_id: string
+          status: string
+          ticket_sent_at: string
+          user_id: string
+        }[]
+      }
       is_list_member: { Args: { target_list_id: string }; Returns: boolean }
       item_name_key: { Args: { name: string }; Returns: string }
+      planned_meal_name: {
+        Args: { meal: Database["public"]["Tables"]["planned_meals"]["Row"] }
+        Returns: string
+      }
       preview_household_invite: { Args: { code: string }; Returns: Json }
+      register_push_device: {
+        Args: {
+          target_expo_push_token: string
+          target_installation_id: string
+          target_platform: string
+        }
+        Returns: string
+      }
       reset_household_invite: {
         Args: { target_list_id: string }
         Returns: string
+      }
+      unregister_push_device: {
+        Args: { target_installation_id: string; target_reason?: string }
+        Returns: undefined
       }
       uuid_for_item: {
         Args: { item_name: string; target_list_id: string }
@@ -800,3 +979,4 @@ export const Constants = {
     Enums: {},
   },
 } as const
+

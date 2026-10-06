@@ -4,7 +4,13 @@ import * as Clipboard from "expo-clipboard";
 import type { ReactNode } from "react";
 import { Alert, Share, useWindowDimensions, View } from "react-native";
 
-export function MessageMenu({ text, children }: { text: string; children: ReactNode }) {
+export function MessageMenu({
+  text,
+  children,
+}: {
+  text: string;
+  children: ReactNode;
+}) {
   const { width: windowWidth } = useWindowDimensions();
   if (!text.trim()) return children;
 
@@ -13,7 +19,10 @@ export function MessageMenu({ text, children }: { text: string; children: ReactN
       if (action === "copy") await Clipboard.setStringAsync(text);
       if (action === "share") await Share.share({ message: text });
     } catch {
-      Alert.alert("Couldn't " + (action === "copy" ? "copy" : "share") + " message", "Please try again.");
+      Alert.alert(
+        "Couldn't " + (action === "copy" ? "copy" : "share") + " message",
+        "Please try again.",
+      );
     }
   }
 
@@ -22,7 +31,8 @@ export function MessageMenu({ text, children }: { text: string; children: ReactN
       <ContextMenu>
         <ContextMenu.Trigger>
           <RNHostView matchContents>
-            <>{children}</>
+            {/* RNHostView measures without its RN parent's width constraints. */}
+            <View style={{ maxWidth: windowWidth }}>{children}</View>
           </RNHostView>
         </ContextMenu.Trigger>
         <ContextMenu.Preview>
@@ -36,7 +46,11 @@ export function MessageMenu({ text, children }: { text: string; children: ReactN
           </RNHostView>
         </ContextMenu.Preview>
         <ContextMenu.Items>
-          <Button label="Copy" systemImage="doc.on.doc" onPress={() => void act("copy")} />
+          <Button
+            label="Copy"
+            systemImage="doc.on.doc"
+            onPress={() => void act("copy")}
+          />
           <Button
             label="Share..."
             systemImage="square.and.arrow.up"

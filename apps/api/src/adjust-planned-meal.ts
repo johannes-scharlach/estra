@@ -183,7 +183,7 @@ export async function saveAdjusted(opts: {
     recipe_id: recipeId,
     variant_id: oldVariantId,
   } = context.meal;
-  return inTransaction(async (client: PoolClient) => {
+  return inTransaction(userId, async (client: PoolClient) => {
     await assertListMemberUntilCommit(client, userId, listId);
     // Same lock as imports: a concurrent retry waits, then finds the result.
     await client.query(

@@ -1,11 +1,6 @@
 import { useQuery } from "@powersync/react";
-import { router } from "expo-router";
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { router, useLocalSearchParams } from "expo-router";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   ScrollView,
@@ -27,11 +22,7 @@ import {
 } from "@/features/meals/day-content";
 import { DayStrip } from "@/features/meals/day-strip";
 import { eatersLabel, parseEaterIds, toEaters } from "@/features/meals/eaters";
-import {
-  dateKey,
-  stripDates,
-  type MealSlot,
-} from "@/features/meals/slots";
+import { dateKey, stripDates, type MealSlot } from "@/features/meals/slots";
 import { usePanSwipeDay } from "@/features/meals/use-pan-swipe-day";
 import { useImportJobs } from "@/features/meals/use-import-jobs";
 import { useActiveList } from "@/features/onboarding/access";
@@ -41,6 +32,19 @@ import { useToday } from "@/hooks/use-today";
 export default function Meals() {
   const [{ dates, todayIndex }] = useState(stripDates);
   const [selected, setSelected] = useState(() => dateKey(new Date()));
+  // Household activity opens a day; `at` makes a repeated tap reselect it.
+  const { date: requestedDate, at } = useLocalSearchParams<{
+    date?: string;
+    at?: string;
+  }>();
+  const request = requestedDate ? `${requestedDate}@${at}` : null;
+  const [handledRequest, setHandledRequest] = useState<string | null>(null);
+  if (request !== handledRequest) {
+    setHandledRequest(request);
+    if (requestedDate && dates.some((d) => dateKey(d) === requestedDate)) {
+      setSelected(requestedDate);
+    }
+  }
   const [openSlots, setOpenSlots] = useState<Set<string>>(() => new Set());
   // optimistic pending — avoids flicker through hidden state while PowerSync query catches up
   const [pending, setPending] = useState<
@@ -79,14 +83,12 @@ export default function Meals() {
   );
   // Recently added recipe groups, each represented by its newest variant.
   const contendersBySlot = useMemo((): Record<MealSlot, DisplayRecipe[]> => {
-    const all: DisplayRecipe[] = choices
-      .slice(0, 10)
-      .map(({ variant: v }) => ({
-        id: v.id,
-        recipeId: v.recipe_id!,
-        name: v.name ?? "…",
-        totalTime: v.total_time,
-      }));
+    const all: DisplayRecipe[] = choices.slice(0, 10).map(({ variant: v }) => ({
+      id: v.id,
+      recipeId: v.recipe_id!,
+      name: v.name ?? "…",
+      totalTime: v.total_time,
+    }));
     return { lunch: all, dinner: all, treat: all };
   }, [choices]);
 

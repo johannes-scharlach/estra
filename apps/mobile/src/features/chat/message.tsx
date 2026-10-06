@@ -29,6 +29,7 @@ const CHEVRON_ICON = {
 } as const;
 
 export function UserMessage({ parts }: { parts: Parts }) {
+  const { width: windowWidth } = useWindowDimensions();
   const text = messageText(parts);
   const images = imageParts(parts);
   return (
@@ -43,15 +44,16 @@ export function UserMessage({ parts }: { parts: Parts }) {
         />
       ))}
       {text ? (
-        <View className="max-w-[80%]">
-          <MessageMenu text={text}>
-            <View className="rounded-2xl rounded-br-none bg-primary px-4 py-2.5">
-              <Text className="text-base leading-6 text-primary-foreground">
-                {text}
-              </Text>
-            </View>
-          </MessageMenu>
-        </View>
+        <MessageMenu text={text}>
+          <View
+            className="rounded-2xl rounded-br-none bg-primary px-4 py-2.5"
+            style={{ maxWidth: (windowWidth - 40) * 0.8 }}
+          >
+            <Text className="text-base leading-6 text-primary-foreground">
+              {text}
+            </Text>
+          </View>
+        </MessageMenu>
       ) : null}
     </View>
   );
