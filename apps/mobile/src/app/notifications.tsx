@@ -1,6 +1,6 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, View } from "react-native";
+import { ActivityIndicator, ScrollView, View } from "react-native";
 
 import { Action, PrimaryAction } from "@/components/action";
 import { Text } from "@/components/ui/text";
@@ -67,27 +67,28 @@ export default function NotificationsScreen() {
   }
   if (!state) {
     return (
-      <View className="items-center justify-center bg-background px-6 py-12">
+      <ScrollView
+        contentInsetAdjustmentBehavior="automatic"
+        contentContainerClassName="items-center justify-center px-6 py-12"
+      >
         <ActivityIndicator />
-      </View>
+      </ScrollView>
     );
   }
   return (
-    // Opaque surface: with a transparent sheet container (iOS) the system
-    // draws behind us, but Android would show Home through otherwise.
-    <View className="gap-6 bg-background px-6 pt-12 pb-8">
+    <ScrollView
+      contentInsetAdjustmentBehavior="automatic"
+      contentContainerClassName="gap-6 px-6 pt-4"
+    >
       <View className="gap-3">
-        <Text
-          accessibilityRole="header"
-          className="text-3xl font-bold tracking-tight"
-        >
-          Household updates
-        </Text>
         <Text className="text-lg leading-7 text-muted-foreground">
           Get a notification when someone joins your household.
         </Text>
         {state === "enabled" ? (
-          <Text className="font-medium">Notifications are enabled.</Text>
+          <Text className="text-muted-foreground">
+            Notifications are on. To turn them off, use the notification
+            settings on this device.
+          </Text>
         ) : null}
         {state === "disabled" ? (
           <Text className="text-muted-foreground">
@@ -99,7 +100,13 @@ export default function NotificationsScreen() {
       <FormError message={error} />
       <View className="gap-3">
         {state === "enabled" ? (
-          <PrimaryAction label="Done" onPress={() => router.back()} />
+          <>
+            <PrimaryAction label="Done" onPress={() => router.back()} />
+            <Action
+              label="Turn off"
+              onPress={() => void openNotificationSettings()}
+            />
+          </>
         ) : (
           <>
             <PrimaryAction
@@ -120,6 +127,6 @@ export default function NotificationsScreen() {
           </>
         )}
       </View>
-    </View>
+    </ScrollView>
   );
 }

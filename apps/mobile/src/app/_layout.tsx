@@ -86,13 +86,15 @@ export default function RootLayout() {
                     <Stack.Screen
                       name="notifications"
                       options={{
+                        title: "Household updates",
                         presentation: "formSheet",
                         sheetAllowedDetents: "fitToContents",
                         sheetGrabberVisible: true,
-                        headerShown: false,
-                        // iOS draws the sheet surface itself; Android has no
-                        // grabber and a transparent container shows Home
-                        // through the sheet.
+                        headerShown: true,
+                        headerTransparent: Platform.OS === "ios",
+                        headerShadowVisible: false,
+                        // iOS supplies the glass surface; Android keeps the
+                        // stack's themed background, including inset areas.
                         contentStyle:
                           Platform.OS === "ios"
                             ? { backgroundColor: "transparent" }

@@ -13,6 +13,7 @@ import {
   type ReactElement,
   type ReactNode,
 } from "react";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useResolveClassNames } from "uniwind";
 
 export type SettingsRowProps = {
@@ -28,10 +29,17 @@ type Position = "only" | "first" | "middle" | "last";
 // sections wrap every row in a ListItem, so a ListItem row nests inside
 // another and gets two backgrounds and double padding.
 export function SettingsList({ children }: { children: ReactNode }) {
+  // Android draws edge-to-edge, so the last row would sit under the nav bar.
+  const insets = useSafeAreaInsets();
   return (
     <LazyColumn
       verticalArrangement={{ spacedBy: 24 }}
-      contentPadding={{ start: 16, end: 16, top: 16, bottom: 16 }}
+      contentPadding={{
+        start: 16,
+        end: 16,
+        top: 16,
+        bottom: insets.bottom + 24,
+      }}
     >
       {children}
     </LazyColumn>

@@ -60,11 +60,14 @@ export async function registerPushDevice(): Promise<void> {
   if (error) throw error;
 }
 
-export async function unregisterPushDevice(): Promise<void> {
+export async function unregisterPushDevice(
+  target_reason: "signed_out" | "permission_revoked" = "signed_out",
+): Promise<void> {
   const id = await AsyncStorage.getItem(INSTALLATION_KEY);
   if (!id) return;
   const { error } = await supabase.rpc("unregister_push_device", {
     target_installation_id: id,
+    target_reason,
   });
   if (error) throw error;
 }

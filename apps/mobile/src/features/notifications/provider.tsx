@@ -6,7 +6,8 @@ import { AppState } from "react-native";
 
 import { useAuth } from "@/db/provider";
 import { useHouseholdAccess } from "@/features/onboarding/access";
-import { notificationState, registerPushDevice } from "./notifications";
+import { notificationState, registerPushDevice, unregisterPushDevice } from "./notifications";
+import { pushRegistrationAction } from "./push-registration";
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -29,7 +30,10 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     const refresh = () =>
       void notificationState()
         .then((state) => {
-          if (state === "enabled") return registerPushDevice();
+          if (pushRegistrationAction(state) === "register") {
+            return registerPushDevice();
+          }
+          return unregisterPushDevice("permission_revoked");
         })
         .catch((error) =>
           console.error("Could not refresh push registration", error),

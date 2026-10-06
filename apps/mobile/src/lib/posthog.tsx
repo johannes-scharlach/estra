@@ -1,6 +1,7 @@
 import Constants from "expo-constants";
+import { useSegments } from "expo-router";
 import PostHog, { PostHogProvider } from "posthog-react-native";
-import type { PropsWithChildren } from "react";
+import { useEffect, type PropsWithChildren } from "react";
 
 type PostHogExtra = {
   posthogProjectToken?: string;
@@ -42,10 +43,31 @@ export const posthog =
       })
     : null;
 
+// Route pattern, not pathname: "/chats/[id]" groups every chat as one screen.
+function useScreenTracking() {
+  const screen =
+    "/" +
+    useSegments()
+      .filter((segment) => !segment.startsWith("("))
+      .join("/");
+
+  useEffect(() => {
+    void posthog?.screen(screen);
+  }, [screen]);
+}
+
 export function PostHogRoot({ children }: PropsWithChildren) {
+  useScreenTracking();
+
   if (!posthog) {
     return children;
   }
 
-  return <PostHogProvider client={posthog}>{children}</PostHogProvider>;
+  // expo-router hides the NavigationContainer that screen autocapture needs;
+  // useScreenTracking covers it.
+  return (
+    <PostHogProvider client={posthog} autocapture={{ captureScreens: false }}>
+      {children}
+    </PostHogProvider>
+  );
 }
