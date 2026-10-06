@@ -6,6 +6,7 @@ import { AppState } from "react-native";
 
 import { useAuth } from "@/db/provider";
 import { useHouseholdAccess } from "@/features/onboarding/access";
+import { notificationRoute } from "./notification-route";
 import { notificationState, registerPushDevice, unregisterPushDevice } from "./notifications";
 import { pushRegistrationAction } from "./push-registration";
 
@@ -74,7 +75,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       openedResponseId.current = responseId;
       readyResponse.current = null;
       switchHousehold(listId);
-      router.push("/household-activity");
+      router.navigate(notificationRoute(data, responseId));
       void Notifications.clearLastNotificationResponseAsync();
     };
     const subscription =
@@ -106,7 +107,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       ) {
         openedResponseId.current = responseId;
         switchHousehold(listId);
-        router.push("/household-activity");
+        router.navigate(notificationRoute(data ?? {}, responseId));
         void Notifications.clearLastNotificationResponseAsync();
       }
     }

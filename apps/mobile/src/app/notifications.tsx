@@ -1,6 +1,7 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, ScrollView, View } from "react-native";
+import { ActivityIndicator, Platform, ScrollView, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Action, PrimaryAction } from "@/components/action";
 import { Text } from "@/components/ui/text";
@@ -16,6 +17,7 @@ import {
 
 export default function NotificationsScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { source } = useLocalSearchParams<{ source?: string }>();
   const { session } = useAuth();
   const [state, setState] = useState<NotificationState | null>(null);
@@ -79,6 +81,11 @@ export default function NotificationsScreen() {
     <ScrollView
       contentInsetAdjustmentBehavior="automatic"
       contentContainerClassName="gap-6 px-6 pt-4"
+      contentContainerStyle={
+        Platform.OS === "android"
+          ? { paddingBottom: Math.max(insets.bottom, 12) }
+          : undefined
+      }
     >
       <View className="gap-3">
         <Text className="text-lg leading-7 text-muted-foreground">

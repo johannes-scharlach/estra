@@ -1,5 +1,10 @@
 {
   "build": {
+    "local": {
+      "env": {
+        "APP_ENV": "local"
+      }
+    },
     "prod": {
       "android": {
         "buildType": "apk"
@@ -16,6 +21,13 @@
         "EXPO_PUBLIC_API_URL": "https://estra-api.fly.dev",
         "EXPO_PUBLIC_POSTHOG_PROJECT_TOKEN": "phc_CdPTrXG99ub3iy3ocqkMpb4Pz2d6pyCdCaGzXWSb83Mu",
         "EXPO_PUBLIC_POSTHOG_HOST": "https://eu.i.posthog.com"
+      }
+    }
+  },
+  "submit": {
+    "prod": {
+      "ios": {
+        "ascAppId": "6817815942"
       }
     }
   },

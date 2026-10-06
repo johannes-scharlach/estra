@@ -54,3 +54,13 @@ A household member an activity is addressed to. Each recipient has their own see
 An activity has been visibly presented to a recipient or opened by them. This is
 an observation, not proof of reading or acknowledgement.
 _Avoid_: Read, acknowledged
+
+### Conversations
+
+**ChatTurn**:
+One user message and the assistant's work in response. Completed actions remain
+part of the turn even if the assistant cannot finish its reply.
+
+**ChatReply**:
+The assistant's response to a ChatTurn. A partial ChatReply is not a completed
+turn, and losing its live delivery does not mean the turn failed.

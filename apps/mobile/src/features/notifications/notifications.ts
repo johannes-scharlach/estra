@@ -56,6 +56,9 @@ export async function registerPushDevice(): Promise<void> {
     target_installation_id: await installationId(),
     target_expo_push_token: token.data,
     target_platform: Platform.OS,
+    // Push text says "today" and "tomorrow" in this zone; refreshed on every
+    // foregrounding, so travel catches up.
+    target_time_zone: Intl.DateTimeFormat().resolvedOptions().timeZone,
   });
   if (error) throw error;
 }

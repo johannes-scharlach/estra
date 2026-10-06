@@ -1,7 +1,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = public, extensions;
-select plan(7);
+select plan(8);
 
 insert into auth.users (id) values
   ('ee000000-0000-4000-8000-000000000001'),
@@ -38,6 +38,16 @@ reset role;
 select is((select count(*)::integer from push_devices
   where installation_id = 'ff000000-0000-4000-8000-000000000001' and disabled_at is null),
   1, 'Another user''s unregister call leaves the device active');
+
+-- Push text says "today" and "tomorrow" in the recipient's own time zone.
+set local role authenticated;
+select set_config('request.jwt.claim.sub', 'ee000000-0000-4000-8000-000000000001', true);
+select register_push_device('ff000000-0000-4000-8000-000000000001', 'ExpoPushToken[test]', 'ios',
+  'Europe/Berlin');
+reset role;
+select is((select time_zone from push_devices
+  where installation_id = 'ff000000-0000-4000-8000-000000000001'),
+  'Europe/Berlin', 'Registration stores the device time zone');
 
 select * from finish();
 rollback;

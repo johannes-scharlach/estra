@@ -675,6 +675,7 @@ export type Database = {
           installation_id: string
           platform: string
           registered_at: string
+          time_zone: string | null
           user_id: string
         }
         Insert: {
@@ -685,6 +686,7 @@ export type Database = {
           installation_id: string
           platform: string
           registered_at?: string
+          time_zone?: string | null
           user_id: string
         }
         Update: {
@@ -695,6 +697,7 @@ export type Database = {
           installation_id?: string
           platform?: string
           registered_at?: string
+          time_zone?: string | null
           user_id?: string
         }
         Relationships: []
@@ -829,9 +832,11 @@ export type Database = {
           target_expo_push_token: string
           target_installation_id: string
           target_platform: string
+          target_time_zone?: string
         }
         Returns: string
       }
+      request_notification_dispatch: { Args: never; Returns: undefined }
       reset_household_invite: {
         Args: { target_list_id: string }
         Returns: string

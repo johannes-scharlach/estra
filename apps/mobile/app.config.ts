@@ -48,6 +48,9 @@ const config: ExpoConfig = {
   },
   android: {
     package: `com.estra.app${variant.idSuffix}`,
+    // FCM client config; Android can't get a push token without it. Lists
+    // com.estra.app and .local; add .dev there before building that variant.
+    googleServicesFile: "./google-services.json",
     adaptiveIcon: {
       backgroundColor: "#E6F4FE",
       foregroundImage: "./assets/images/android-icon-foreground.png",

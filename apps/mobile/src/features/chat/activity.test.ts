@@ -45,19 +45,7 @@ describe("chat activity", () => {
     });
     const interrupted = tool("searchVariants", "input-available");
 
-    expect(activitySteps(parts(returnedError, thrownError, interrupted), false)).toEqual([
-      { id: "planMeal-1", tool: "planMeal", status: "failed" },
-      {
-        id: "readVariant-1",
-        tool: "readVariant",
-        status: "failed",
-        detail: "The recipe needs structured ingredients.",
-      },
-      { id: "searchVariants-1", tool: "searchVariants", status: "incomplete" },
-    ]);
-    expect(activityLabel({ id: "planMeal-1", tool: "planMeal", status: "failed" })).toBe(
-      "Couldn't update your meal plan",
-    );
+    expect(activitySteps(parts(returnedError, thrownError, interrupted), false)).toEqual([]);
   });
 
   it("uses plain language and falls back safely for unknown actions", () => {

@@ -1,7 +1,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = public, extensions;
-select plan(10);
+select plan(13);
 
 -- Anna (…1) and Ben (…2) share a household. Writes run as the uploading
 -- member, the way PowerSync uploads them; reads go back to postgres.
@@ -19,6 +19,11 @@ insert into public.household_people (id, list_id, user_id, name, meal_times) val
    'a1000000-0000-4000-8000-000000000001', 'Anna', 'All meals'),
   ('c1000000-0000-4000-8000-000000000002', 'b1000000-0000-4000-8000-000000000001',
    'a1000000-0000-4000-8000-000000000002', 'Ben', 'All meals');
+insert into public.push_devices (id, installation_id, user_id, expo_push_token, platform, time_zone) values
+  ('a2000000-0000-4000-8000-000000000001', gen_random_uuid(),
+   'a1000000-0000-4000-8000-000000000001', 'ExpoPushToken[anna]', 'ios', null),
+  ('a2000000-0000-4000-8000-000000000002', gen_random_uuid(),
+   'a1000000-0000-4000-8000-000000000002', 'ExpoPushToken[ben]', 'ios', 'Europe/Berlin');
 
 set local role authenticated;
 select set_config('request.jwt.claim.sub', 'a1000000-0000-4000-8000-000000000001', true);
@@ -35,6 +40,19 @@ select results_eq(
   'Planning a meal tells the other member, not the planner');
 select is((select count(*)::integer from household_activities
   where list_id = 'b1000000-0000-4000-8000-000000000001'), 1, 'One meal, one activity');
+select results_eq(
+  $$select d.device_id, d.status from notification_deliveries d
+    where d.list_id = 'b1000000-0000-4000-8000-000000000001'$$,
+  $$values ('a2000000-0000-4000-8000-000000000002'::uuid, 'pending')$$,
+  'Planning a meal queues a push for the other member''s device');
+select set_config('request.jwt.claim.role', 'service_role', true);
+select results_eq(
+  $$select kind, actor_name, meal_name, slot_date, meal, time_zone
+    from claim_notification_deliveries(gen_random_uuid())
+    where list_id = 'b1000000-0000-4000-8000-000000000001'$$,
+  $$values ('meal_planned', 'Anna', 'Lasagne', '2026-10-08', 'dinner', 'Europe/Berlin')$$,
+  'The worker gets what it needs to write the push');
+select set_config('request.jwt.claim.role', '', true);
 
 set local role authenticated;
 select set_config('request.jwt.claim.sub', 'a1000000-0000-4000-8000-000000000002', true);
@@ -149,6 +167,22 @@ select results_eq(
     order by a.kind$$,
   $$values ('meal_changed', 'Vegan lasagne', 'Lasagne'), ('meal_planned', 'Lasagne', null)$$,
   'A recipe meal is named by its variant, and a new variant is a change');
+
+-- Uploads reach Postgres directly, so the trigger asks for the push itself.
+select vault.create_secret('http://worker.invalid/functions/v1/notification-worker', 'notification_worker_url');
+select vault.create_secret('test-secret', 'notification_worker_secret');
+select set_config('test.before_plan', (select count(*)::text from net.http_request_queue), true);
+set local role authenticated;
+select set_config('request.jwt.claim.sub', 'a1000000-0000-4000-8000-000000000001', true);
+insert into public.planned_meals (id, list_id, name, content_id, slot_date, meal) values
+  ('d1000000-0000-4000-8000-000000000008', 'b1000000-0000-4000-8000-000000000001', 'Tacos',
+   'e1000000-0000-4000-8000-000000000008', '2026-10-15', 'dinner');
+reset role;
+select results_eq(
+  $$select url, headers->>'x-notification-secret' from net.http_request_queue
+    order by id offset current_setting('test.before_plan')::integer$$,
+  $$values ('http://worker.invalid/functions/v1/notification-worker', 'test-secret')$$,
+  'Planning a meal asks the worker to send right away');
 
 -- The meal matters more than the news about it.
 alter table public.household_activities add constraint test_activity_fails check (false) not valid;

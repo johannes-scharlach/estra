@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "78441389095",
+    "project_id": "estra-9cb04",
+    "storage_bucket": "estra-9cb04.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:78441389095:android:74369896882bc98c3d4202",
+        "android_client_info": {
+          "package_name": "com.estra.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCV7o8jJXjhqjmHSPYXn1RygtjIfvF9b6o"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:78441389095:android:455959eaaca9cc113d4202",
+        "android_client_info": {
+          "package_name": "com.estra.app.local"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCV7o8jJXjhqjmHSPYXn1RygtjIfvF9b6o"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
