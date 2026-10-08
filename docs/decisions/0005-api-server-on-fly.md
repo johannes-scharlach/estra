@@ -33,9 +33,10 @@ Access tokens are verified locally with `jose` against Supabase's JWKS
   while clients reach it as `localhost` or a tailnet IP, so pinning the
   issuer rejects good tokens. The JWKS URL is the trust anchor: only this
   Supabase project can produce a signature that verifies against it.
-- The server holds no service-role key. It has the caller's identity and
-  nothing more, so it cannot bypass RLS. Give it a Supabase client only when
-  something genuinely needs one, and prefer a user-scoped one.
+- The server holds no service-role key. Give it a Supabase client only when
+  something genuinely needs one, and prefer a user-scoped one. (It no longer
+  "cannot bypass RLS": since ADR 9 it writes Postgres directly as `postgres`
+  and checks membership in code. ADR 22 proposes restoring RLS.)
 - Docker builds from the repo root and ships a single esbuild bundle rather
   than a `node_modules` tree, because `.npmrc` sets `node-linker=hoisted`
   for Metro and a hoisted install cannot separate this app's dependencies

@@ -9,6 +9,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { useResolveClassNames } from "uniwind";
 
+import { CHECKED_ICON, UNCHECKED_ICON } from "@/components/check-icons";
 import { Text } from "@/components/ui/text";
 import { setItemStatus } from "@/db/items";
 import type { ListItem } from "@/db/schema";
@@ -89,11 +90,17 @@ export function ShopItemRow({
   const spec = browse ? specOf(browse.selected) : item.spec;
   const options = purchased
     ? []
-    : item.ingredient_id == null ? [] : (browse?.options ??
-      orderedAlternatives(
-        item.name ?? "",
-        alternativesForItem(item.name ?? "", item.ingredient_lines, item.ingredient_id),
-      ));
+    : item.ingredient_id == null
+      ? []
+      : (browse?.options ??
+        orderedAlternatives(
+          item.name ?? "",
+          alternativesForItem(
+            item.name ?? "",
+            item.ingredient_lines,
+            item.ingredient_id,
+          ),
+        ));
   const optionIndex = browse ? browse.options.indexOf(browse.selected) : 0;
   const next = options[optionIndex + 1] ?? null;
   const previous = options[optionIndex - 1] ?? null;
@@ -147,14 +154,7 @@ export function ShopItemRow({
                 className="min-h-12 min-w-12 items-center justify-center"
               >
                 <SymbolView
-                  name={
-                    checked
-                      ? {
-                          ios: "checkmark.circle.fill",
-                          android: "check_circle",
-                        }
-                      : { ios: "circle", android: "radio_button_unchecked" }
-                  }
+                  name={checked ? CHECKED_ICON : UNCHECKED_ICON}
                   tintColor={checked ? primaryColor : mutedColor}
                   weight="medium"
                   size={28}
@@ -213,7 +213,7 @@ export function ShopItemRow({
       {divider ? (
         <View
           pointerEvents="none"
-          className="absolute bottom-0 left-[66px] right-0 border-b border-border/60"
+          className="absolute bottom-0 left-16.5 right-0 border-b border-border/60"
         />
       ) : null}
     </Animated.View>

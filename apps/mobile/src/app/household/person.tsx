@@ -4,13 +4,12 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useState, type ReactNode } from "react";
 import { Alert, ScrollView, View } from "react-native";
 import { CloseButton } from "@/components/close-button";
-import { Button } from "@/components/ui/button";
 import { Text } from "@/components/ui/text";
 import { removePerson, savePerson } from "@/db/profiles";
 import { useHouseholdAccess } from "@/features/onboarding/access";
 import { FormError, PersonFields } from "@/features/profile/form";
 import { useHousehold } from "@/features/profile/use-household";
-import { PrimaryAction } from "@/components/action";
+import { Action, PrimaryAction } from "@/components/action";
 
 function PersonSheet({
   busy = false,
@@ -103,8 +102,9 @@ function PersonEditor({
         onPress={() => void commit()}
       />
       {initial && (
-        <Button
-          variant="destructive"
+        <Action
+          destructive
+          label="Remove person"
           disabled={busy}
           onPress={() =>
             Alert.alert(
@@ -120,9 +120,7 @@ function PersonEditor({
               ],
             )
           }
-        >
-          <Text>Remove person</Text>
-        </Button>
+        />
       )}
     </PersonSheet>
   );

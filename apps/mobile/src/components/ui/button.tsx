@@ -5,7 +5,7 @@ import { Platform, Pressable } from "react-native";
 
 const buttonVariants = cva(
   cn(
-    "group shrink-0 flex-row items-center justify-center gap-2 rounded-lg shadow-none",
+    "group shrink-0 flex-row items-center justify-center gap-2 rounded-full shadow-none",
     Platform.select({
       web: "focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive whitespace-nowrap outline-none transition-all focus-visible:ring-[3px] disabled:pointer-events-none [&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0",
     }),
@@ -17,21 +17,11 @@ const buttonVariants = cva(
           "bg-primary active:bg-primary/90",
           Platform.select({ web: "hover:bg-primary/90" }),
         ),
-        destructive: cn(
-          "bg-destructive active:bg-destructive/90",
-          Platform.select({
-            web: "hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40",
-          }),
-        ),
         outline: cn(
           "border-border bg-card active:bg-accent border",
           Platform.select({
             web: "hover:bg-accent dark:hover:bg-input/50",
           }),
-        ),
-        secondary: cn(
-          "bg-secondary active:bg-secondary/80",
-          Platform.select({ web: "hover:bg-secondary/80" }),
         ),
         ghost: cn(
           "active:bg-accent dark:active:bg-accent/50",
@@ -45,11 +35,11 @@ const buttonVariants = cva(
           Platform.select({ web: "has-[>svg]:px-3" }),
         ),
         sm: cn(
-          "h-9 gap-1.5 rounded-md px-3 sm:h-8",
+          "h-9 gap-1.5 px-3 sm:h-8",
           Platform.select({ web: "has-[>svg]:px-2.5" }),
         ),
         lg: cn(
-          "h-11 rounded-md px-6 sm:h-10",
+          "h-11 px-6 sm:h-10",
           Platform.select({ web: "has-[>svg]:px-4" }),
         ),
         icon: "h-10 w-10 sm:h-9 sm:w-9",
@@ -71,12 +61,10 @@ const buttonTextVariants = cva(
     variants: {
       variant: {
         default: "text-primary-foreground",
-        destructive: "text-destructive-foreground",
         outline: cn(
           "group-active:text-accent-foreground",
           Platform.select({ web: "group-hover:text-accent-foreground" }),
         ),
-        secondary: "text-secondary-foreground",
         ghost: "group-active:text-accent-foreground",
         link: cn(
           "text-primary group-active:underline",

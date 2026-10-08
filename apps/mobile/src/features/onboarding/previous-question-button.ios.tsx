@@ -8,10 +8,12 @@ import {
   glassEffect,
   labelStyle,
 } from "@expo/ui/swift-ui/modifiers";
+import { ACTION_HEIGHT } from "@/components/action-shared";
 import type { PreviousQuestionButtonProps } from "@/features/onboarding/previous-question-button";
 
 // Universal Button doesn't expose a system-image label or Liquid Glass style.
-// Match variant Q: a 44-point native button with clear, interactive glass.
+// Match variant Q: a native button with clear, interactive glass, as tall as
+// the PrimaryAction beside it.
 export function PreviousQuestionButton({
   onPress,
   disabled: isDisabled,
@@ -26,7 +28,7 @@ export function PreviousQuestionButton({
         modifiers={[
           buttonStyle("plain"),
           labelStyle("iconOnly"),
-          frame({ width: 44, height: 44 }),
+          frame({ width: ACTION_HEIGHT, height: ACTION_HEIGHT }),
           glassEffect({
             glass: { variant: "clear", interactive: true },
             shape: "circle",

@@ -1,13 +1,15 @@
 import { cn } from "@/lib/utils";
 import { Platform, TextInput } from "react-native";
+import { useResolveClassNames } from "uniwind";
 
-// NOTE: uniwind has no placeholderClassName (that's NativeWind-only), so the
-// rnr-generated prop was dropped here. Placeholder styling comes from the
-// placeholder:text-muted-foreground classes in className below.
+// NOTE: uniwind has no placeholderClassName (that's NativeWind-only), and the
+// placeholder: variant does nothing on native (the placeholder falls back to
+// black), so the colour is resolved from the theme and passed explicitly.
 function Input({
   className,
   ...props
 }: React.ComponentProps<typeof TextInput> & React.RefAttributes<TextInput>) {
+  const placeholderColor = useResolveClassNames("text-muted-foreground").color;
   return (
     <TextInput
       className={cn(
@@ -29,6 +31,7 @@ function Input({
         }),
         className,
       )}
+      placeholderTextColor={placeholderColor}
       {...props}
     />
   );

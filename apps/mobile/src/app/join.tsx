@@ -2,6 +2,7 @@ import { useQuery } from "@powersync/react";
 import { useEffect, useRef, useState } from "react";
 import { View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Action, PrimaryAction } from "@/components/action";
 import { Button } from "@/components/ui/button";
 import { Text } from "@/components/ui/text";
 import { ChoiceList } from "@/components/choice-list";
@@ -95,15 +96,11 @@ function InviteSignIn() {
           : "Sign in or create an account to join your household. We’ll email you a code."}
       </Text>
       <EmailAuthFields signup state={auth} />
-      <Button
+      <PrimaryAction
+        label={auth.primaryAction.label}
         disabled={auth.primaryAction.disabled}
         onPress={auth.primaryAction.onPress}
-        className="min-h-14 rounded-full"
-      >
-        <Text className="text-[17px] font-semibold">
-          {auth.primaryAction.label}
-        </Text>
-      </Button>
+      />
       <CancelInvitation disabled={auth.busy} />
     </>
   );
@@ -175,15 +172,13 @@ function ChoosePerson({ code, userId }: { code: string; userId: string }) {
           {!error ? (
             <Text>Loading invitation…</Text>
           ) : (
-            <Button
-              variant="outline"
+            <Action
+              label="Try again"
               onPress={() => {
                 setError(null);
                 setAttempt((n) => n + 1);
               }}
-            >
-              <Text>Try again</Text>
-            </Button>
+            />
           )}
         </>
       ) : (
@@ -214,15 +209,11 @@ function ChoosePerson({ code, userId }: { code: string; userId: string }) {
               editable={!busy}
             />
           ) : null}
-          <Button
+          <PrimaryAction
+            label={busy ? "Joining…" : "Join household"}
             disabled={busy || !selected || (selected === "new" && !name.trim())}
             onPress={() => void join()}
-            className="min-h-14 rounded-full"
-          >
-            <Text className="text-[17px] font-semibold">
-              {busy ? "Joining…" : "Join household"}
-            </Text>
-          </Button>
+          />
         </>
       )}
       <CancelInvitation disabled={busy} />
@@ -292,16 +283,14 @@ function OpenJoinedHousehold({
       </Text>
       <FormError message={error ?? syncError} />
       {slow || error || syncError ? (
-        <Button
-          variant="outline"
+        <Action
+          label="Try again"
           onPress={() => {
             setError(null);
             setAttempt((n) => n + 1);
             retrySync();
           }}
-        >
-          <Text>Try again</Text>
-        </Button>
+        />
       ) : null}
     </>
   );

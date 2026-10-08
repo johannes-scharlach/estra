@@ -28,6 +28,13 @@ export const posthog =
   projectToken && host
     ? new PostHog(projectToken, {
         host,
+        enableSessionReplay: true,
+        // Replays are only useful if we can read the chat. Mask secrets
+        // per view with PostHogMaskView.
+        sessionReplayConfig: {
+          maskAllTextInputs: false,
+          maskAllImages: false,
+        },
         logs: {
           serviceName: "estra-mobile",
           environment: __DEV__ ? "development" : "production",

@@ -7,7 +7,10 @@
     },
     "prod": {
       "android": {
-        "buildType": "apk"
+        "buildType": "apk",
+        "env": {
+          "GRADLE_OPTS": "-Dorg.gradle.jvmargs=\"-Xmx2048m -XX:MaxMetaspaceSize=1024m\""
+        }
       },
       "ios": {
         "distribution": "store",

@@ -12,7 +12,7 @@ import {
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { useReducedMotion } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Button } from "@/components/ui/button";
+import { PrimaryAction } from "@/components/action";
 import { Text } from "@/components/ui/text";
 import { PreviousQuestionButton } from "@/features/onboarding/previous-question-button";
 import { useAuth } from "@/db/provider";
@@ -242,7 +242,7 @@ function Questions({ initialStep }: { initialStep: Step }) {
                 <View className="gap-2">
                   <Text
                     accessibilityRole="header"
-                    className="text-[28px] font-bold leading-[34px] tracking-tight"
+                    className="text-[28px] font-bold leading-8.5 tracking-tight"
                   >
                     {titles[pageStep]}
                   </Text>
@@ -299,25 +299,19 @@ function Questions({ initialStep }: { initialStep: Step }) {
             }
           >
             <View
-              className="min-h-14 min-w-14 items-center justify-center"
+              className="items-center justify-center"
               pointerEvents={"auto"}
               importantForAccessibility={"auto"}
             >
               <PreviousQuestionButton disabled={locked} onPress={previous} />
             </View>
-            <Button
-              className={
-                fontScale > 1.3
-                  ? "h-auto min-h-14 rounded-full"
-                  : "h-auto min-h-14 flex-1 rounded-full"
-              }
-              disabled={locked || action.disabled}
-              onPress={action.onPress}
-            >
-              <Text className="shrink text-center text-[17px] font-semibold">
-                {action.label}
-              </Text>
-            </Button>
+            <View className={fontScale > 1.3 ? undefined : "flex-1"}>
+              <PrimaryAction
+                label={action.label}
+                disabled={locked || action.disabled}
+                onPress={action.onPress}
+              />
+            </View>
           </View>
         </View>
       </View>

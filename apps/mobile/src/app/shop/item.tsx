@@ -341,6 +341,7 @@ function MealDetails({ item, category, saving, onClose }: DetailsProps) {
  *  saved on blur or sheet dismissal, laid out like a Reminders detail. The note
  *  is free text, never parsed. */
 function StandaloneDetails({ item, category, saving, onClose }: DetailsProps) {
+  const mutedColor = useResolveClassNames("text-muted-foreground").color;
   const initialName = item.name ?? "";
   const initialNote = item.spec ?? "";
   const [name, setName] = useState(initialName);
@@ -409,6 +410,7 @@ function StandaloneDetails({ item, category, saving, onClose }: DetailsProps) {
           }}
           accessibilityLabel="Name"
           placeholder="Name"
+          placeholderTextColor={mutedColor}
           returnKeyType="done"
           editable={!saving}
           // No line height: on iOS it shifts single-line input text down.
@@ -432,6 +434,7 @@ function StandaloneDetails({ item, category, saving, onClose }: DetailsProps) {
           }}
           accessibilityLabel="Note"
           placeholder="Add a note"
+          placeholderTextColor={mutedColor}
           multiline
           submitBehavior="blurAndSubmit"
           returnKeyType="done"

@@ -41,15 +41,26 @@ export function PrimaryAction({
   );
 }
 
-// Tonal, seeded from primary: the same treatment as the onboarding back
-// button, so Material picks a container and label that read in both modes.
-export function Action({ label, onPress, disabled = false }: ActionProps) {
-  const primary = color(useResolveClassNames("bg-primary").backgroundColor);
+// Quiet: the secondary surface with our own tokens. A seeded tonal button
+// lets Material derive the container, and plum came out pink.
+export function Action({
+  label,
+  onPress,
+  disabled = false,
+  destructive = false,
+}: ActionProps) {
+  const container = color(useResolveClassNames("bg-secondary").backgroundColor);
+  const content = color(
+    useResolveClassNames(
+      destructive ? "text-destructive" : "text-secondary-foreground",
+    ).color,
+  );
   return (
-    <Host style={{ height: ACTION_HEIGHT }} seedColor={primary}>
+    <Host style={{ height: ACTION_HEIGHT }}>
       <FilledTonalButton
         onClick={onPress}
         enabled={!disabled}
+        colors={{ containerColor: container, contentColor: content }}
         modifiers={MODIFIERS}
       >
         <Text style={LABEL_STYLE}>{label}</Text>

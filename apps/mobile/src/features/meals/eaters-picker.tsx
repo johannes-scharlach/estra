@@ -4,14 +4,13 @@ import { useState } from "react";
 import { Platform, Pressable, View } from "react-native";
 import { useResolveClassNames } from "uniwind";
 
+import { CHECKED_ICON, UNCHECKED_ICON } from "@/components/check-icons";
 import { Input } from "@/components/ui/input";
 import { Text } from "@/components/ui/text";
 
 import { formatExtraPortions, parseExtraPortions, type Eater } from "./eaters";
 
 const SLIDER_MAX = 8;
-const ON_ICON = { ios: "checkmark.circle.fill", android: "check_circle" } as const;
-const OFF_ICON = { ios: "circle", android: "radio_button_unchecked" } as const;
 
 type Props = {
   people: Eater[];
@@ -57,18 +56,23 @@ export function EatersPicker({
         {people.length ? (
           people.map((p) => {
             const on = eaterIds.includes(p.id);
+            const check = (
+              <SymbolView name={on ? CHECKED_ICON : UNCHECKED_ICON} tintColor={on ? primary : muted} size={22} />
+            );
             return (
               <Pressable
                 key={p.id}
                 accessibilityRole="checkbox"
                 accessibilityState={{ checked: on }}
                 onPress={() => toggle(p.id)}
-                className="flex-row items-center justify-between py-2.5"
+                className="flex-row items-center gap-3 py-2.5 ios:justify-between"
               >
+                {/* Material puts the checkbox first; iOS puts the mark last. */}
+                {Platform.OS === "android" ? check : null}
                 <Text className={on ? "text-base" : "text-base text-muted-foreground"}>
                   {p.self ? "Me" : p.name}
                 </Text>
-                <SymbolView name={on ? ON_ICON : OFF_ICON} tintColor={on ? primary : muted} size={22} />
+                {Platform.OS === "ios" ? check : null}
               </Pressable>
             );
           })

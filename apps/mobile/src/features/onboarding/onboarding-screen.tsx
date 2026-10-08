@@ -6,7 +6,7 @@ import { Pressable, ScrollView, View } from "react-native";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useResolveClassNames } from "uniwind";
-import { Button } from "@/components/ui/button";
+import { PrimaryAction } from "@/components/action";
 import { Text } from "@/components/ui/text";
 
 const BACK_ICON = { ios: "chevron.left", android: "arrow_back" } as const;
@@ -128,13 +128,11 @@ export function OnboardingScreen({
             className="absolute bottom-0 left-0 right-0 px-6 pt-3"
             style={{ paddingBottom: Math.max(insets.bottom, 14) }}
           >
-            <Button
-              className="min-h-14 rounded-full"
+            <PrimaryAction
+              label={action.label}
               disabled={action.disabled}
               onPress={action.onPress}
-            >
-              <Text className="text-[17px] font-semibold">{action.label}</Text>
-            </Button>
+            />
           </View>
         ) : null}
       </View>

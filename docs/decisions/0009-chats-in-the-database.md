@@ -1,7 +1,7 @@
 # 9. Chats live in the database, the server writes them
 
 Date: 2026-09-02
-Status: Accepted; amended 2026-09-04
+Status: Accepted; amended 2026-09-04, 2026-10-06
 Amends: 5 (the "server stores nothing" chat contract)
 
 ## Context
@@ -171,3 +171,43 @@ What does NOT change: the server is the only writer, clients render from
 the database with the in-flight exception, content stays Markdown in
 tags, actions stay out of content (the sheet's confirm IS the message),
 photos stay in Storage.
+
+## Amendment, 2026-10-06 — turn outcome is not stream delivery
+
+A tool attempt failing is not the user's request failing. Losing the phone's
+live connection is not evidence of either. PowerSync can deliver the completed
+reply after the phone has locked or backgrounded.
+
+- **Acceptance is durable and idempotent.** The user message and a running
+  assistant row commit together. Its `data-turn` part records the initiating
+  user message id and `running`, `completed`, or `failed`. This uses the existing
+  SDK data-part format, like suggestions; no new table or sync rule is needed.
+  Reposting an accepted message id returns 202, never another agent run. Only
+  one turn can run in a conversation at a time.
+- **The server drains the persistence stream.** Draining only the model stream
+  was insufficient: canceling the HTTP response could call the UI stream's end
+  callback with a partial reply. A separately consumed copy of the SSE stream
+  now keeps message assembly and persistence alive independently of the phone.
+  Completed steps checkpoint their tool results while the turn is running.
+- **Partial replies are honest.** A model error, abort, token cutoff, or exhausted
+  step budget marks the reply failed rather than silently storing it as
+  completed. Partial text and completed actions remain in history. Failure to
+  generate suggested replies does not fail the turn.
+- **The phone reconciles, rather than resends.** A lost stream causes a neutral
+  wait, without an error haptic or retry prompt. A read-only message lookup can
+  confirm receipt and return the saved reply when the app foregrounds; PowerSync
+  remains the source of truth. A completed synced row also closes a lingering
+  live fetch and takes precedence over its preview. Confirmed replies stay in
+  memory across follow-ups until sync catches up; an older running checkpoint
+  must not undo a known terminal outcome.
+- **Recovery matches the problem.** A message definitely not received can be
+  sent again under the same id. A genuinely interrupted accepted turn offers
+  `Continue`, a new follow-up, not a replay of the original request. Successful
+  tool results are facts the assistant must preserve and use when continuing.
+  Internal failed tool attempts remain in history, but are not red activity
+  rows or error messages for the user. Access and validation rejections explain
+  the problem without offering a pointless retry loop.
+
+The running process has a bounded generation budget. This is not a durable job
+queue: a killed server process or unavailable persistence can leave a turn's
+outcome unknown. Unknown does not authorize an automatic rerun of its actions.

@@ -15,6 +15,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useResolveClassNames } from "uniwind";
 
+import { CHECKED_ICON, UNCHECKED_ICON } from "@/components/check-icons";
 import { Text } from "@/components/ui/text";
 import { saveMealShoppingReview } from "@/db/meal-shopping";
 import type { ListItem, PlannedMeal } from "@/db/schema";
@@ -212,14 +213,7 @@ function IngredientReview({
                     className="min-h-11 flex-row items-center gap-3"
                   >
                     <SymbolView
-                      name={
-                        checked
-                          ? {
-                              ios: "checkmark.circle.fill",
-                              android: "check_circle",
-                            }
-                          : { ios: "circle", android: "radio_button_unchecked" }
-                      }
+                      name={checked ? CHECKED_ICON : UNCHECKED_ICON}
                       tintColor={
                         checked && item?.status !== "purchased"
                           ? primary

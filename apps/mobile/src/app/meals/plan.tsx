@@ -11,7 +11,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { Button } from "@/components/ui/button";
+import { PrimaryAction } from "@/components/action";
 import { Text } from "@/components/ui/text";
 import { mealPlanMessage } from "@/features/chat/compose";
 import {
@@ -24,6 +24,7 @@ import { ImageAttachmentStrip } from "@/features/chat/image-attachment-strip";
 import { queueMessage } from "@/features/chat/message-queue";
 import { dateKey, MONTH_SHORT, WEEKDAY_LONG } from "@/features/meals/slots";
 import { cn } from "@/lib/utils";
+import { useResolveClassNames } from "uniwind";
 
 const MEALS = ["lunch", "dinner"] as const;
 type Meal = (typeof MEALS)[number];
@@ -44,6 +45,7 @@ function rollingWeek(): Date[] {
 type Box = { x: number; y: number; width: number; height: number };
 
 export default function PlanMeals() {
+  const mutedColor = useResolveClassNames("text-muted-foreground").color;
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [days] = useState(rollingWeek);
@@ -324,6 +326,7 @@ export default function PlanMeals() {
               onChangeText={setNotes}
               textAlignVertical="top"
               accessibilityLabel="What do you have in mind? (optional)"
+              placeholderTextColor={mutedColor}
               placeholder="Something you're craving, quick dinners, guests, ingredients to use up…"
               className="min-h-28 px-4 py-3 text-base text-foreground placeholder:text-muted-foreground/70"
             />
@@ -362,14 +365,11 @@ export default function PlanMeals() {
           className="px-6 pt-3"
           style={{ paddingBottom: Math.max(insets.bottom, 12) }}
         >
-          <Button
-            size="lg"
-            className="min-h-12"
+          <PrimaryAction
+            label="Start planning"
             disabled={!slots.length || pickingAttachments}
             onPress={start}
-          >
-            <Text>Start planning</Text>
-          </Button>
+          />
         </View>
       </KeyboardAvoidingView>
     </>

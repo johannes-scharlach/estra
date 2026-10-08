@@ -2,6 +2,7 @@ import { useQuery } from "@powersync/react";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { ScrollView, View } from "react-native";
 
+import { Action, PrimaryAction } from "@/components/action";
 import { Button } from "@/components/ui/button";
 import { Text } from "@/components/ui/text";
 import type { ListItem, PlannedMeal } from "@/db/schema";
@@ -37,16 +38,15 @@ export default function WrittenMeal() {
           {isLoading ? "Loading meal…" : "This meal is no longer planned."}
         </Text>
       ) : meal.variant_id ? (
-        <Button
+        <PrimaryAction
+          label="Open planned recipe"
           onPress={() =>
             router.replace({
               pathname: "/variant/[id]",
               params: { id: meal.variant_id!, plannedMealId: meal.id },
             })
           }
-        >
-          <Text>Open planned recipe</Text>
-        </Button>
+        />
       ) : (
         <>
           {pastMeal ? (
@@ -59,7 +59,8 @@ export default function WrittenMeal() {
           ) : null}
           <Text className="text-2xl font-semibold">{meal.name}</Text>
           {pastMeal ? (
-            <Button
+            <PrimaryAction
+              label="Plan again"
               onPress={() =>
                 router.push({
                   pathname: "/meals/move",
@@ -72,12 +73,10 @@ export default function WrittenMeal() {
                   },
                 })
               }
-            >
-              <Text>Plan again</Text>
-            </Button>
+            />
           ) : (
-            <Button
-              variant="outline"
+            <Action
+              label="Edit meal"
               onPress={() =>
                 router.push({
                   pathname: "/meals/write",
@@ -88,9 +87,7 @@ export default function WrittenMeal() {
                   },
                 })
               }
-            >
-              <Text>Edit meal</Text>
-            </Button>
+            />
           )}
           <View className="gap-3">
             {items.length ? (

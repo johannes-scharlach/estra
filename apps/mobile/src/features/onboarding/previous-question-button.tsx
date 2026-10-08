@@ -3,6 +3,8 @@ import { FilledTonalIconButton, Icon } from "@expo/ui/jetpack-compose";
 import { size } from "@expo/ui/jetpack-compose/modifiers";
 import { useResolveClassNames } from "uniwind";
 
+import { ACTION_HEIGHT } from "@/components/action-shared";
+
 export type PreviousQuestionButtonProps = {
   onPress: () => void;
   disabled: boolean;
@@ -20,7 +22,7 @@ export function PreviousQuestionButton({
       <FilledTonalIconButton
         onClick={onPress}
         enabled={!disabled}
-        modifiers={[size(44, 44)]}
+        modifiers={[size(ACTION_HEIGHT, ACTION_HEIGHT)]}
       >
         <Icon
           source={require("../../../assets/icons/arrow_back.xml")}

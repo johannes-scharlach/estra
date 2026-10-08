@@ -65,10 +65,15 @@ export function Action({
   label,
   onPress,
   disabled: isDisabled = false,
+  destructive = false,
 }: ActionProps) {
   const scheme = useColorScheme();
-  const primary = useResolveClassNames("bg-primary").backgroundColor;
-  const onSecondary = useResolveClassNames("text-secondary-foreground").color;
+  const primary = useResolveClassNames(
+    destructive ? "bg-destructive" : "bg-primary",
+  ).backgroundColor;
+  const onSecondary = useResolveClassNames(
+    destructive ? "text-destructive" : "text-secondary-foreground",
+  ).color;
   return (
     <Host
       // A fixed frame, not matchContents: measuring the label before the

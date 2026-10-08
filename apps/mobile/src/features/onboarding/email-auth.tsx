@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AppState, Pressable, View } from "react-native";
 import { z } from "zod";
+import { InputOTP } from "@/components/ui/input-otp";
 import { Text } from "@/components/ui/text";
 import { Field, FormError } from "@/features/profile/form";
 import { supabase } from "@/lib/supabase";
@@ -196,17 +197,16 @@ export function EmailAuthFields({
       <FormError message={state.error} />
       {state.codeMode ? (
         <>
-          <Field
-            label="Verification code"
-            value={state.code}
-            onChangeText={state.changeCode}
-            keyboardType="number-pad"
-            textContentType="oneTimeCode"
-            autoComplete="one-time-code"
-            maxLength={6}
-            editable={!state.busy}
-            onSubmitEditing={state.primaryAction.onPress}
-          />
+          <View className="gap-2">
+            <Text className="font-medium">Verification code</Text>
+            <InputOTP
+              maxLength={6}
+              autoFocus
+              value={state.code}
+              onChange={state.changeCode}
+              accessibilityLabel="Verification code"
+            />
+          </View>
           {state.resendAction ? (
             <Pressable
               accessibilityRole="button"

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Pressable, ScrollView, View } from "react-native";
 import { useResolveClassNames } from "uniwind";
 import { Action, PrimaryAction } from "@/components/action";
+import { SELECTED_ICON, UNSELECTED_ICON } from "@/components/check-icons";
 import { CloseButton } from "@/components/close-button";
 import { Text } from "@/components/ui/text";
 import { createHousehold, renameList } from "@/db/lists";
@@ -13,8 +14,6 @@ import { Field, FormError } from "@/features/profile/form";
 import { useHousehold } from "@/features/profile/use-household";
 import { cn } from "@/lib/utils";
 
-const ON_ICON = { ios: "checkmark.circle.fill", android: "check_circle" } as const;
-const OFF_ICON = { ios: "circle", android: "radio_button_unchecked" } as const;
 
 type Naming = { kind: "rename" | "create"; name: string };
 
@@ -120,7 +119,7 @@ export default function SwitchHousehold() {
                 >
                   <Text className="text-base">{h.name}</Text>
                   <SymbolView
-                    name={on ? ON_ICON : OFF_ICON}
+                    name={on ? SELECTED_ICON : UNSELECTED_ICON}
                     tintColor={on ? primary : muted}
                     size={22}
                   />

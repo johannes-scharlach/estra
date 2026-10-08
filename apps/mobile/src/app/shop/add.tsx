@@ -250,6 +250,7 @@ export default function AddItemSheet() {
                         }
                         editable={!saving}
                         placeholder="Add details"
+                        placeholderTextColor={mutedColor}
                         accessibilityLabel={`Details for ${item.name}`}
                         returnKeyType="done"
                         onSubmitEditing={() => inputRef.current?.focus()}
@@ -274,6 +275,7 @@ export default function AddItemSheet() {
             onChangeText={setDraft}
             editable={!!listId}
             placeholder={added.length ? "Next item" : "Add an item"}
+            placeholderTextColor={mutedColor}
             accessibilityLabel="Add an item"
             autoFocus
             autoCapitalize="sentences"

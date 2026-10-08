@@ -5,5 +5,7 @@ export type ActionProps = {
   label: string;
   onPress: () => void;
   disabled?: boolean;
+  // Quiet action for something that removes data: seeded from destructive.
+  destructive?: boolean;
 };
 export const ACTION_HEIGHT = 50;
