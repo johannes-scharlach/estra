@@ -60,12 +60,10 @@ export function stripDates(pastDays: number = PAST_DAYS): {
   return { dates, todayIndex: pastDays };
 }
 
-/** "2026-09-22", "dinner" → "Tue dinner". Parsed as a local date so the day doesn't shift. */
+/** "2026-09-22", "dinner" → "Friday dinner". Parsed as a local date so the day doesn't shift. */
 export function slotWhen(date: string | null, meal: string | null): string {
   const day = date
-    ? new Date(`${date}T00:00`).toLocaleDateString(undefined, {
-        weekday: "short",
-      })
+    ? (WEEKDAY_LONG[new Date(`${date}T00:00`).getDay()] ?? null)
     : null;
   return [day, meal].filter(Boolean).join(" ");
 }

@@ -12,6 +12,10 @@ describe("notification route", () => {
     });
   });
 
+  it("opens the Shop tab for the List", () => {
+    expect(notificationRoute({ kind: "items_bought" }, "n1")).toBe("/(tabs)/shop");
+  });
+
   it("opens Household activity for joins and pushes from older servers", () => {
     expect(notificationRoute({ kind: "member_joined" }, "n1")).toBe(
       "/household-activity",

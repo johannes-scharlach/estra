@@ -178,7 +178,8 @@ export default function RootLayout() {
                     <Stack.Screen
                       name="meals/shopping"
                       options={{
-                        title: "Choose what to buy",
+                        // The screen sets its meal's slot ("Today · Dinner").
+                        title: "",
                         headerBackButtonDisplayMode: "minimal",
                       }}
                     />
@@ -236,6 +237,9 @@ export default function RootLayout() {
                       name="chats/[id]"
                       options={{
                         presentation: "card",
+                        // The linked-recipe banner sits above the transcript,
+                        // outside any scroll view, so the header stays solid.
+                        headerTransparent: false,
                       }}
                     />
                     <Stack.Screen

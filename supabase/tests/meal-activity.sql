@@ -169,8 +169,15 @@ select results_eq(
   'A recipe meal is named by its variant, and a new variant is a change');
 
 -- Uploads reach Postgres directly, so the trigger asks for the push itself.
-select vault.create_secret('http://worker.invalid/functions/v1/notification-worker', 'notification_worker_url');
-select vault.create_secret('test-secret', 'notification_worker_secret');
+-- Override existing local config inside this transaction; rollback restores it.
+select vault.update_secret(id, 'http://worker.invalid/functions/v1/notification-worker')
+  from vault.secrets where name = 'notification_worker_url';
+select vault.create_secret('http://worker.invalid/functions/v1/notification-worker', 'notification_worker_url')
+  where not exists (select 1 from vault.secrets where name = 'notification_worker_url');
+select vault.update_secret(id, 'test-secret')
+  from vault.secrets where name = 'notification_worker_secret';
+select vault.create_secret('test-secret', 'notification_worker_secret')
+  where not exists (select 1 from vault.secrets where name = 'notification_worker_secret');
 select set_config('test.before_plan', (select count(*)::text from net.http_request_queue), true);
 set local role authenticated;
 select set_config('request.jwt.claim.sub', 'a1000000-0000-4000-8000-000000000001', true);

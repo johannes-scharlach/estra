@@ -41,7 +41,8 @@ select is(accept_household_invite(current_setting('test.invite_code'), null, 'Du
   'bb000000-0000-4000-8000-000000000001'::uuid, 'A lost response can be retried safely');
 select is((select count(*)::integer from household_people where list_id = 'bb000000-0000-4000-8000-000000000001'), 1, 'Retry does not add another eater');
 reset role;
-select is((select count(*)::integer from notification_deliveries), 1, 'Join creates delivery work for an existing member device');
+select is((select count(*)::integer from notification_deliveries
+  where list_id = 'bb000000-0000-4000-8000-000000000001'), 1, 'Join creates delivery work for an existing member device');
 select is((select count(*)::integer from notification_deliveries where user_id = 'aa000000-0000-4000-8000-000000000002'), 0, 'Joiner receives no delivery work');
 set local role authenticated;
 select is(preview_household_invite(current_setting('test.invite_code'))->>'joined', 'true', 'Reopening an invite recognizes your existing link');

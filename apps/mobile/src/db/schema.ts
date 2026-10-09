@@ -82,6 +82,8 @@ const household_activities = new Table(
     previous_meal_name: column.text,
     previous_slot_date: column.text,
     previous_meal: column.text,
+    // List activities (spec 0009): JSON array of names, null otherwise.
+    item_names: column.text,
   },
   { indexes: { by_list_recent: ["list_id", "occurred_at"] } },
 );
@@ -142,6 +144,8 @@ const planned_meals = new Table(
     shopping_reviewed_variant_id: column.text,
     /** JSON map of stable ingredient id to alternative index in this variant. */
     ingredient_swaps: column.text,
+    /** JSON array of ingredient ids the household already has for this meal. */
+    ingredients_at_home: column.text,
     created_at: column.text,
     updated_at: column.text,
   },

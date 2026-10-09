@@ -1,7 +1,13 @@
 import { SymbolView } from "expo-symbols";
 import { LinearGradient } from "expo-linear-gradient";
 import { Link, router } from "expo-router";
+import { useMemo } from "react";
 import { Pressable, ScrollView, View } from "react-native";
+import {
+  Gesture,
+  GestureDetector,
+  type PanGesture,
+} from "react-native-gesture-handler";
 import Animated from "react-native-reanimated";
 import { useResolveClassNames } from "uniwind";
 
@@ -19,6 +25,7 @@ type Recipe = DisplayRecipe;
 
 type Props = {
   title: string;
+  dayPan: PanGesture;
   date: string;
   slot: MealSlot;
   /** Deterministic slot id; the recipe page uses it to know which meal it is about. */
@@ -57,6 +64,7 @@ const PAST_ICON = { ios: "clock", android: "history" } as const;
  */
 export function MealSection({
   title,
+  dayPan,
   date,
   slot,
   plannedMealId,
@@ -87,6 +95,15 @@ export function MealSection({
     plannedHeadingStyle,
   } = useMealSelectionTransition(recipe?.id);
   const planned = !!recipe;
+  const contendersScroll = useMemo(
+    () =>
+      Gesture.Native()
+        // The day pager waits for this scroll, rather than racing to activate.
+        .blocksExternalGesture(dayPan)
+        .disallowInterruption(true)
+        .shouldCancelWhenOutside(false),
+    [dayPan],
+  );
 
   return (
     <View className="gap-3">
@@ -246,69 +263,73 @@ export function MealSection({
           </View>
         ) : (
           <View className="gap-3">
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ paddingHorizontal: 24, gap: 12 }}
-            >
-              {contenders.map((c) => (
-                <Pressable
-                  key={c.id}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Select ${c.name} for ${title.toLowerCase()}`}
-                  onPress={(event) =>
-                    selectContender(c.id, event, () => onPlan(c))
-                  }
-                  onLongPress={() =>
-                    router.push({
-                      pathname: "/variant/versions",
-                      params: {
-                        recipeId: c.recipeId ?? "",
-                        id: c.id,
-                        date,
-                        slot,
-                      },
-                    })
-                  }
-                  accessibilityHint="Long press for other variants"
-                  className="w-40 overflow-hidden rounded-xl border border-border bg-card"
-                >
-                  <View className="h-24">
-                    <LinearGradient
-                      colors={tonalPair(c.id, dark)}
-                      start={{ x: 0.15, y: 0 }}
-                      end={{ x: 0.85, y: 1 }}
-                      style={{ flex: 1 }}
-                    />
-                    {c.totalTime ? (
-                      <Text className="absolute bottom-2 left-2 max-w-[90%] rounded-full bg-background/50 mix-blend-hard-light px-2.5 py-1 text-xs font-medium">
-                        {c.totalTime}
-                      </Text>
-                    ) : null}
-                  </View>
-                  <View className="p-3">
-                    <Text
-                      numberOfLines={2}
-                      className="min-h-10 text-sm font-medium leading-5"
-                    >
-                      {c.name}
-                    </Text>
-                  </View>
-                </Pressable>
-              ))}
-              <Pressable
-                accessibilityRole="button"
-                onPress={onCookbook}
-                className="w-40 min-h-36 items-center justify-center gap-3 rounded-xl border border-border bg-card p-4"
+            <GestureDetector gesture={contendersScroll}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ paddingHorizontal: 24, gap: 12 }}
               >
-                <SymbolView
-                  name={{ ios: "book", android: "menu_book" }}
-                  size={28}
-                  tintColor={muted}
-                />
-                <Text className="text-center font-medium">Browse cookbook</Text>
-              </Pressable>
-            </ScrollView>
+                {contenders.map((c) => (
+                  <Pressable
+                    key={c.id}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Select ${c.name} for ${title.toLowerCase()}`}
+                    onPress={(event) =>
+                      selectContender(c.id, event, () => onPlan(c))
+                    }
+                    onLongPress={() =>
+                      router.push({
+                        pathname: "/variant/versions",
+                        params: {
+                          recipeId: c.recipeId ?? "",
+                          id: c.id,
+                          date,
+                          slot,
+                        },
+                      })
+                    }
+                    accessibilityHint="Long press for other variants"
+                    className="w-40 overflow-hidden rounded-xl border border-border bg-card"
+                  >
+                    <View className="h-24">
+                      <LinearGradient
+                        colors={tonalPair(c.id, dark)}
+                        start={{ x: 0.15, y: 0 }}
+                        end={{ x: 0.85, y: 1 }}
+                        style={{ flex: 1 }}
+                      />
+                      {c.totalTime ? (
+                        <Text className="absolute bottom-2 left-2 max-w-[90%] rounded-full bg-background/50 mix-blend-hard-light px-2.5 py-1 text-xs font-medium">
+                          {c.totalTime}
+                        </Text>
+                      ) : null}
+                    </View>
+                    <View className="p-3">
+                      <Text
+                        numberOfLines={2}
+                        className="min-h-10 text-sm font-medium leading-5"
+                      >
+                        {c.name}
+                      </Text>
+                    </View>
+                  </Pressable>
+                ))}
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={onCookbook}
+                  className="w-40 min-h-36 items-center justify-center gap-3 rounded-xl border border-border bg-card p-4"
+                >
+                  <SymbolView
+                    name={{ ios: "book", android: "menu_book" }}
+                    size={28}
+                    tintColor={muted}
+                  />
+                  <Text className="text-center font-medium">
+                    Browse cookbook
+                  </Text>
+                </Pressable>
+              </ScrollView>
+            </GestureDetector>
             <View className="flex-row gap-3 px-6">
               <Button variant="outline" className="flex-1" onPress={onImport}>
                 <Text>Import recipe</Text>

@@ -11,13 +11,16 @@ import {
   mealActivityText,
   todayIn,
 } from "./meal-activity-text.ts";
+import { type ListActivity, listActivityText } from "./list-activity-text.ts";
+import { type MealReminder, mealReminderText } from "./meal-reminder-text.ts";
 
 const EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send";
 const EXPO_RECEIPTS_URL = "https://exp.host/--/api/v2/push/getReceipts";
 
 export type ClaimedDelivery = {
   id: string;
-  activity_id: string;
+  // Null for a reminder, which is about a day rather than an activity.
+  activity_id: string | null;
   list_id: string;
   user_id: string;
   device_id: string;
@@ -28,15 +31,23 @@ export type ClaimedDelivery = {
   ticket_sent_at: string | null;
   time_zone: string | null;
   household_name: string;
-  // The activity's snapshot; the meal fields are set for meal kinds only.
-  kind: "member_joined" | MealActivity["kind"];
-  actor_name: string;
+  // The activity's snapshot; the meal fields are set for meal kinds only,
+  // item_names for list kinds only. A reminder has slot_date and the day.
+  kind:
+    | "member_joined"
+    | MealActivity["kind"]
+    | ListActivity["kind"]
+    | "meal_reminder";
+  actor_name: string | null;
   meal_name: string | null;
   slot_date: string | null;
   meal: string | null;
   previous_meal_name: string | null;
   previous_slot_date: string | null;
   previous_meal: string | null;
+  item_names: string[] | null;
+  day_meals: MealReminder["day_meals"] | null;
+  items_to_buy: number | null;
 };
 
 export async function dispatchNotificationBatch(
@@ -254,16 +265,7 @@ async function applyDecision(
 
 // Rendered at send time, so a retry hours later still names the right day.
 export function pushMessage(delivery: ClaimedDelivery, now: Date) {
-  const { title, body } =
-    delivery.kind === "member_joined"
-      ? {
-          title: delivery.household_name,
-          body: `${delivery.actor_name} joined your household.`,
-        }
-      : mealActivityText(
-          delivery as MealActivity,
-          todayIn(delivery.time_zone, now),
-        );
+  const { title, body } = pushText(delivery, now);
   return {
     to: delivery.expo_push_token,
     title,
@@ -289,4 +291,24 @@ function expoHeaders(): Record<string, string> {
     "Content-Type": "application/json",
     ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
   };
+}
+
+function pushText(delivery: ClaimedDelivery, now: Date) {
+  switch (delivery.kind) {
+    case "member_joined":
+      return {
+        title: delivery.household_name,
+        body: `${delivery.actor_name} joined your household.`,
+      };
+    case "items_added":
+    case "items_bought":
+      return listActivityText(delivery as ListActivity);
+    case "meal_reminder":
+      return mealReminderText(delivery as MealReminder);
+    default:
+      return mealActivityText(
+        delivery as MealActivity,
+        todayIn(delivery.time_zone, now),
+      );
+  }
 }

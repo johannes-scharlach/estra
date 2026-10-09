@@ -1,35 +1,43 @@
-import { Button, Host, Text as NativeText } from "@expo/ui";
 import { parseMealSwaps } from "@estra/meals";
-import { fillMaxWidth } from "@expo/ui/jetpack-compose/modifiers";
+import { MenuView } from "@expo/ui/community/menu";
 import { useQuery } from "@powersync/react";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import * as Haptics from "expo-haptics";
+import { Stack, useLocalSearchParams } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import { useMemo, useState } from "react";
-import {
-  ActivityIndicator,
-  Platform,
-  Pressable,
-  ScrollView,
-  View,
-} from "react-native";
+import { ActivityIndicator, Platform, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useResolveClassNames } from "uniwind";
 
-import { CHECKED_ICON, UNCHECKED_ICON } from "@/components/check-icons";
+import { Action } from "@/components/action";
 import { Text } from "@/components/ui/text";
-import { saveMealShoppingReview } from "@/db/meal-shopping";
+import { setMealSwap } from "@/db/meal-ingredients";
+import { decideIngredients, parseAtHome } from "@/db/meal-shopping";
 import type { ListItem, PlannedMeal } from "@/db/schema";
 import { parseIngredientLines } from "@/db/variants";
+import { DecisionPicker } from "@/features/meals/decision-picker";
 import {
   optionsForLine,
+  shoppingProgress,
   shoppingReview,
+  type IngredientDecision,
 } from "@/features/meals/shopping-review";
 import { mealLabel } from "@/features/meals/variant-meals";
+import { prettyQuantity, splitSpec } from "@/features/shop/spec";
+import { capitalize } from "@/features/shop/text";
 
 type Meal = PlannedMeal & {
   recipe_name: string | null;
   ingredient_lines: string | null;
 };
+type Entry = ReturnType<typeof shoppingReview>[number];
+type Decide = (ingredientIds: number[], decision: "shop" | "home") => void;
+
+// The system's popup-button glyph, as on the recipe page.
+const POPUP_ICON = {
+  ios: "chevron.up.chevron.down",
+  android: "unfold_more",
+} as const;
 
 export default function MealShopping() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -70,14 +78,7 @@ export default function MealShopping() {
       </ScrollView>
     );
   }
-  return (
-    <IngredientReview
-      key={`${meal.content_id}:${meal.variant_id}`}
-      meal={meal}
-      lines={parsed}
-      items={items}
-    />
-  );
+  return <IngredientReview meal={meal} lines={parsed} items={items} />;
 }
 
 function IngredientReview({
@@ -89,228 +90,299 @@ function IngredientReview({
   lines: ReturnType<typeof parseIngredientLines>;
   items: ListItem[];
 }) {
-  const router = useRouter();
   const insets = useSafeAreaInsets();
-  const primary = useResolveClassNames("text-primary").color;
-  const muted = useResolveClassNames("text-muted-foreground").color;
-  const review = shoppingReview(
-    lines, items, parseMealSwaps(meal.ingredient_swaps),
-  );
-  const alreadyReviewed = meal.shopping_reviewed_variant_id === meal.variant_id;
-  const [selected, setSelected] = useState(
-    () =>
-      new Set(
-        review
-          .filter((entry) => entry.item || (!alreadyReviewed && !entry.atHome))
-          .map((entry) => entry.index),
-      ),
-  );
-  const [optionIndexes, setOptionIndexes] = useState<Record<number, number>>({});
-  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const toAdd = review.filter(
-    (entry) => selected.has(entry.index) && !entry.item,
+  // Decisions show on tap, not after the write comes back through the query:
+  // that round trip is what made the rows feel late. A pending decision gives
+  // way once the saved one matches it, or when its write fails.
+  const [pending, setPending] = useState<
+    ReadonlyMap<number, IngredientDecision>
+  >(new Map());
+  // Swaps show on pick the same way: the chosen option index, until saved.
+  const [pendingSwaps, setPendingSwaps] = useState<ReadonlyMap<number, number>>(
+    new Map(),
   );
-
-  async function save() {
-    if (saving || !meal.list_id || !meal.content_id || !meal.variant_id) return;
-    setSaving(true);
-    setError(null);
-    try {
-      await saveMealShoppingReview({
-        listId: meal.list_id,
-        mealId: meal.id,
-        contentId: meal.content_id,
-        variantId: meal.variant_id,
-        choices: review.map((entry) => ({
-          lineIndex: entry.index,
-          optionIndex: optionIndexes[entry.index] ?? entry.optionIndex,
-        })),
-        selections: review
-          .filter((entry) => selected.has(entry.index))
-          .map((entry) => ({
-            lineIndex: entry.index,
-            optionIndex: optionIndexes[entry.index] ?? entry.optionIndex,
-          })),
-      });
-      router.back();
-    } catch (e) {
-      setError(
-        e instanceof Error
-          ? e.message
-          : "Couldn't save shopping choices. Try again.",
-      );
-      setSaving(false);
-    }
+  const savedSwaps = parseMealSwaps(meal.ingredient_swaps);
+  const settledSwaps = [...pendingSwaps].filter(
+    ([id, index]) => (savedSwaps[id] ?? 0) === index,
+  );
+  if (settledSwaps.length) {
+    setPendingSwaps(withoutIds(pendingSwaps, settledSwaps.map(([id]) => id)));
   }
+  const swaps = { ...savedSwaps };
+  for (const [id, index] of pendingSwaps) {
+    if (index) swaps[id] = index;
+    else delete swaps[id];
+  }
+  const saved = shoppingReview(
+    lines,
+    items,
+    swaps,
+    parseAtHome(meal.ingredients_at_home),
+  );
+  const settled = saved.filter(
+    (entry) =>
+      entry.line.id != null &&
+      pending.has(entry.line.id) &&
+      (entry.decision === "bought" ||
+        pending.get(entry.line.id) === entry.decision),
+  );
+  if (settled.length) {
+    setPending(
+      withoutIds(
+        pending,
+        settled.map((entry) => entry.line.id!),
+      ),
+    );
+  }
+  const review = saved.map((entry) => ({
+    ...entry,
+    decision:
+      (entry.line.id != null && pending.get(entry.line.id)) || entry.decision,
+  }));
+
+  const run = (write: () => Promise<void>, undo?: () => void) => {
+    setError(null);
+    write().catch((e: unknown) => {
+      undo?.();
+      setError(e instanceof Error ? e.message : "Couldn't save. Try again.");
+    });
+  };
+  const decide: Decide = (ingredientIds, decision) => {
+    if (!meal.list_id || !meal.content_id || !meal.variant_id) return;
+    const target = {
+      listId: meal.list_id,
+      mealId: meal.id,
+      contentId: meal.content_id,
+      variantId: meal.variant_id,
+    };
+    setPending((current) => {
+      const next = new Map(current);
+      for (const id of ingredientIds) next.set(id, decision);
+      return next;
+    });
+    run(
+      () => decideIngredients({ ...target, ingredientIds, decision }),
+      () => setPending((current) => withoutIds(current, ingredientIds)),
+    );
+  };
+  const swap = (ingredientId: number, index: number, name: string) => {
+    if (!meal.variant_id) return;
+    const variantId = meal.variant_id;
+    setPendingSwaps((current) => new Map(current).set(ingredientId, index));
+    run(
+      () => setMealSwap({ mealId: meal.id, variantId, ingredientId, name }),
+      () => setPendingSwaps((current) => withoutIds(current, [ingredientId])),
+    );
+  };
+
+  // What is probably needed comes first: tap the cart on those, then mark
+  // the rest at home in one go.
+  const ordered = [
+    ...review.filter((entry) => !entry.likelyHave),
+    ...review.filter((entry) => entry.likelyHave),
+  ];
+  const undecided = ordered
+    .filter((entry) => entry.decision === "undecided")
+    .flatMap((entry) => (entry.line.id == null ? [] : [entry.line.id]));
+
+  const markAtHome = () => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    decide(undecided, "home");
+  };
+  const markLabel =
+    undecided.length === review.length
+      ? `Mark all ${undecided.length} at home`
+      : `Mark the remaining ${undecided.length} at home`;
 
   return (
-    <ScrollView
-      className="flex-1 bg-background"
-      contentInsetAdjustmentBehavior="automatic"
-      contentContainerStyle={{
-        padding: 24,
-        paddingBottom: insets.bottom + 24,
-        gap: 24,
-      }}
-    >
-      <View className="gap-1">
-        <Text variant="h3">{meal.recipe_name}</Text>
-        <Text variant="muted">{mealLabel(meal)}</Text>
-        <Text variant="muted">
-          Choose what to buy, and pick a swap if you prefer an alternative.
-          Swaps apply to this meal, even for ingredients you already have.
-        </Text>
-      </View>
-      {[false, true].map((atHome) => {
-        const entries = review.filter((entry) => entry.atHome === atHome);
-        return (
-          <View key={String(atHome)} className="gap-2">
-            <Text className="font-semibold">
-              {atHome ? "Probably at home" : "Likely purchases"}
+    <>
+      <ScrollView
+        className="flex-1 bg-background"
+        contentInsetAdjustmentBehavior="automatic"
+        contentContainerStyle={{
+          paddingTop: 24,
+          paddingBottom: insets.bottom + 24,
+          gap: 20,
+        }}
+      >
+        <View className="gap-1 px-6">
+          <Text variant="h3">{meal.recipe_name}</Text>
+          <Text variant="muted">{shoppingProgress(review)}</Text>
+          {/* Android toolbars draw no labels, so the action stays in the content. */}
+          {Platform.OS === "android" && undecided.length ? (
+            <View className="pt-3">
+              <Action label={markLabel} onPress={markAtHome} />
+            </View>
+          ) : null}
+          {error ? (
+            <Text selectable className="text-destructive">
+              {error}
             </Text>
-            {entries.length === 0 ? (
-              <Text variant="muted">No ingredients in this section.</Text>
-            ) : null}
-            {entries.map(({ index, line, item, optionIndex }) => {
-              const checked = item?.status === "purchased" || selected.has(index);
-              const options = optionsForLine(line);
-              const chosenIndex = optionIndexes[index] ?? optionIndex;
-              const chosen = options[chosenIndex] ?? line;
-              const itemLabel = item?.status === "purchased"
-                ? `Bought: ${[item.name, item.spec].filter(Boolean).join(" · ")}`
-                : item ? "Already on the list" : null;
-              // Only an alternative has a reason; the line's own ingredient
-              // needs no justification for being there.
-              const chosenReason =
-                chosenIndex > 0 && "reason" in chosen
-                  ? chosen.reason
-                  : undefined;
-              return (
-                <View key={index} className="border-b border-border py-3">
-                  <Pressable
-                    accessibilityRole="checkbox"
-                    accessibilityState={{
-                      checked,
-                      disabled: saving || item?.status === "purchased",
-                    }}
-                    accessibilityLabel={[
-                      chosen.qty_text,
-                      chosen.item_name,
-                      itemLabel,
-                    ]
-                      .filter(Boolean)
-                      .join(" ")}
-                    disabled={saving || item?.status === "purchased"}
-                    onPress={() =>
-                      setSelected((current) => {
-                        const next = new Set(current);
-                        if (next.has(index)) next.delete(index);
-                        else next.add(index);
-                        return next;
-                      })
-                    }
-                    className="min-h-11 flex-row items-center gap-3"
-                  >
-                    <SymbolView
-                      name={checked ? CHECKED_ICON : UNCHECKED_ICON}
-                      tintColor={
-                        checked && item?.status !== "purchased"
-                          ? primary
-                          : muted
-                      }
-                      size={24}
-                    />
-                    <View className="flex-1 gap-0.5">
-                      <Text>
-                        {[chosen.qty_text, chosen.item_name]
-                          .filter(Boolean)
-                          .join(" ")}
-                      </Text>
-                      {chosen.prep_note ? (
-                        <Text variant="muted">{chosen.prep_note}</Text>
-                      ) : null}
-                      {chosenReason ? (
-                        <Text variant="muted">{chosenReason}</Text>
-                      ) : null}
-                      {itemLabel ? <Text variant="muted">{itemLabel}</Text> : null}
-                    </View>
-                  </Pressable>
-                  {options.length > 1 ? (
-                    <View className="ml-9 mt-2 flex-row flex-wrap items-center gap-2">
-                      {options.map((option, choice) => {
-                        const active = chosenIndex === choice;
-                        return (
-                          <Pressable
-                            key={`${index}:${option.item_name}`}
-                            accessibilityRole="radio"
-                            accessibilityState={{
-                              checked: active,
-                              disabled: saving,
-                            }}
-                            disabled={saving}
-                            onPress={() => {
-                              setOptionIndexes((current) => ({
-                                ...current,
-                                [index]: choice,
-                              }));
-                            }}
-                            className={
-                              active
-                                ? "rounded-full border border-primary bg-primary/10 px-3 py-1.5"
-                                : "rounded-full border border-border px-3 py-1.5"
-                            }
-                          >
-                            <Text
-                              className={
-                                active
-                                  ? "text-primary"
-                                  : "text-muted-foreground"
-                              }
-                            >
-                              {choice === 0
-                                ? `Original · ${option.item_name}`
-                                : option.item_name}
-                            </Text>
-                          </Pressable>
-                        );
-                      })}
-                    </View>
-                  ) : null}
-                </View>
-              );
-            })}
-          </View>
-        );
-      })}
-      <View className="gap-3">
-        {error ? (
-          <Text selectable className="text-destructive">
-            {error}
-          </Text>
-        ) : null}
-        <Host matchContents={{ vertical: true }} ignoreSafeArea="all">
-          <Button disabled={saving} onPress={() => void save()}>
-            <NativeText
-              // Compose's width modifier only takes numbers; "100%" crashes Android.
-              style={{
-                width: Platform.OS === "ios" ? "100%" : undefined,
-                paddingVertical: 12,
-              }}
-              modifiers={
-                Platform.OS === "android" ? [fillMaxWidth()] : undefined
-              }
-              textStyle={{ textAlign: "center" }}
-            >
-              {saving
-                ? "Saving…"
-                : toAdd.length
-                  ? `Add ${toAdd.length} ${toAdd.length === 1 ? "item" : "items"}`
-                  : "Save choices"}
-            </NativeText>
-          </Button>
-        </Host>
-      </View>
-    </ScrollView>
+          ) : null}
+        </View>
+        <View>
+          {ordered.map((entry, index) => (
+            <IngredientRow
+              key={entry.index}
+              entry={entry}
+              last={index === ordered.length - 1}
+              decide={decide}
+              swap={swap}
+            />
+          ))}
+        </View>
+      </ScrollView>
+      {/* The slot heads the screen; the recipe heads the content. */}
+      <Stack.Screen options={{ title: mealLabel(meal) }} />
+      {/* A screen-wide action: the floating bar, within thumb reach, in words. */}
+      {Platform.OS === "ios" ? (
+        <Stack.Toolbar placement="bottom">
+          <Stack.Toolbar.Button
+            hidden={undecided.length === 0}
+            onPress={markAtHome}
+          >
+            {markLabel}
+          </Stack.Toolbar.Button>
+        </Stack.Toolbar>
+      ) : null}
+    </>
   );
+}
+
+/**
+ * One primary line with its control, one secondary line below. The name opens
+ * the swap menu; why an alternative suits lives in that menu, where it helps
+ * the choice.
+ */
+function IngredientRow({
+  entry,
+  last,
+  decide,
+  swap,
+}: {
+  entry: Entry;
+  /** Separators sit between rows, never after the last one. */
+  last: boolean;
+  decide: Decide;
+  swap: (ingredientId: number, index: number, name: string) => void;
+}) {
+  const primary = useResolveClassNames("text-primary").color;
+  const { line, optionIndex, item, decision } = entry;
+  const options = optionsForLine(line);
+  const chosen = options[optionIndex] ?? line;
+  // A bought row shows what was actually bought.
+  const bought = item?.status === "purchased";
+  const name = capitalize(bought ? (item.name ?? "") : chosen.item_name);
+  const amount = bought
+    ? splitSpec(item.spec).amount
+    : chosen.qty_text
+      ? prettyQuantity(chosen.qty_text)
+      : null;
+  const others = options.filter((_, index) => index !== optionIndex);
+  const canSwap = line.id != null && others.length > 0 && decision !== "bought";
+  const detail = [
+    amount,
+    bought ? null : chosen.prep_note,
+    canSwap ? `or ${others.map((option) => option.item_name).join(", ")}` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  const reasons = options
+    .flatMap((option) =>
+      "reason" in option && option.reason
+        ? [`${capitalize(option.item_name)}: ${option.reason}`]
+        : [],
+    )
+    .join("\n");
+  const title = (
+    <View className="flex-row items-center gap-1.5 self-start">
+      <Text className="font-medium">{name}</Text>
+      {canSwap ? (
+        <SymbolView name={POPUP_ICON} tintColor={primary} size={11} />
+      ) : null}
+    </View>
+  );
+
+  return (
+    // A plain iOS list: separators start at the text and run to the screen edge.
+    <View
+      className={`ml-6 gap-1 py-3 pr-6 ${last ? "" : "border-b border-border"}`}
+    >
+      {/* The control shares the name's line; the details get the full width. */}
+      {/* The name sits low, on the baseline of the control's icons. */}
+      <View className="min-h-9 flex-row items-end gap-3">
+        <View className="min-w-0 flex-1 pb-1">
+          {decision === "undecided" ? <UnreadDot /> : null}
+          {canSwap ? (
+            <MenuView
+              // The host sizes itself to the label once; a new name is a new host.
+              key={chosen.item_name}
+              title={reasons}
+              actions={options.map((option, index) => ({
+                id: String(index),
+                title: capitalize(option.item_name),
+                state: index === optionIndex ? "on" : "off",
+              }))}
+              onPressAction={({ nativeEvent: { event } }) => {
+                const option = options[Number(event)];
+                if (option && Number(event) !== optionIndex)
+                  swap(line.id!, Number(event), option.item_name);
+              }}
+            >
+              <View
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel={`${name}, choose an alternative`}
+              >
+                {title}
+              </View>
+            </MenuView>
+          ) : (
+            title
+          )}
+        </View>
+        {line.id == null ? null : decision === "bought" ? (
+          // Bought is a fact, not a choice: a badge the picker's size keeps
+          // the column's rhythm.
+          <View className="h-8 w-28 flex-row items-center justify-center gap-1.5 rounded-full bg-primary/10 android:h-10 android:w-32">
+            <SymbolView
+              name={{ ios: "checkmark", android: "check" }}
+              tintColor={primary}
+              size={13}
+              weight="semibold"
+            />
+            <Text className="text-sm font-medium text-primary">Bought</Text>
+          </View>
+        ) : (
+          <DecisionPicker
+            value={decision === "undecided" ? null : decision}
+            onChange={(next) => {
+              void Haptics.selectionAsync();
+              decide([line.id!], next);
+            }}
+          />
+        )}
+      </View>
+      {detail ? <Text variant="muted">{detail}</Text> : null}
+    </View>
+  );
+}
+
+/**
+ * Mail's unread dot: in the leading margin, centred on the name's line, it
+ * marks the rows still waiting for a decision.
+ */
+function UnreadDot() {
+  return (
+    <View className="absolute -left-4 bottom-1 top-0 justify-center">
+      <View className="size-2.5 rounded-full bg-primary" />
+    </View>
+  );
+}
+
+function withoutIds<V>(map: ReadonlyMap<number, V>, ids: readonly number[]) {
+  const next = new Map(map);
+  for (const id of ids) next.delete(id);
+  return next;
 }

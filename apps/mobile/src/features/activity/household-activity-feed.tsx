@@ -19,8 +19,13 @@ import { useAuth } from "@/db/provider";
 import { useToday } from "@/hooks/use-today";
 import { cn } from "@/lib/utils";
 
-import { useActivities, type HouseholdActivity } from "./activities";
+import {
+  isListActivity,
+  useActivities,
+  type HouseholdActivity,
+} from "./activities";
 import { ActivityCell, ActivityCellLayoutContext } from "./activity-cell";
+import { listActivityText } from "./list-activity-text";
 import { mealActivityText } from "./meal-activity-text";
 import { useActivityVisit } from "./use-activity-visit";
 
@@ -142,6 +147,8 @@ function ActivityFeed({
                   markSeen([item.id]);
                   if (item.kind === "member_joined") {
                     router.push("/household");
+                  } else if (isListActivity(item)) {
+                    router.navigate("/(tabs)/shop");
                   } else {
                     // `at` reselects the day even when the same row is tapped again.
                     router.navigate({
@@ -194,6 +201,8 @@ function rowText(item: HouseholdActivity, today: string) {
       }),
     };
   }
-  const { title, body } = mealActivityText(item, today);
+  const { title, body } = isListActivity(item)
+    ? listActivityText(item)
+    : mealActivityText(item, today);
   return { title, subtitle: body };
 }

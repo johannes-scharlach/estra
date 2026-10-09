@@ -1,6 +1,6 @@
 const JSON_COLUMNS: Record<string, readonly string[]> = {
   variants: ["ingredient_lines", "instructions", "sized_for"],
-  planned_meals: ["eater_ids", "ingredient_swaps"],
+  planned_meals: ["eater_ids", "ingredient_swaps", "ingredients_at_home"],
   household_profiles: [
     "goals",
     "kitchen_equipment",

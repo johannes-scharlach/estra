@@ -281,6 +281,7 @@ export default function Meals() {
         <DayContent
           date={date}
           isToday={key === todayKey}
+          dayPan={dayPan}
           list={list}
           importJobs={importJobs}
           plannedFor={plannedFor}

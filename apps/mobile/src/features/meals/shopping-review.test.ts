@@ -1,6 +1,6 @@
 import { expect, it } from "vitest";
 import { IngredientLineSchema } from "../../db/schemas";
-import { probablyAtHome, shoppingReview } from "./shopping-review";
+import { probablyAtHome, shoppingProgress, shoppingReview, undecidedCount } from "./shopping-review";
 
 it("uses the recipe's shopping hint, never the ingredient name or aisle", () => {
   const lines = [
@@ -25,7 +25,7 @@ it("uses the recipe's shopping hint, never the ingredient name or aisle", () => 
     },
   ].map((line) => IngredientLineSchema.parse(line));
   expect(lines.filter(probablyAtHome)).toEqual(lines.slice(2));
-  expect(shoppingReview(lines, []).map((entry) => entry.atHome)).toEqual([
+  expect(shoppingReview(lines, []).map((entry) => entry.likelyHave)).toEqual([
     false,
     false,
     true,
@@ -94,4 +94,30 @@ it("shows the meal choice even without a shopping item", () => {
     { 8: 1 },
   );
   expect(review[0]).toMatchObject({ optionIndex: 1, item: null });
+});
+
+it("decides each ingredient from its shopping row first, then the meal's at-home marks", () => {
+  const line = (id: number) => ({ id, item_name: `Item ${id}`, qty_text: null });
+  const review = shoppingReview(
+    [line(1), line(2), line(3), line(4)],
+    [
+      { ingredient_id: 1, name: "Item 1", spec: null, status: "active" },
+      { ingredient_id: 2, name: "Item 2", spec: null, status: "purchased" },
+    ],
+    {},
+    [1, 3],
+  );
+  expect(review.map((entry) => entry.decision)).toEqual(["shop", "bought", "home", "undecided"]);
+  expect(undecidedCount(review)).toBe(1);
+});
+
+it("summarises a meal's shopping as what is left to decide, then what was decided", () => {
+  const lines = [1, 2, 3, 4].map((id) => ({ id, item_name: `Item ${id}`, qty_text: null }));
+  const items = [
+    { ingredient_id: 1, name: "Item 1", spec: null, status: "active" },
+    { ingredient_id: 2, name: "Item 2", spec: null, status: "purchased" },
+  ];
+  expect(shoppingProgress(shoppingReview(lines, items, {}, [3]))).toBe("1 to decide");
+  expect(shoppingProgress(shoppingReview(lines, items, {}, [3, 4]))).toBe("1 on the list · 1 bought · 2 at home");
+  expect(shoppingProgress(shoppingReview(lines, [], {}, [1, 2, 3, 4]))).toBe("All at home");
 });

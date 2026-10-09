@@ -1,6 +1,6 @@
 import { Stack } from "expo-router";
 import { type ReactNode, useEffect } from "react";
-import { Alert } from "react-native";
+import { Alert, Platform } from "react-native";
 import {
   InvitationProvider,
   useInvitation,
@@ -56,7 +56,15 @@ function InvitationStack({ children }: { children: ReactNode }) {
     );
   }
   return (
-    <Stack>
+    // iOS draws pushed screens' headers as floating glass over the content.
+    // Scrolling roots need contentInsetAdjustmentBehavior="automatic".
+    <Stack
+      screenOptions={
+        Platform.OS === "ios"
+          ? { headerTransparent: true, headerShadowVisible: false }
+          : undefined
+      }
+    >
       <Stack.Protected guard={!!invitation.code}>
         <Stack.Screen
           name="join"

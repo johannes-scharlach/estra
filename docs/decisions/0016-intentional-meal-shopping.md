@@ -2,6 +2,7 @@
 
 Date: 2026-09-24
 Status: Accepted
+Amended by: 23 (explicit ingredient decisions)
 
 ## Context
 

@@ -69,6 +69,7 @@ export async function setPlannedMeal(client: PoolClient, opts: {
         SET recipe_id = EXCLUDED.recipe_id, variant_id = EXCLUDED.variant_id, name = NULL,
             shopping_reviewed_variant_id = NULL,
             ingredient_swaps = '{}'::jsonb,
+            ingredients_at_home = '[]'::jsonb,
            content_id = EXCLUDED.content_id,
            eater_ids = EXCLUDED.eater_ids, extra_portions = EXCLUDED.extra_portions,
            updated_at = now()`}

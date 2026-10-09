@@ -120,16 +120,20 @@ function ListScreen({
     };
   }, []);
 
-  useFocusEffect(() => {
-    // Resorting happens on revisit: holds live until the screen loses focus.
-    return () => {
-      sessions.current.forEach((session) => session.dispose());
-      sessions.current.clear();
-      setBrowsing(new Map());
-      setHighlighted(null);
-      if (highlightTimer.current) clearTimeout(highlightTimer.current);
-    };
-  });
+  // Stable callback: useFocusEffect reruns, cleanup included, whenever the
+  // callback changes, and this cleanup sets state.
+  useFocusEffect(
+    useCallback(() => {
+      // Resorting happens on revisit: holds live until the screen loses focus.
+      return () => {
+        sessions.current.forEach((session) => session.dispose());
+        sessions.current.clear();
+        setBrowsing(new Map());
+        setHighlighted(null);
+        if (highlightTimer.current) clearTimeout(highlightTimer.current);
+      };
+    }, []),
+  );
 
   const { data: rawRows } = useQuery<ShopRow>(
     `SELECT i.*, c.name AS category_name, v.ingredient_lines, pm.ingredient_swaps,

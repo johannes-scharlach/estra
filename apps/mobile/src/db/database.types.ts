@@ -166,7 +166,9 @@ export type Database = {
         Row: {
           actor_name: string
           actor_user_id: string | null
+          closes_at: string | null
           id: string
+          item_names: Json | null
           kind: string
           list_id: string
           meal: string | null
@@ -180,7 +182,9 @@ export type Database = {
         Insert: {
           actor_name: string
           actor_user_id?: string | null
+          closes_at?: string | null
           id?: string
+          item_names?: Json | null
           kind: string
           list_id: string
           meal?: string | null
@@ -194,7 +198,9 @@ export type Database = {
         Update: {
           actor_name?: string
           actor_user_id?: string | null
+          closes_at?: string | null
           id?: string
+          item_names?: Json | null
           kind?: string
           list_id?: string
           meal?: string | null
@@ -594,6 +600,7 @@ export type Database = {
           extra_portions: number
           id: string
           ingredient_swaps: Json
+          ingredients_at_home: Json
           list_id: string
           meal: string
           name: string | null
@@ -610,6 +617,7 @@ export type Database = {
           extra_portions?: number
           id?: string
           ingredient_swaps?: Json
+          ingredients_at_home?: Json
           list_id: string
           meal?: string
           name?: string | null
@@ -626,6 +634,7 @@ export type Database = {
           extra_portions?: number
           id?: string
           ingredient_swaps?: Json
+          ingredients_at_home?: Json
           list_id?: string
           meal?: string
           name?: string | null
@@ -814,9 +823,17 @@ export type Database = {
           expo_ticket_id: string
           household_name: string
           id: string
+          kind: string
           list_id: string
+          meal: string
+          meal_name: string
+          previous_meal: string
+          previous_meal_name: string
+          previous_slot_date: string
+          slot_date: string
           status: string
           ticket_sent_at: string
+          time_zone: string
           user_id: string
         }[]
       }

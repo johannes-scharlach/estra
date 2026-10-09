@@ -57,6 +57,7 @@ export default function ChatHistorySheet() {
       ) : null}
       {chats.length ? (
         <ScrollView
+          contentInsetAdjustmentBehavior="automatic"
           contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
         >
           <View className="divide-y divide-border/40 border-t border-border/40">

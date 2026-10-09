@@ -20,7 +20,8 @@ test("server planning saves the meal without shopping and rejects occupied slots
         id uuid PRIMARY KEY, list_id uuid, recipe_id uuid, variant_id uuid, name text,
         content_id uuid DEFAULT gen_random_uuid(), slot_date text, meal text,
         eater_ids jsonb, extra_portions double precision, shopping_reviewed_variant_id uuid,
-        ingredient_swaps jsonb NOT NULL DEFAULT '{}', updated_at timestamptz DEFAULT now()
+        ingredient_swaps jsonb NOT NULL DEFAULT '{}', ingredients_at_home jsonb NOT NULL DEFAULT '[]',
+        updated_at timestamptz DEFAULT now()
       );
       CREATE TEMP TABLE list_items (
         id uuid PRIMARY KEY, list_id uuid, name text, name_key text, category_id text, spec text,
