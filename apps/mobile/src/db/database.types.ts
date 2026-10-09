@@ -502,7 +502,7 @@ export type Database = {
       }
       notification_deliveries: {
         Row: {
-          activity_id: string
+          activity_id: string | null
           attempt_count: number
           created_at: string
           delivered_at: string | null
@@ -515,14 +515,15 @@ export type Database = {
           list_id: string
           next_attempt_at: string
           receipt_due_at: string | null
-          recipient_id: string
+          recipient_id: string | null
+          reminder_date: string | null
           status: string
           ticket_sent_at: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
-          activity_id: string
+          activity_id?: string | null
           attempt_count?: number
           created_at?: string
           delivered_at?: string | null
@@ -535,14 +536,15 @@ export type Database = {
           list_id: string
           next_attempt_at?: string
           receipt_due_at?: string | null
-          recipient_id: string
+          recipient_id?: string | null
+          reminder_date?: string | null
           status?: string
           ticket_sent_at?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
-          activity_id?: string
+          activity_id?: string | null
           attempt_count?: number
           created_at?: string
           delivered_at?: string | null
@@ -555,7 +557,8 @@ export type Database = {
           list_id?: string
           next_attempt_at?: string
           receipt_due_at?: string | null
-          recipient_id?: string
+          recipient_id?: string | null
+          reminder_date?: string | null
           status?: string
           ticket_sent_at?: string | null
           updated_at?: string
@@ -818,11 +821,14 @@ export type Database = {
           activity_id: string
           actor_name: string
           attempt_count: number
+          day_meals: Json
           device_id: string
           expo_push_token: string
           expo_ticket_id: string
           household_name: string
           id: string
+          item_names: Json
+          items_to_buy: number
           kind: string
           list_id: string
           meal: string
@@ -837,6 +843,20 @@ export type Database = {
           user_id: string
         }[]
       }
+      empty_day_reminder_due: {
+        Args: { day: string; last_planned: string }
+        Returns: boolean
+      }
+      extend_list_activity: {
+        Args: {
+          actor: string
+          item_name: string
+          quiet: string
+          target_kind: string
+          target_list_id: string
+        }
+        Returns: undefined
+      }
       is_list_member: { Args: { target_list_id: string }; Returns: boolean }
       item_name_key: { Args: { name: string }; Returns: string }
       planned_meal_name: {
@@ -844,6 +864,7 @@ export type Database = {
         Returns: string
       }
       preview_household_invite: { Args: { code: string }; Returns: Json }
+      queue_meal_reminders: { Args: { now_at?: string }; Returns: undefined }
       register_push_device: {
         Args: {
           target_expo_push_token: string
@@ -857,6 +878,15 @@ export type Database = {
       reset_household_invite: {
         Args: { target_list_id: string }
         Returns: string
+      }
+      retract_list_activity: {
+        Args: {
+          actor: string
+          item_name: string
+          target_kind: string
+          target_list_id: string
+        }
+        Returns: boolean
       }
       unregister_push_device: {
         Args: { target_installation_id: string; target_reason?: string }
