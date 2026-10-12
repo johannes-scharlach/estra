@@ -1,5 +1,6 @@
 # Deploys all Edge Functions, including shared code and per-function settings.
-# Requires repo secret SUPABASE_ACCESS_TOKEN with access to the Estra project.
+# Requires repo secret SUPABASE_ACCESS_TOKEN: a Supabase personal access token
+# with access to the Estra project, not a project API key.
 # Database migrations and function secrets are managed separately.
 name: supabase-functions-deploy
 on:
@@ -28,7 +29,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v7
         with:
           node-version: 22
