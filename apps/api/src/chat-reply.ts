@@ -32,13 +32,20 @@ function errorTextFor(error: unknown): string {
 export function createChatReply<TOOLS extends ToolSet>(opts: {
   id: string;
   userMessageId: string;
+  /** Aborts when the app hangs up: it left the chat, went to the background or lost its connection. */
+  request: AbortSignal;
   run: () => Promise<{
     stream: ReadableStream<TextStreamPart<TOOLS>>;
     text: PromiseLike<string>;
   }>;
   suggestions: (text: string) => Promise<string[]>;
   save: (message: AssistantUIMessage) => Promise<void>;
+  /** Tells the asker the saved reply is ready (ADR 26). */
+  notify: () => Promise<void>;
 }): Response {
+  // Decided when the end is written: the app hanging up after it saw the end
+  // must not count as having left.
+  let away = false;
   const stream = createUIMessageStream<AssistantUIMessage>({
     generateId: () => opts.id,
     onError: (error) => {
@@ -101,6 +108,7 @@ export function createChatReply<TOOLS extends ToolSet>(opts: {
           console.error("suggestions failed", cause);
         }
       }
+      away = opts.request.aborted;
       writer.write({
         type: "data-turn",
         id: "turn",
@@ -113,7 +121,15 @@ export function createChatReply<TOOLS extends ToolSet>(opts: {
       writer.write({ type: "finish" });
     },
     onStepEnd: ({ responseMessage }) => opts.save(responseMessage),
-    onEnd: ({ responseMessage }) => opts.save(responseMessage),
+    onEnd: async ({ responseMessage }) => {
+      await opts.save(responseMessage);
+      if (!away) return;
+      try {
+        await opts.notify();
+      } catch (cause) {
+        console.error("chat reply push failed", cause);
+      }
+    },
   });
   // Drain the stream that assembles and saves the reply, not just the model.
   // A canceled HTTP body must not cancel persistence or save a partial reply.

@@ -13,7 +13,15 @@ describe("notification route", () => {
   });
 
   it("opens the Shop tab for the List", () => {
-    expect(notificationRoute({ kind: "items_bought" }, "n1")).toBe("/(tabs)/shop");
+    expect(notificationRoute({ kind: "items_bought" }, "n1")).toBe(
+      "/(tabs)/shop",
+    );
+  });
+
+  it("opens the chat a reply push is about", () => {
+    expect(
+      notificationRoute({ kind: "chat_reply", chatId: "chat-1" }, "n1"),
+    ).toEqual({ pathname: "/chats/[id]", params: { id: "chat-1" } });
   });
 
   it("opens Household activity for joins and pushes from older servers", () => {

@@ -13,13 +13,14 @@ import {
 } from "./meal-activity-text.ts";
 import { type ListActivity, listActivityText } from "./list-activity-text.ts";
 import { type MealReminder, mealReminderText } from "./meal-reminder-text.ts";
+import { type ChatReply, chatReplyText } from "./chat-reply-text.ts";
 
 const EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send";
 const EXPO_RECEIPTS_URL = "https://exp.host/--/api/v2/push/getReceipts";
 
 export type ClaimedDelivery = {
   id: string;
-  // Null for a reminder, which is about a day rather than an activity.
+  // Null for a reminder or a chat reply, which are not activities.
   activity_id: string | null;
   list_id: string;
   user_id: string;
@@ -32,12 +33,14 @@ export type ClaimedDelivery = {
   time_zone: string | null;
   household_name: string;
   // The activity's snapshot; the meal fields are set for meal kinds only,
-  // item_names for list kinds only. A reminder has slot_date and the day.
+  // item_names for list kinds only. A reminder has slot_date and the day;
+  // a chat reply has the chat and the reply's text and turn parts.
   kind:
     | "member_joined"
     | MealActivity["kind"]
     | ListActivity["kind"]
-    | "meal_reminder";
+    | "meal_reminder"
+    | "chat_reply";
   actor_name: string | null;
   meal_name: string | null;
   slot_date: string | null;
@@ -48,6 +51,9 @@ export type ClaimedDelivery = {
   item_names: string[] | null;
   day_meals: MealReminder["day_meals"] | null;
   items_to_buy: number | null;
+  chat_id: string | null;
+  chat_title: string | null;
+  reply_parts: ChatReply["reply_parts"] | null;
 };
 
 export async function dispatchNotificationBatch(
@@ -279,6 +285,7 @@ export function pushMessage(delivery: ClaimedDelivery, now: Date) {
       userId: delivery.user_id,
       kind: delivery.kind,
       slotDate: delivery.slot_date,
+      chatId: delivery.chat_id,
     },
   };
 }
@@ -305,6 +312,8 @@ function pushText(delivery: ClaimedDelivery, now: Date) {
       return listActivityText(delivery as ListActivity);
     case "meal_reminder":
       return mealReminderText(delivery as MealReminder);
+    case "chat_reply":
+      return chatReplyText(delivery as ChatReply);
     default:
       return mealActivityText(
         delivery as MealActivity,

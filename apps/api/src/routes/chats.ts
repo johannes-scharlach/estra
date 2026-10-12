@@ -555,9 +555,12 @@ chats.post("/:id/messages", async (c) => {
   return createChatReply({
     id: assistantId,
     userMessageId: message.id,
+    request: c.req.raw.signal,
     run: async () =>
       streamText({
         model: google(CHAT_MODEL),
+        // Gemini defaults to high thinking, which made every turn slow.
+        reasoning: "low",
         system,
         // Completed actions survive an interrupted turn. Drop only tool calls
         // without a result, so continuation can act on what actually happened.
@@ -589,6 +592,12 @@ chats.post("/:id/messages", async (c) => {
           : "UPDATE chats SET updated_at = now() WHERE id = $1",
         title ? [chatId, title] : [chatId],
       );
+    },
+    notify: async () => {
+      await pool.query("SELECT public.queue_chat_reply($1, $2)", [
+        assistantId,
+        userId,
+      ]);
     },
   });
 });

@@ -47,6 +47,7 @@ import {
   type Parts,
 } from "@/features/chat/stream";
 import { latestRecipeResult } from "@/features/chat/recipe-results";
+import { setChatOnScreen } from "@/features/notifications/chat-on-screen";
 import { useActiveList } from "@/features/onboarding/access";
 import { posthog } from "@/lib/posthog";
 
@@ -370,6 +371,23 @@ export default function ChatScreen() {
     });
     await runTurn({ message: userMessage(text, id2), attachments });
   }
+
+  // The reply stream lives only while this chat is on screen and the app is
+  // in front. Hanging up tells the server nobody is watching, so it pushes
+  // when the reply is ready (ADR 26); PowerSync and the turn check catch up.
+  useFocusEffect(
+    useCallback(() => {
+      setChatOnScreen(chatId);
+      const subscription = AppState.addEventListener("change", (state) => {
+        if (state === "background") liveRequest.current?.controller.abort();
+      });
+      return () => {
+        setChatOnScreen(null);
+        subscription.remove();
+        liveRequest.current?.controller.abort();
+      };
+    }, [chatId]),
+  );
 
   // Send a queued message on focus — on mount for a fresh chat (the
   // queue is its first message), or on return from the plan sheet for one

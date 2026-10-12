@@ -26,6 +26,9 @@ const join: ClaimedDelivery = {
   item_names: null,
   day_meals: null,
   items_to_buy: null,
+  chat_id: null,
+  chat_title: null,
+  reply_parts: null,
 };
 
 Deno.test("a join names the household", () => {
@@ -41,6 +44,7 @@ Deno.test("a join names the household", () => {
     userId: "user-1",
     kind: "member_joined",
     slotDate: null,
+    chatId: null,
   });
 });
 
@@ -97,4 +101,27 @@ Deno.test("a reminder opens its day and has no activity", () => {
   );
   assertEquals(message.data.activityId, null);
   assertEquals(message.data.slotDate, "2026-10-07");
+});
+
+Deno.test("a chat reply opens its chat", () => {
+  const message = pushMessage(
+    {
+      ...join,
+      activity_id: null,
+      kind: "chat_reply",
+      actor_name: null,
+      chat_id: "chat-1",
+      chat_title: "Green soup",
+      reply_parts: [
+        { type: "text", text: "Here is a green soup." },
+        { type: "data-turn", data: { status: "completed" } },
+      ],
+    },
+    now,
+  );
+  assertEquals(
+    [message.title, message.body],
+    ["Green soup", "Here is a green soup."],
+  );
+  assertEquals(message.data.chatId, "chat-1");
 });

@@ -6,17 +6,21 @@ import { AppState } from "react-native";
 
 import { useAuth } from "@/db/provider";
 import { useHouseholdAccess } from "@/features/onboarding/access";
+import { hidesPush } from "./chat-on-screen";
 import { notificationRoute } from "./notification-route";
 import { notificationState, registerPushDevice, unregisterPushDevice } from "./notifications";
 import { pushRegistrationAction } from "./push-registration";
 
 Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  }),
+  handleNotification: async (notification) => {
+    const show = !hidesPush(notification.request.content.data ?? {});
+    return {
+      shouldShowBanner: show,
+      shouldShowList: show,
+      shouldPlaySound: show,
+      shouldSetBadge: false,
+    };
+  },
 });
 
 export function NotificationProvider({ children }: { children: ReactNode }) {
