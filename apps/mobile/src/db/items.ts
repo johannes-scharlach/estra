@@ -1,13 +1,13 @@
-import { itemNameKey } from "@estra/meals";
+import { itemNameKey } from "@magpie/meals";
 
-import { estraUuidV5 } from "@/lib/estra-uuid";
+import { magpieUuidV5 } from "@/lib/magpie-uuid";
 
 import { powersync } from './system';
 import { resolveShoppingItem, writeMealSwap, type MealItemContext } from './meal-ingredients';
 import type { ListItem } from './schema';
 import { parseIngredientLines } from './variants';
 
-// The dedupe key lives in @estra/meals so the API projects the same
+// The dedupe key lives in @magpie/meals so the API projects the same
 // name_key; re-exported here because every item write in the app uses it.
 export { itemNameKey };
 
@@ -19,7 +19,7 @@ export { itemNameKey };
  * come back as a 23505 and be discarded, silently losing someone's add.
  */
 export function itemId(listId: string, name: string): string {
-  return estraUuidV5(`${listId}:${itemNameKey(name)}`);
+  return magpieUuidV5(`${listId}:${itemNameKey(name)}`);
 }
 
 /**

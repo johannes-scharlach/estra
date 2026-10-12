@@ -5,7 +5,7 @@ import {
   resolveMealItem,
   type IngredientLine,
   type MealSwaps,
-} from "@estra/meals";
+} from "@magpie/meals";
 import type { PoolClient } from "pg";
 
 import { AppError, PlannedMealChangedError } from "./errors.js";

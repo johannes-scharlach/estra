@@ -35,7 +35,7 @@ remaining free Supabase slot for production.
   Roughly a dozen containers, plus MongoDB (PowerSync's bucket storage,
   which needs a replica set) — budget a few GB of RAM.
 - No tunnel, no certificate ceremony: PowerSync reaches Postgres over
-  Supabase's internal Docker network as `supabase_db_estra:5432`.
+  Supabase's internal Docker network as `supabase_db_magpie:5432`.
 - `supabase db reset` rebuilds the entire world from migrations and seed,
   which is a good property while the schema moves daily.
 - A simulator can talk to `localhost`. A physical device cannot. Use

@@ -1,6 +1,6 @@
 # Deploys all Edge Functions, including shared code and per-function settings.
 # Requires repo secret SUPABASE_ACCESS_TOKEN: a Supabase personal access token
-# with access to the Estra project, not a project API key.
+# with access to the Magpie project, not a project API key.
 # Database migrations and function secrets are managed separately.
 name: supabase-functions-deploy
 on:

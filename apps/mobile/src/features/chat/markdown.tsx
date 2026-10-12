@@ -3,7 +3,7 @@ import { Linking } from "react-native";
 import { EnrichedMarkdownText, type MarkdownStyle } from "react-native-enriched-markdown";
 import { useResolveClassNames } from "uniwind";
 
-const APP_SCHEME = "estra://";
+const APP_SCHEME = "magpie://";
 
 type Size = "body" | "small" | "page";
 
@@ -52,7 +52,7 @@ export function Markdown({
       markdownStyle={style}
       streamingAnimation={streaming}
       onLinkPress={({ url }) => {
-        // The cook links saved recipes as estra://variant/<id>.
+        // The cook links saved recipes as magpie://variant/<id>.
         if (url.startsWith(APP_SCHEME)) router.push(`/${url.slice(APP_SCHEME.length)}` as never);
         else void Linking.openURL(url);
       }}

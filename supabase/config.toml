@@ -4,7 +4,7 @@
 # working directory name when running `supabase init`.
 # NOTE: this project runs on 553xx rather than the default 543xx range,
 # so it can run alongside other local Supabase projects on this machine.
-project_id = "estra"
+project_id = "magpie"
 
 [api]
 enabled = true
@@ -158,11 +158,11 @@ max_indexes = 5
 enabled = true
 # The base URL of your website. Used as an allow-list for redirects and for constructing URLs used
 # in emails.
-site_url = "estra://"
+site_url = "magpie://"
 # The public URL that Auth serves on. Defaults to the API external URL with `/auth/v1` appended.
 # external_url = ""
 # A list of *exact* URLs that auth providers are permitted to redirect to post authentication.
-additional_redirect_urls = ["estra://", "exp://127.0.0.1:8081", "http://localhost:8081"]
+additional_redirect_urls = ["magpie://", "exp://127.0.0.1:8081", "http://localhost:8081"]
 # How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (1 week).
 jwt_expiry = 3600
 # JWT issuer URL. If not set, defaults to auth.external_url.
@@ -246,11 +246,11 @@ otp_expiry = 3600
 # sender_name = "Admin"
 
 [auth.email.template.confirmation]
-subject = "Your Estra verification code"
+subject = "Your Magpie verification code"
 content_path = "./supabase/templates/email-code.html"
 
 [auth.email.template.magic_link]
-subject = "Your Estra sign-in code"
+subject = "Your Magpie sign-in code"
 content_path = "./supabase/templates/email-code.html"
 
 # Uncomment to customize email template

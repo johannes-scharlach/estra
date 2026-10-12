@@ -1,4 +1,4 @@
-import { itemNameKey, parseMealSwaps, type MealItem } from "@estra/meals";
+import { itemNameKey, parseMealSwaps, type MealItem } from "@magpie/meals";
 import * as Crypto from "expo-crypto";
 
 import {

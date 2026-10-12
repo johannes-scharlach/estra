@@ -4,8 +4,8 @@
   "version": "0.1.0",
   "dependencies": {
     "@azure/core-asynciterator-polyfill": "^1.0.2",
-    "@estra/meals": "workspace:*",
-    "@estra/profile": "workspace:*",
+    "@magpie/meals": "workspace:*",
+    "@magpie/profile": "workspace:*",
     "@expo/metro-runtime": "~57.0.16",
     "@expo/ui": "~57.0.21",
     "@op-engineering/op-sqlite": "^17.2.0",

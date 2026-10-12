@@ -1,4 +1,4 @@
-import { householdSchema } from "@estra/profile";
+import { householdSchema } from "@magpie/profile";
 import { useEffect, useRef, useState } from "react";
 import { Text } from "@/components/ui/text";
 import { useAuth } from "@/db/provider";

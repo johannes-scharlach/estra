@@ -132,7 +132,7 @@ Where the practice disagreed, the practice won:
   question — "What's on hand?" — with an ingredient input shaped like
   adding items to the shopping list (chips, one field, a camera for the
   fridge shot) and a "Get ideas" button. An empty composer read as "talk
-  to ChatGPT"; a dedicated form reads as Estra. The conversation lives on
+  to ChatGPT"; a dedicated form reads as Magpie. The conversation lives on
   a pushed `chats/[id]` screen with no tab bar, so the composer and the
   tabs never share an edge again.
 * **History lives on home; "new chat" is gone as an action.** Home's

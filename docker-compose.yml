@@ -5,6 +5,8 @@
 # Vendored from powersync-ja/self-host-demo (demos/supabase) rather than
 # `include:`-ed, because that demo splits itself across ../../services/*.yaml.
 
+name: magpie
+
 services:
   # PowerSync stores its sync buckets in MongoDB, and requires a replica
   # set (it uses change streams and transactions).
@@ -46,8 +48,8 @@ services:
       # migration; password issued locally by supabase/seed.sql.
       # Container name is supabase_db_<project_id> from supabase/config.toml.
       # Port 5432 is the in-network port, not the one mapped to the host.
-      PS_DATA_SOURCE_URI: postgres://powersync_role:powersync@supabase_db_estra:5432/postgres
-      PS_MONGO_URI: mongodb://mongo:27017/estra
+      PS_DATA_SOURCE_URI: postgres://powersync_role:powersync@supabase_db_magpie:5432/postgres
+      PS_MONGO_URI: mongodb://mongo:27017/magpie
       PS_PORT: 8080
     ports:
       - "8080:8080"
@@ -68,7 +70,7 @@ networks:
   # Created by `supabase start`; named from project_id in supabase/config.toml.
   supabase:
     external: true
-    name: supabase_network_estra
+    name: supabase_network_magpie
 
 volumes:
   mongo_storage:

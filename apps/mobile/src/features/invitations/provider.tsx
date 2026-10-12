@@ -11,7 +11,7 @@ import {
 } from "react";
 import { invitationCode } from "./links";
 
-const KEY = "estra.pending-invitation.v1";
+const KEY = "magpie.pending-invitation.v1";
 type InvitationState = {
   code: string | null;
   ready: boolean;

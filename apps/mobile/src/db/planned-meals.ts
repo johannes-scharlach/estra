@@ -1,5 +1,5 @@
 import * as Crypto from "expo-crypto";
-import { estraUuidV5 } from "@/lib/estra-uuid";
+import { magpieUuidV5 } from "@/lib/magpie-uuid";
 import { isValidExtraPortions } from "@/features/meals/eaters";
 import type { MealSlot } from "@/features/meals/slots";
 
@@ -11,7 +11,7 @@ export function plannedMealId(
   slotDate: string,
   meal: string,
 ): string {
-  return estraUuidV5(`${listId}:${slotDate}:${meal}`);
+  return magpieUuidV5(`${listId}:${slotDate}:${meal}`);
 }
 
 /** Everyone in the household, the default for a meal nobody has narrowed. */

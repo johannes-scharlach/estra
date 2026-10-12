@@ -2,7 +2,7 @@ import { logs } from "@opentelemetry/api-logs";
 
 type LogAttributes = Record<string, boolean | number | string>;
 
-const logger = logs.getLogger("estra-api-posthog-exporter");
+const logger = logs.getLogger("magpie-api-posthog-exporter");
 
 export const posthogApiLogger = {
   info(body: string, attributes: LogAttributes) {

@@ -7,8 +7,8 @@ import { Linking, Platform } from "react-native";
 
 import { supabase } from "@/lib/supabase";
 
-const INSTALLATION_KEY = "estra.notifications.installation.v1";
-const PROMPT_KEY = "estra.notifications.prompted.v1";
+const INSTALLATION_KEY = "magpie.notifications.installation.v1";
+const PROMPT_KEY = "magpie.notifications.prompted.v1";
 export const HOUSEHOLD_CHANNEL = "household-activity";
 
 export type NotificationState = "enabled" | "disabled" | "not-asked";

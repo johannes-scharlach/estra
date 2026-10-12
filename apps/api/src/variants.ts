@@ -1,4 +1,4 @@
-import { assignIngredientIds, type IngredientLine, type SizedFor } from "@estra/meals";
+import { assignIngredientIds, type IngredientLine, type SizedFor } from "@magpie/meals";
 import { randomUUID } from "node:crypto";
 import type { Client, PoolClient } from "pg";
 
@@ -99,5 +99,5 @@ export async function insertVariant(
 
 /** Deep link the app resolves to the variant screen. */
 export function variantUrl(variantId: string): string {
-  return `estra://variant/${variantId}`;
+  return `magpie://variant/${variantId}`;
 }

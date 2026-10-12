@@ -7,7 +7,7 @@ import {
   type HouseholdPerson,
   type Selection,
   type SelectionField,
-} from "@estra/profile";
+} from "@magpie/profile";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   Platform,

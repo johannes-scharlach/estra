@@ -1,4 +1,4 @@
-import { newPerson, type HouseholdPerson } from "@estra/profile";
+import { newPerson, type HouseholdPerson } from "@magpie/profile";
 import * as Crypto from "expo-crypto";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useState, type ReactNode } from "react";

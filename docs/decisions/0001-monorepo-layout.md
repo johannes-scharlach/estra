@@ -5,7 +5,7 @@ Status: Accepted
 
 ## Context
 
-Estra has three deployable things from the outset: the Expo app, Supabase
+Magpie has three deployable things from the outset: the Expo app, Supabase
 edge functions, and — likely later — a Fly.io service for background jobs
 that do not suit a request-scoped function.
 

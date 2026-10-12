@@ -29,7 +29,7 @@ const posthogLogRecordProcessor =
 
 const telemetrySdk = posthogLogRecordProcessor
   ? new NodeSDK({
-      resource: resourceFromAttributes({ "service.name": "estra-api" }),
+      resource: resourceFromAttributes({ "service.name": "magpie-api" }),
       logRecordProcessors: [posthogLogRecordProcessor],
     })
   : null;

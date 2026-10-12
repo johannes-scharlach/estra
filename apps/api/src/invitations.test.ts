@@ -9,8 +9,8 @@ test("public invite landing opens the app without revealing household data", asy
   assert.equal(response.headers.get("cache-control"), "no-store");
   assert.equal(response.headers.get("referrer-policy"), "no-referrer");
   const body = await response.text();
-  assert.ok(body.includes(`estra://join?code=${code}`));
-  assert.ok(body.includes("Install Estra, then tap this invitation"));
+  assert.ok(body.includes(`magpie://join?code=${code}`));
+  assert.ok(body.includes("Install Magpie, then tap this invitation"));
 });
 
 test("malformed invite links cannot inject a deep-link target or markup", async () => {

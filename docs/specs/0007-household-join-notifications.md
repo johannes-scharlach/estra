@@ -11,10 +11,10 @@
   account.
 - Tapping the notification switches to its household and opens Household
   activity.
-- After setup or joining, Estra explains notifications once before showing the
+- After setup or joining, Magpie explains notifications once before showing the
   system permission prompt. “Not now” remains available. Household settings
   provides a later opt-in path.
-- Estra adds no delay or quiet hours. Device Focus and Do Not Disturb settings
+- Magpie adds no delay or quiet hours. Device Focus and Do Not Disturb settings
   control interruption.
 - Transient delivery failures make at most six send attempts. Accepted Expo
   tickets are checked after 15 minutes; missing receipts expire before 24 hours.

@@ -2,7 +2,7 @@
 # `pnpm api:deploy`, run from the checkout root (the build context needs
 # the pnpm lockfile above apps/api). Requires:
 #   - repo secret FLY_API_TOKEN — an app-scoped deploy token:
-#       fly tokens create deploy --app estra-api
+#       fly tokens create deploy --app magpie-api
 #
 # Secrets (SUPABASE_URL, DATABASE_URL, GOOGLE_GENERATIVE_AI_API_KEY) live
 # on the Fly app itself (`fly secrets set`), not in GitHub.

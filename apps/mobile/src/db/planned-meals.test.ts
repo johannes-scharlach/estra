@@ -13,7 +13,7 @@ import { decideIngredients } from "./meal-shopping";
 import { MEALS_WITH_SHOPPING } from "./shopping-meals";
 import { resolveShoppingItem, setMealSwap } from "./meal-ingredients";
 import { applySwap, setItemStatus } from "./items";
-import { mealIngredients, parseMealSwaps } from "@estra/meals";
+import { mealIngredients, parseMealSwaps } from "@magpie/meals";
 
 const state = vi.hoisted(() => ({ db: null as DatabaseSync | null }));
 vi.mock("expo-crypto", () => ({ randomUUID: () => crypto.randomUUID() }));

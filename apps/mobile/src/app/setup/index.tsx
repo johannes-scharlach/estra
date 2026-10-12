@@ -1,4 +1,4 @@
-import { householdSchema } from "@estra/profile";
+import { householdSchema } from "@magpie/profile";
 import * as Crypto from "expo-crypto";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
@@ -86,7 +86,7 @@ export default function Welcome() {
     >
       <View className="gap-5 pb-3">
         <Text className="text-[25px] font-semibold tracking-tight text-primary">
-          estra
+          magpie
         </Text>
         <View
           className="overflow-hidden rounded-2xl border border-border"

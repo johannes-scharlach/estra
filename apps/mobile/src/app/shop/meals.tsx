@@ -1,4 +1,4 @@
-import { parseMealSwaps } from "@estra/meals";
+import { parseMealSwaps } from "@magpie/meals";
 import { useQuery } from "@powersync/react";
 import { router } from "expo-router";
 import { SymbolView } from "expo-symbols";

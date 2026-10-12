@@ -3,7 +3,7 @@ export function invitationCode(url: string | null): string | null {
   if (!url) return null;
   try {
     const parsed = new URL(url);
-    const path = parsed.protocol === "estra:"
+    const path = parsed.protocol === "magpie:"
       ? `/${parsed.hostname}${parsed.pathname}`
       : parsed.pathname.replace(/^\/--/, "");
     if (path === "/join") return parsed.searchParams.get("code") || "invalid";

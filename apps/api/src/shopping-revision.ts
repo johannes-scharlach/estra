@@ -1,6 +1,6 @@
-import type { IngredientLine } from "@estra/meals";
+import type { IngredientLine } from "@magpie/meals";
 
-export { ingredientSpec } from "@estra/meals";
+export { ingredientSpec } from "@magpie/meals";
 
 export type ShoppingItem = {
   id: string;

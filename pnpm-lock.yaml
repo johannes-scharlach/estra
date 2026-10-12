@@ -30,10 +30,10 @@ importers:
       '@ai-sdk/google':
         specifier: ^4.0.47
         version: 4.0.47(zod@4.4.3)
-      '@estra/meals':
+      '@magpie/meals':
         specifier: workspace:*
         version: link:../../packages/meals
-      '@estra/profile':
+      '@magpie/profile':
         specifier: workspace:*
         version: link:../../packages/profile
       '@hono/node-server':
@@ -106,10 +106,10 @@ importers:
       '@azure/core-asynciterator-polyfill':
         specifier: ^1.0.2
         version: 1.0.2
-      '@estra/meals':
+      '@magpie/meals':
         specifier: workspace:*
         version: link:../../packages/meals
-      '@estra/profile':
+      '@magpie/profile':
         specifier: workspace:*
         version: link:../../packages/profile
       '@expo/metro-runtime':

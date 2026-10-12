@@ -1,4 +1,4 @@
--- Estra: shared shopping lists.
+-- Magpie: shared shopping lists.
 --
 -- The spine of this schema is `list_members`. Nothing is owned by a user
 -- directly except through membership of a list — every RLS policy and every

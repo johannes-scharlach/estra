@@ -25,8 +25,8 @@ insert into auth.users (
 values (
   '00000000-0000-0000-0000-000000000000',
   '11111111-1111-1111-1111-111111111111',
-  'authenticated', 'authenticated', 'dev@estra.local',
-  crypt('estra-dev', gen_salt('bf')), now(),
+  'authenticated', 'authenticated', 'dev@magpie.local',
+  crypt('magpie-dev', gen_salt('bf')), now(),
   '{"provider":"email","providers":["email"]}', '{}',
   '', '',
   '', '', '',
@@ -42,7 +42,7 @@ values (
   gen_random_uuid(),
   '11111111-1111-1111-1111-111111111111',
   '11111111-1111-1111-1111-111111111111',
-  '{"sub":"11111111-1111-1111-1111-111111111111","email":"dev@estra.local"}',
+  '{"sub":"11111111-1111-1111-1111-111111111111","email":"dev@magpie.local"}',
   'email', now(), now()
 )
 on conflict do nothing;
@@ -51,7 +51,7 @@ insert into public.lists (id, name, invite_code, created_by)
 values (
   '33333333-3333-3333-3333-333333333333',
   'Home',
-  'estradev',
+  'magpiedev',
   '11111111-1111-1111-1111-111111111111'
 )
 on conflict (id) do nothing;

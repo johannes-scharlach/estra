@@ -11,25 +11,25 @@ type AppEnv = "local" | "dev" | "prod";
 const APP_ENV = (process.env.APP_ENV ?? "local") as AppEnv;
 
 const variants: Record<AppEnv, { name: string; idSuffix: string }> = {
-  local: { name: "Estra (Local)", idSuffix: ".local" },
-  dev: { name: "Estra (Dev)", idSuffix: ".dev" },
-  prod: { name: "Estra", idSuffix: "" },
+  local: { name: "Magpie (Local)", idSuffix: ".local" },
+  dev: { name: "Magpie (Dev)", idSuffix: ".dev" },
+  prod: { name: "Magpie", idSuffix: "" },
 };
 
 const variant = variants[APP_ENV];
 
 const config: ExpoConfig = {
   name: variant.name,
-  slug: "estra",
+  slug: "magpie",
   owner: "johannes.scharlach",
   version: "0.1.0",
   orientation: "portrait",
   icon: "./assets/images/icon.png",
-  scheme: "estra",
+  scheme: "magpie",
   userInterfaceStyle: "automatic",
   ios: {
     icon: "./assets/expo.icon",
-    bundleIdentifier: `com.estra.app${variant.idSuffix}`,
+    bundleIdentifier: `com.magpie.app${variant.idSuffix}`,
     supportsTablet: true,
     infoPlist: {
       ...(APP_ENV === "prod"
@@ -47,9 +47,9 @@ const config: ExpoConfig = {
     },
   },
   android: {
-    package: `com.estra.app${variant.idSuffix}`,
-    // FCM client config; Android can't get a push token without it. Lists
-    // com.estra.app and .local; add .dev there before building that variant.
+    package: `com.magpie.app${variant.idSuffix}`,
+    // Download new Firebase registrations for com.magpie.app and each variant.
+    // Do not relabel the old credentials.
     googleServicesFile: "./google-services.json",
     adaptiveIcon: {
       backgroundColor: "#E6F4FE",

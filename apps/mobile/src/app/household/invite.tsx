@@ -25,7 +25,7 @@ export default function InviteHousehold() {
       const code = await householdInviteCode(list.id, resetLink);
       if (resetLink) setReset(true);
       await Share.share({
-        message: `Join ${list.name} on Estra:\n${
+        message: `Join ${list.name} on Magpie:\n${
           invitationUrl(env.apiUrl, code)
         }`,
       });

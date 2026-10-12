@@ -2,7 +2,7 @@ import {
   selectionOptions,
   type CookingProfile,
   type SelectionField,
-} from "@estra/profile";
+} from "@magpie/profile";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useState, type ReactNode } from "react";
 import { ScrollView, View } from "react-native";

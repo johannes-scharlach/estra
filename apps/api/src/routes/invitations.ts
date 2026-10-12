@@ -17,15 +17,15 @@ invitations.get("/:code", (c) => {
   if (!/^[0-9a-f]{32}$/.test(code)) {
     return c.text("This invitation is not valid. Ask for a new link.", 404);
   }
-  const ios = installUrl(process.env.ESTRA_IOS_INSTALL_URL);
-  const android = installUrl(process.env.ESTRA_ANDROID_INSTALL_URL);
+  const ios = installUrl(process.env.MAGPIE_IOS_INSTALL_URL);
+  const android = installUrl(process.env.MAGPIE_ANDROID_INSTALL_URL);
   return c.html(html`
     <!doctype html>
     <html lang="en">
       <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width,initial-scale=1">
-        <title>Join your household on Estra</title>
+        <title>Join your household on Magpie</title>
         <meta name="description"
           content="Share meals, shopping, recipes, and chats with your household.">
         <style>
@@ -40,12 +40,12 @@ invitations.get("/:code", (c) => {
       </head>
       <body>
         <main>
-          <p class="brand">estra</p>
+          <p class="brand">magpie</p>
           <h1>You’re invited to a household</h1>
           <p>Share meals, shopping, recipes, and chats with your family.</p>
-          <a class="open" href="${`estra://join?code=${code}`}">Open Estra</a>
-          <h2>Don’t have Estra yet?</h2>
-          <p>Install Estra, then tap this invitation in your family chat again.</p>
+          <a class="open" href="${`magpie://join?code=${code}`}">Open Magpie</a>
+          <h2>Don’t have Magpie yet?</h2>
+          <p>Install Magpie, then tap this invitation in your family chat again.</p>
           <div class="install">
             ${ios
               ? html`<a href="${ios}" rel="noreferrer">Install on iPhone</a>`

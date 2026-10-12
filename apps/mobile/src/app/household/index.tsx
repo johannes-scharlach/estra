@@ -3,7 +3,7 @@ import {
   dietOptions,
   selectionLabels,
   type SelectionField,
-} from "@estra/profile";
+} from "@magpie/profile";
 import { useNavigation, useRouter } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import { useLayoutEffect } from "react";

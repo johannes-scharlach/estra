@@ -1,4 +1,4 @@
-import { estraUuidV5 } from "./estra-uuid.js";
+import { magpieUuidV5 } from "./magpie-uuid.js";
 import type { ImportRequest } from "./import-request.js";
 
 /**
@@ -7,7 +7,7 @@ import type { ImportRequest } from "./import-request.js";
  */
 export function deriveVariantIdForImport(userId: string, request: ImportRequest): string {
   const { operationId, url, context, locale, plan } = request;
-  return estraUuidV5(JSON.stringify([
+  return magpieUuidV5(JSON.stringify([
     "recipe-import", userId, operationId, url, context ?? null, locale,
     plan ? [plan.listId, plan.date, plan.slot] : null,
   ]));

@@ -36,7 +36,7 @@ export const posthog =
           maskAllImages: false,
         },
         logs: {
-          serviceName: "estra-mobile",
+          serviceName: "magpie-mobile",
           environment: __DEV__ ? "development" : "production",
           serviceVersion: Constants.expoConfig?.version,
         },

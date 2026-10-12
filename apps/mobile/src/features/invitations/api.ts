@@ -35,7 +35,7 @@ async function request(body: Record<string, unknown>): Promise<unknown> {
     }
     if (error) {
       throw new Error(
-        "Could not reach Estra. Check your connection and try again.",
+        "Could not reach Magpie. Check your connection and try again.",
         { cause: error },
       );
     }

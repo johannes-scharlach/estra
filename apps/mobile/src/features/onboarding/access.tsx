@@ -46,7 +46,7 @@ export function useActiveList(): List | null {
 
 // A device preference, not account data: the earliest household is the
 // fallback whenever the stored one is missing or no longer yours.
-const ACTIVE_KEY = "estra.active-list.v1";
+const ACTIVE_KEY = "magpie.active-list.v1";
 
 export function HouseholdAccessProvider({ children }: { children: ReactNode }) {
   const { session, ready, epoch, syncReady, syncError, retrySync } = useAuth();

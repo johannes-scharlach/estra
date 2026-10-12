@@ -2,7 +2,7 @@ import {
   dietOptions,
   type CookingProfile,
   type HouseholdPerson,
-} from "@estra/profile";
+} from "@magpie/profile";
 import { useRouter } from "expo-router";
 import { View } from "react-native";
 import { AddRow } from "@/components/add-row";
@@ -20,7 +20,7 @@ import {
 } from "@/features/profile/form";
 
 export const titles: Record<Step, string> = {
-  name: "What should Estra call you?",
+  name: "What should Magpie call you?",
   goals: "What matters most in your kitchen?",
   diet: "How do you eat?",
   household: "Who are you cooking for?",
@@ -34,13 +34,13 @@ export const titles: Record<Step, string> = {
 };
 
 export const subtitles: Record<Exclude<Step, "email" | "code">, string> = {
-  name: "This is how Estra will address you.",
-  goals: "Estra will steer recipes and ideas toward your goals.",
+  name: "This is how Magpie will address you.",
+  goals: "Magpie will steer recipes and ideas toward your goals.",
   diet: "Your dietary baseline for recipes.",
   household: "Add anyone who regularly eats with you.",
   restrictions: "Allergies, intolerances, or things nobody in the house likes.",
   groceries: "So recipes only call for ingredients you can actually find.",
-  kitchen: "Estra can adjust recipes to make sense in your kitchen.",
+  kitchen: "Magpie can adjust recipes to make sense in your kitchen.",
   pantry: "The things waiting in your cupboards, ready to cook with.",
   fresh: "So recipes feature the fresh staples you're excited to buy and cook.",
 };
@@ -138,7 +138,7 @@ export function SetupQuestion({
     <>
       {step === "name" ? (
         <Field
-          label="What should Estra call you?"
+          label="What should Magpie call you?"
           hideLabel
           placeholder="Your first name or nickname"
           value={person.name}

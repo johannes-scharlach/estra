@@ -1,4 +1,4 @@
-# Estra
+# Magpie
 
 Expo + PowerSync + Supabase. Read `docs/decisions/` before architectural
 changes, `docs/schema-changes.md` before touching the schema or sync rules.
@@ -16,7 +16,7 @@ changes, `docs/schema-changes.md` before touching the schema or sync rules.
 - Expo Go works via `@powersync/adapter-sql-js` (JS-only SQLite, in-memory,
   alpha — dev convenience only). Native dev builds use op-sqlite: `pnpm ios`
   once, then `pnpm dev`.
-- Seeded login: `dev@estra.local` / `estra-dev`.
+- Seeded login: `dev@magpie.local` / `magpie-dev`.
 - `pnpm api` runs the Hono server (`apps/api`); `pnpm api:deploy` ships it
   to Fly.io from the repo root, which is where the Docker context has to be.
 
@@ -25,7 +25,7 @@ changes, `docs/schema-changes.md` before touching the schema or sync rules.
 - `supabase/` is Deno and outside the pnpm workspace on purpose. Shared
   edge-function code goes in `supabase/functions/_shared/`, never `packages/`.
 - Pure rules both `apps/api` and `apps/mobile` need go in `packages/` as one
-  `src/index.ts` (`@estra/meals`, ADR 13). Persistence code stays twinned.
+  `src/index.ts` (`@magpie/meals`, ADR 13). Persistence code stays twinned.
   The API Dockerfile copies each package explicitly.
 - op-sqlite build flags (SQLCipher, FTS5) go in the root `package.json`
   (modules hoist there), not `apps/mobile/package.json`.

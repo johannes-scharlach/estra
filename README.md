@@ -1,4 +1,4 @@
-# Estra
+# Magpie
 
 Shared shopping lists that work offline.
 
@@ -63,7 +63,7 @@ pnpm --filter mobile ios      # or: android
 
 After that, `pnpm dev` is enough.
 
-Seeded login: `dev@estra.local` / `estra-dev`.
+Seeded login: `dev@magpie.local` / `magpie-dev`.
 
 ## Running on a physical device
 
@@ -128,9 +128,9 @@ curl -N http://localhost:8787/v1/chats/$(uuidgen | tr A-Z a-z)/messages \
 Deploying, the first time:
 
 ```bash
-fly apps create estra-api
+fly apps create magpie-api
 fly secrets set SUPABASE_URL=https://<project-ref>.supabase.co \
-  GOOGLE_GENERATIVE_AI_API_KEY=... --app estra-api
+  GOOGLE_GENERATIVE_AI_API_KEY=... --app magpie-api
 pnpm api:deploy
 ```
 
@@ -140,13 +140,13 @@ needs the pnpm lockfile, which is above `apps/api`.
 ## Edge Function deployments
 
 `.github/workflows/supabase-functions-deploy.yml` checks and tests the Edge
-Functions, then deploys all of them to the production Estra project. It runs
+Functions, then deploys all of them to the production Magpie project. It runs
 on pushes to `main` that change function code, `supabase/config.toml`, the
 root package/lockfile, or the workflow itself. You can also run it manually
 from GitHub Actions, choosing `main`.
 
 Add a repository Actions secret named `SUPABASE_ACCESS_TOKEN`: a Supabase
-personal access token with access to the Estra project. Function runtime
+personal access token with access to the Magpie project. Function runtime
 secrets remain in Supabase, not GitHub.
 
 CI uses the lockfile-pinned CLI and server-side bundling (no Docker), and

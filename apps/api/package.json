@@ -13,8 +13,8 @@
   },
   "dependencies": {
     "@ai-sdk/google": "^4.0.47",
-    "@estra/meals": "workspace:*",
-    "@estra/profile": "workspace:*",
+    "@magpie/meals": "workspace:*",
+    "@magpie/profile": "workspace:*",
     "@hono/node-server": "^2.1.1",
     "@opentelemetry/api-logs": "^0.222.0",
     "@opentelemetry/exporter-logs-otlp-http": "^0.222.0",

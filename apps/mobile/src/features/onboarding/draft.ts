@@ -5,7 +5,7 @@ import {
   personSchema,
   type CookingProfile,
   type HouseholdPerson,
-} from "@estra/profile";
+} from "@magpie/profile";
 import { z } from "zod";
 
 export const steps = [

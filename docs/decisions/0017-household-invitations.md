@@ -35,7 +35,7 @@ client is needed.
 - Per user approval, Fly serves a public `/join/:code` installation handoff.
   This is a static landing page, not a web version of the app. Invitation
   validation and joining remain in Supabase (ADR 5).
-- The page opens `estra://join?code=…`; first-time installs return through the
+- The page opens `magpie://join?code=…`; first-time installs return through the
   original message. No deferred deep-link service or domain association is
   required. Native builds register the scheme; Expo Go does not.
 - Landing pages contain no household data, use no-store/no-referrer headers,

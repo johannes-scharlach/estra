@@ -3,7 +3,7 @@ import {
   newProfile,
   personSchema,
   type Household,
-} from "@estra/profile";
+} from "@magpie/profile";
 import * as Crypto from "expo-crypto";
 
 import { insertList, insertPerson, insertProfile } from "./household-writes";

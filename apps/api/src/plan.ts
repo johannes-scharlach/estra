@@ -1,6 +1,6 @@
 import type { PoolClient } from "pg";
 
-import { estraUuidV5 } from "./estra-uuid.js";
+import { magpieUuidV5 } from "./magpie-uuid.js";
 import { pool } from "./db.js";
 import {
   MealSlotOccupiedError,
@@ -18,7 +18,7 @@ export const MEAL_SLOTS = ["lunch", "dinner", "treat"] as const;
 export type MealSlot = (typeof MEAL_SLOTS)[number];
 
 export function plannedMealId(listId: string, slotDate: string, meal: string): string {
-  return estraUuidV5(`${listId}:${slotDate}:${meal}`);
+  return magpieUuidV5(`${listId}:${slotDate}:${meal}`);
 }
 
 type Person = { id: string; name: string };

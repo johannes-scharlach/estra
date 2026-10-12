@@ -130,7 +130,7 @@ row swaps stay a preview.
 
 ## Implementation
 
-- `packages/meals` (`@estra/meals`): `itemNameKey`, `lineForItem`,
+- `packages/meals` (`@magpie/meals`): `itemNameKey`, `lineForItem`,
   `mealDelta`. Pure functions over plain types, no zod. Both apps import it;
   the API's `plan.ts` and the app's `db/items.ts` drop their own copies of
   `itemNameKey`, and `features/shop/alternatives.ts` is built on

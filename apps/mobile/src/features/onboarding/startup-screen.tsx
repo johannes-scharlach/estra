@@ -40,7 +40,7 @@ export function StartupScreen({
     >
       <View className="w-full max-w-md gap-6">
         <Text className="text-center text-[25px] font-semibold tracking-tight text-primary">
-          estra
+          magpie
         </Text>
         <View
           className="overflow-hidden rounded-2xl"

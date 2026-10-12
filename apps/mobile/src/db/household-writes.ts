@@ -1,5 +1,5 @@
-import type { CookingProfile, HouseholdPerson } from "@estra/profile";
-import { estraUuidV5 } from "../lib/estra-uuid";
+import type { CookingProfile, HouseholdPerson } from "@magpie/profile";
+import { magpieUuidV5 } from "../lib/magpie-uuid";
 
 type Executor = {
   execute(sql: string, parameters?: unknown[]): Promise<unknown>;
@@ -46,7 +46,7 @@ export async function insertList(
   );
   await tx.execute(
     "INSERT INTO list_members (id, list_id, user_id, joined_at) VALUES (?, ?, ?, ?)",
-    [estraUuidV5(`${list.id}:${list.userId}`), list.id, list.userId, list.now],
+    [magpieUuidV5(`${list.id}:${list.userId}`), list.id, list.userId, list.now],
   );
 }
 

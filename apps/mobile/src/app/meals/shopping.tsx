@@ -1,4 +1,4 @@
-import { parseMealSwaps } from "@estra/meals";
+import { parseMealSwaps } from "@magpie/meals";
 import { MenuView } from "@expo/ui/community/menu";
 import { useQuery } from "@powersync/react";
 import * as Haptics from "expo-haptics";

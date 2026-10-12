@@ -1,4 +1,4 @@
-import { ingredientOptions, parseMealSwaps, resolveMealItem } from "@estra/meals";
+import { ingredientOptions, parseMealSwaps, resolveMealItem } from "@magpie/meals";
 
 import type { ListItem } from "./schema";
 import { powersync } from "./system";

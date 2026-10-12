@@ -19,7 +19,7 @@ app termination. This is not a durable background job system.
 
 Retries reuse an operation UUID on the import request, separate from its
 optional plan target. The exact imported variant ID is derived from the caller,
-operation UUID, and import inputs via `estraUuidV5`. Recipes remain random
+operation UUID, and import inputs via `magpieUuidV5`. Recipes remain random
 grouping IDs. Looking up that exact variant recognizes a completed import even
 if the recipe later has additional variants. This applies to cookbook imports
 as well as import and plan. Concurrent

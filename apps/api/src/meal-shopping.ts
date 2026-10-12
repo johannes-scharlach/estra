@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { ingredientOptions, ingredientSpec, itemNameKey, lineForItem, type IngredientLine, type MealSwaps } from "@estra/meals";
+import { ingredientOptions, ingredientSpec, itemNameKey, lineForItem, type IngredientLine, type MealSwaps } from "@magpie/meals";
 import type { PoolClient } from "pg";
 
 import { AppError } from "./errors.js";

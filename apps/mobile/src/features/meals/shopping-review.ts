@@ -4,9 +4,9 @@ import {
   type IngredientLine,
   type MealItem,
   type MealSwaps,
-} from "@estra/meals";
+} from "@magpie/meals";
 
-export { ingredientSpec } from "@estra/meals";
+export { ingredientSpec } from "@magpie/meals";
 export const optionsForLine = ingredientOptions;
 
 export function probablyAtHome(line: IngredientLine): boolean {

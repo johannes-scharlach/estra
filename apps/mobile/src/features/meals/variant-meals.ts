@@ -1,4 +1,4 @@
-import type { MealSync } from "@estra/meals";
+import type { MealSync } from "@magpie/meals";
 
 import { dayName } from "@/features/chat/compose";
 import {

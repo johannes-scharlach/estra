@@ -2,7 +2,7 @@
 
 Status: implementation in place; backend rollout and native acceptance pending. Scope and persisted data model confirmed with product owner.
 
-Source: Hobs. Hobs is behavioral reference. A web project that serves as the prototype for Estra. This document is self-contained; access to Hobs source is not needed.
+Source: Hobs. Hobs is behavioral reference. A web project that serves as the prototype for Magpie. This document is self-contained; access to Hobs source is not needed.
 
 ## Problem Statement
 
@@ -56,7 +56,7 @@ The Profile is a household's cooking setup belonging to a list. A list represent
 
 ### Platform boundary
 
-- Use Estra's Expo Router, Supabase auth, PowerSync persistence, native UI, and testing conventions. Targets are iOS and Android.
+- Use Magpie's Expo Router, Supabase auth, PowerSync persistence, native UI, and testing conventions. Targets are iOS and Android.
 - Hobs uses Supabase auth, one structured JSONB Profile per User, and local browser draft storage. These are reference implementation choices, not dependencies to adopt.
 - Equivalent modules are: onboarding flow/draft, auth integration, Profile persistence/editor, and Profile-to-assistant-context rendering. Prefer existing target-project boundaries.
 - Localization is planned but outside this scope. Keep stable stored option keys independent of UI labels; do not introduce localization infrastructure in this work.
@@ -84,8 +84,8 @@ The Profile is a household's cooking setup belonging to a list. A list represent
 - Selection never auto-advances. Continue or a deliberate forward swipe advances cooking questions.
 - Household restrictions use one free-text note. When it is empty, the primary action reads `No restrictions`.
 - Household add/edit is a nested screen or sheet. Hide parent wizard navigation while editing a person. Save commits that person; cancel/back discards that person's uncommitted edit.
-- Completion requires successful authentication and durable local PowerSync writes for the list, creator's list membership, and Profile. Only then clear the associated onboarding draft and navigate to Estra's existing cooking entry point. Upload proceeds through normal PowerSync behavior; server acknowledgement is not a separate completion gate.
-- Profile lookup and routing refer to the current list using Estra's existing list-selection behavior. An empty local query before initial sync does not establish that a returning User has no list or Profile. If a current list exists without a Profile, complete its missing setup rather than creating another list.
+- Completion requires successful authentication and durable local PowerSync writes for the list, creator's list membership, and Profile. Only then clear the associated onboarding draft and navigate to Magpie's existing cooking entry point. Upload proceeds through normal PowerSync behavior; server acknowledgement is not a separate completion gate.
+- Profile lookup and routing refer to the current list using Magpie's existing list-selection behavior. An empty local query before initial sync does not establish that a returning User has no list or Profile. If a current list exists without a Profile, complete its missing setup rather than creating another list.
 
 ### Structured data contract
 
@@ -290,14 +290,14 @@ Hobs has Vitest tests around its pure Profile-context builder, covering diet, re
 - Household people include the creator and may optionally link to list-member Users. Only the creator is linked in this scope; invitations are deferred.
 - Pre-authentication drafts use separate durable local storage; authenticated persistence follows normal PowerSync behavior.
 - Localization is planned but deferred. End-to-end acceptance is manual, with focused automated tests for meaningful logic.
-- Deliverable is this Estra implementation spec.
+- Deliverable is this Magpie implementation spec.
 
 ### Reference findings and intentional implementation clarifications
 
 - Current Hobs wizard has eleven steps and saves cooking payload after email OTP verification. It persists answers and numeric step in browser storage, then navigates to its cooking surface.
-- Hobs enforces one Profile per User. Estra intentionally differs: one Profile per list, shared through list membership.
-- Hobs shows cook separately and stores only other people in its household array. Estra intentionally stores everyone once in separate person rows and derives You through the current User's link. Use stable diet keys consistently.
+- Hobs enforces one Profile per User. Magpie intentionally differs: one Profile per list, shared through list membership.
+- Hobs shows cook separately and stores only other people in its household array. Magpie intentionally stores everyone once in separate person rows and derives You through the current User's link. Use stable diet keys consistently.
 - Current wizard persists its whole state, including OTP, and uses a simple final insert. This spec explicitly separates transient code from durable draft and requires recoverable finalization.
 - Current prototype's email gate is weaker than its declared email schema. Mobile should apply usable email validation, not copy an at-sign-only check.
 - Existing-account handling, resend, interrupted-save recovery, and authenticated-without-Profile routing are completion requirements clarified here to make confirmed end-to-end mobile flow reliable; they should not be assumed complete in prototype.
-- Estra's existing stack and conventions apply. Concrete storage adapters and native presentation follow implementation needs. Localization is future work. Core data meanings, flow order, and acceptance behavior above are the implementation contract.
+- Magpie's existing stack and conventions apply. Concrete storage adapters and native presentation follow implementation needs. Localization is future work. Core data meanings, flow order, and acceptance behavior above are the implementation contract.

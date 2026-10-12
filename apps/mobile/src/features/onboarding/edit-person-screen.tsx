@@ -1,4 +1,4 @@
-import { newPerson, personSchema, type HouseholdPerson } from "@estra/profile";
+import { newPerson, personSchema, type HouseholdPerson } from "@magpie/profile";
 import * as Crypto from "expo-crypto";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
@@ -108,7 +108,7 @@ export function EditSetupPerson() {
         onPress: () => void save(),
       }}
       onBack={() => router.back()}
-      subtitle="So Estra can tailor portions and recipes to your household."
+      subtitle="So Magpie can tailor portions and recipes to your household."
       title={title}
     >
       <FormError message={error} />

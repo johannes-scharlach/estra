@@ -1,4 +1,4 @@
-import type { SizedFor } from "@estra/meals";
+import type { SizedFor } from "@magpie/meals";
 import { z } from "zod";
 
 import { powersync } from "./system";

@@ -31,7 +31,7 @@ server-side rewrite needs it too. `plan.ts` is already a deliberate twin of
   and `list_items.variant_id`. It never deletes or inserts list items. The
   new variant id is derived from caller, operation and planned meal, so a
   retry finds the finished result.
-- **Pure rules both apps need go in `packages/`.** `@estra/meals` holds
+- **Pure rules both apps need go in `packages/`.** `@magpie/meals` holds
   `itemNameKey`, `lineForItem` and `mealDelta` as plain functions over plain
   types. Persistence code stays twinned per ADR 10; rules do not.
 

@@ -3,7 +3,7 @@ import {
   householdSchema,
   profileContext,
   type Household,
-} from "@estra/profile";
+} from "@magpie/profile";
 
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import {
@@ -54,7 +54,7 @@ const TITLE_MAX = 80;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
- * The plan is Estra's own shape, so its guidance lives here rather than in
+ * The plan is Magpie's own shape, so its guidance lives here rather than in
  * the shared prompt: a calendar of lunch / dinner / treat slots per day, and
  * a shopping list of explicitly chosen ingredients.
  */

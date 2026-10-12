@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { newPerson, newProfile, profileContext } from "@estra/profile";
+import { newPerson, newProfile, profileContext } from "@magpie/profile";
 
 test("household context preserves restrictions and routines without inventing inventory or equipment", () => {
   const profile = newProfile();

@@ -1,7 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { restoreDraft, type OnboardingDraft } from "./draft";
 
-const KEY = "estra.onboarding.v1";
+const KEY = "magpie.onboarding.v1";
 let pending: Promise<void> = Promise.resolve();
 
 /** Serialize keystroke writes and cleanup so an older write cannot resurrect a draft. */

@@ -1,4 +1,4 @@
-import { mealIngredients, resolveMealItem, type MealSwaps, type SizedFor } from "@estra/meals";
+import { mealIngredients, resolveMealItem, type MealSwaps, type SizedFor } from "@magpie/meals";
 import type { Client } from "pg";
 
 import { inTransaction, pool } from "./db.js";
@@ -7,7 +7,7 @@ import {
   UnknownHouseholdPersonError,
   VariantNotFoundError,
 } from "./errors.js";
-import { estraUuidV5 } from "./estra-uuid.js";
+import { magpieUuidV5 } from "./magpie-uuid.js";
 import { assertListMemberUntilCommit } from "./list-authorization.js";
 import type { CookRecipeInput } from "./recipe-schema.js";
 import type { RecipeChat } from "./recipe-chat.js";
@@ -202,7 +202,7 @@ export async function writeChatVariant(opts: {
 }) {
   return inTransaction(opts.userId, async (client) => {
     await assertListMemberUntilCommit(client, opts.userId, opts.listId);
-    const variantId = estraUuidV5(
+    const variantId = magpieUuidV5(
       `chat:${opts.chatId}:${opts.messageId}:${opts.baseVariantId}`,
     );
     await client.query(

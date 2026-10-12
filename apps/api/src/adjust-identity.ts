@@ -1,4 +1,4 @@
-import { estraUuidV5 } from "./estra-uuid.js";
+import { magpieUuidV5 } from "./magpie-uuid.js";
 
 /**
  * Adjusting a planned meal twice with the same operation writes one variant:
@@ -10,7 +10,7 @@ export function deriveVariantIdForAdjust(
   operationId: string,
   plannedMealId: string,
 ): string {
-  return estraUuidV5(
+  return magpieUuidV5(
     JSON.stringify(["meal-adjust", userId, operationId, plannedMealId]),
   );
 }

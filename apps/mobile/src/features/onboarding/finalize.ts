@@ -1,4 +1,4 @@
-import { householdSchema } from "@estra/profile";
+import { householdSchema } from "@magpie/profile";
 import {
   insertList,
   insertPerson,

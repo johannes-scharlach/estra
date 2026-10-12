@@ -1,4 +1,4 @@
-# Estra
+# Magpie
 
 Meal planning and shopping in one place — plan meals, derive the List, cook from variants.
 

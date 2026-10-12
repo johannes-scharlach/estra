@@ -15,7 +15,7 @@ import { posthog } from "../lib/posthog";
 import { supabase } from "../lib/supabase";
 import { connectPowerSync, disconnectPowerSync, powersync } from "./system";
 
-const CACHE_USER_KEY = "estra.powersync-user";
+const CACHE_USER_KEY = "magpie.powersync-user";
 
 type AuthState = {
   session: Session | null;

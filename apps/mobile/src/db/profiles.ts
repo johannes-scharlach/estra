@@ -5,7 +5,7 @@ import {
   type CookingProfile,
   type Household,
   type HouseholdPerson,
-} from "@estra/profile";
+} from "@magpie/profile";
 import { powersync } from "./system";
 import { insertPerson } from "./household-writes";
 

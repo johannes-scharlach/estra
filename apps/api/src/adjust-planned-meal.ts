@@ -1,4 +1,4 @@
-import { ingredientSpec, mealIngredients, type MealSwaps, type IngredientLine } from "@estra/meals";
+import { ingredientSpec, mealIngredients, type MealSwaps, type IngredientLine } from "@magpie/meals";
 import type { PoolClient } from "pg";
 
 import { inTransaction, pool } from "./db.js";

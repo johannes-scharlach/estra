@@ -1,4 +1,4 @@
-import { ingredientOptions, itemNameKey as nameKey, lineForItem, type IngredientLine } from "@estra/meals";
+import { ingredientOptions, itemNameKey as nameKey, lineForItem, type IngredientLine } from "@magpie/meals";
 import { z } from "zod";
 
 import { IngredientLineSchema } from "../../db/schemas";

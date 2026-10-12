@@ -6,7 +6,7 @@ Approved in conversation, 2026-09-25. Data decision: ADR 17.
 
 1. Any member chooses **Household → Invite to household → Share invite link**.
    Share one reusable HTTPS link through the native share sheet.
-2. Opening it shows a public landing page with **Open Estra** and installation
+2. Opening it shows a public landing page with **Open Magpie** and installation
    instructions. After installing, tap the original link again.
 3. Recipients sign in or create an account with an email code. Skip new-household
    setup and keep the invitation through backgrounding and app restart.
@@ -43,12 +43,12 @@ Apply `20260925100000_household_invitations.sql`, deploy `join-list`, deploy the
 API, and ship the mobile changes. No PowerSync reload is needed.
 
 Shared URLs use the build's `EXPO_PUBLIC_API_URL` (production:
-`https://estra-api.fly.dev`). Local device testing needs a LAN/Tailscale address
+`https://magpie-api.fly.dev`). Local device testing needs a LAN/Tailscale address
 reachable by the recipient. Custom-scheme opening requires a native dev/release
 build; in Expo Go open its `/--/join?code=…` development URL instead.
 
-Set optional Fly environment variables `ESTRA_IOS_INSTALL_URL` and
-`ESTRA_ANDROID_INSTALL_URL` to real HTTPS store/TestFlight/distribution links.
+Set optional Fly environment variables `MAGPIE_IOS_INSTALL_URL` and
+`MAGPIE_ANDROID_INSTALL_URL` to real HTTPS store/TestFlight/distribution links.
 Until supplied, the page asks recipients to get an installation link from the
 inviter. Store URLs are not fabricated.
 

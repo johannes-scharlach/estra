@@ -3,7 +3,7 @@ import {
   mealIngredients,
   mealSync,
   parseMealSwaps,
-} from "@estra/meals";
+} from "@magpie/meals";
 import { useQuery } from "@powersync/react";
 import * as Crypto from "expo-crypto";
 import {

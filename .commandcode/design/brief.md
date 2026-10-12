@@ -1,4 +1,4 @@
-# Estra design brief
+# Magpie design brief
 
 ## Register
 

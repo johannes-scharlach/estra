@@ -5,7 +5,7 @@ Status: Accepted
 
 ## Context
 
-Estra is a shared shopping list in the mould of Bring!: several people on
+Magpie is a shared shopping list in the mould of Bring!: several people on
 one list, items grouped by category, and recently-bought items offered for
 one-tap re-adding.
 

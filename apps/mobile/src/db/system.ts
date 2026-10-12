@@ -5,7 +5,7 @@ import { AppSchema } from './schema';
 
 export const powersync = new PowerSyncDatabase({
   schema: AppSchema,
-  database: { dbFilename: 'estra.db' },
+  database: { dbFilename: 'magpie.db' },
 });
 
 export const connector = new SupabaseConnector();

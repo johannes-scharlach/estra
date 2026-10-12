@@ -26,7 +26,7 @@ the current visit live behind the mobile `ActivityVisit` interface.
 
 Future scheduling must create delivery work atomically with the activity or
 derive it recoverably. Joins are eligible immediately. Device Focus/Do Not
-Disturb controls interruption; Estra has no quiet-hours scheduler. Pending
+Disturb controls interruption; Magpie has no quiet-hours scheduler. Pending
 delivery can check recipient membership and seen state before sending.
 
 Behavior and release checks: `docs/specs/0006-household-activity.md`.

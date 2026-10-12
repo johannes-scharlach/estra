@@ -4,11 +4,11 @@
 #   pnpm api:deploy
 #
 # First time, create the app without deploying:
-#   fly apps create estra-api            # or `fly launch --no-deploy`
+#   fly apps create magpie-api            # or `fly launch --no-deploy`
 #   fly secrets set SUPABASE_URL=https://<project-ref>.supabase.co \
-#     GOOGLE_GENERATIVE_AI_API_KEY=... --app estra-api
+#     GOOGLE_GENERATIVE_AI_API_KEY=... --app magpie-api
 
-app = "estra-api"
+app = "magpie-api"
 primary_region = "fra"
 
 # No [build] section: the Dockerfile path is passed on the command line,
