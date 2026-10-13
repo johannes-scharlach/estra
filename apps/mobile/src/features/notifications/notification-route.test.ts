@@ -7,7 +7,7 @@ describe("notification route", () => {
     expect(
       notificationRoute({ kind: "meal_moved", slotDate: "2026-10-08" }, "n1"),
     ).toEqual({
-      pathname: "/(tabs)/meals",
+      pathname: "/meals",
       params: { date: "2026-10-08", at: "n1" },
     });
   });

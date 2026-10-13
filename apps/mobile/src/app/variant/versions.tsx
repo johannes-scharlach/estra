@@ -61,7 +61,7 @@ export default function RecipeVariants() {
         recipeId: variant.recipe_id,
         variantId: variant.id,
       });
-      router.dismissTo("/(tabs)/meals");
+      router.dismissTo("/meals");
     } catch (caught) {
       setError(
         caught instanceof Error ? caught.message : "Could not plan meal.",

@@ -151,8 +151,8 @@ function ActivityFeed({
                     router.navigate("/(tabs)/shop");
                   } else {
                     // `at` reselects the day even when the same row is tapped again.
-                    router.navigate({
-                      pathname: "/(tabs)/meals",
+                    router.push({
+                      pathname: "/meals",
                       params: { date: item.slot_date, at: Date.now() },
                     });
                   }

@@ -1,5 +1,5 @@
 import { useQuery } from "@powersync/react";
-import { router, useLocalSearchParams } from "expo-router";
+import { Stack, router, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -31,14 +31,19 @@ import { useToday } from "@/hooks/use-today";
 
 export default function Meals() {
   const [{ dates, todayIndex }] = useState(stripDates);
-  const [selected, setSelected] = useState(() => dateKey(new Date()));
-  // Household activity opens a day; `at` makes a repeated tap reselect it.
   const { date: requestedDate, at } = useLocalSearchParams<{
     date?: string;
     at?: string;
   }>();
+  const [selected, setSelected] = useState(() => {
+    if (requestedDate && dates.some((d) => dateKey(d) === requestedDate)) {
+      return requestedDate;
+    }
+    return dateKey(new Date());
+  });
+  // Household activity opens a day; `at` makes a repeated tap reselect it.
   const request = requestedDate ? `${requestedDate}@${at}` : null;
-  const [handledRequest, setHandledRequest] = useState<string | null>(null);
+  const [handledRequest, setHandledRequest] = useState<string | null>(request);
   if (request !== handledRequest) {
     setHandledRequest(request);
     if (requestedDate && dates.some((d) => dateKey(d) === requestedDate)) {
@@ -324,6 +329,13 @@ export default function Meals() {
 
   return (
     <>
+      <Stack.Screen
+        options={{
+          title: "Meals",
+          headerLargeTitle: true,
+          headerBackButtonDisplayMode: "minimal",
+        }}
+      />
       <ScrollView
         className="flex-1 bg-background"
         contentInsetAdjustmentBehavior="automatic"

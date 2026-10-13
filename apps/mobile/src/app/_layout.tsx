@@ -133,6 +133,14 @@ export default function RootLayout() {
                       }}
                     />
                     <Stack.Screen
+                      name="meals/index"
+                      options={{
+                        title: "Meals",
+                        headerLargeTitle: true,
+                        headerBackButtonDisplayMode: "minimal",
+                      }}
+                    />
+                    <Stack.Screen
                       name="meals/import"
                       options={{
                         presentation: "formSheet",

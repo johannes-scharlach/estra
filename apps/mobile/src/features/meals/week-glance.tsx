@@ -14,6 +14,7 @@ import {
   dateKey,
   SLOT_LABEL,
   SLOT_ORDER,
+  WEEKDAY_LONG,
   type MealSlot,
 } from "./slots";
 
@@ -59,7 +60,6 @@ export function WeekGlance({ listId }: { listId: string | null }) {
     .sort((a, b) => SLOT_ORDER.indexOf(a.meal) - SLOT_ORDER.indexOf(b.meal));
   const planned = new Map(meals.map((m) => [`${m.slot_date}:${m.meal}`, m]));
   const dark = useColorScheme() === "dark";
-  const plannedDays = new Set(meals.map((m) => m.slot_date)).size;
   const linkColor = useResolveClassNames("text-link").color;
 
   return (
@@ -85,44 +85,57 @@ export function WeekGlance({ listId }: { listId: string | null }) {
 
       <View className="gap-3">
         <Text className="text-xl font-semibold">This week</Text>
-        {/* A readout row, then an action row: only the tinted row is tappable. */}
+        {/* Tapping any day opens the plan on that day; the action row starts AI planning. */}
         <View className="overflow-hidden rounded-2xl bg-card">
-          <View
-            accessible
-            accessibilityLabel={`${plannedDays} of the next 7 days planned`}
-            className="px-4 py-3"
-          >
+          <View className="px-4 py-3">
             <View className="flex-row gap-1.5">
-              {days.map((day, i) => (
-                <View key={dateKey(day)} className="flex-1 items-center gap-1">
-                  <Text
-                    className={cn(
-                      "text-[11px] font-medium",
-                      i === 0 ? "text-foreground" : "text-muted-foreground",
-                    )}
+              {days.map((day, i) => {
+                const k = dateKey(day);
+                const dayPlannedCount = GRID_MEALS.filter((slot) =>
+                  planned.has(`${k}:${slot}`),
+                ).length;
+                return (
+                  <Link
+                    key={k}
+                    href={{ pathname: "/meals", params: { date: k } }}
+                    asChild
                   >
-                    {WEEKDAY_LETTERS[day.getDay()]}
-                  </Text>
-                  {GRID_MEALS.map((slot) => {
-                    const meal = planned.get(`${dateKey(day)}:${slot}`);
-                    // A planned cell wears its recipe's tonalPair, like the Today row.
-                    return meal ? (
-                      <LinearGradient
-                        key={slot}
-                        colors={tonalPair(meal.variant_id ?? meal.id, dark)}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 1 }}
-                        style={{ height: 10, width: "100%", borderRadius: 3 }}
-                      />
-                    ) : (
-                      <View
-                        key={slot}
-                        className="h-2.5 w-full rounded-[3px] border border-border"
-                      />
-                    );
-                  })}
-                </View>
-              ))}
+                    <Pressable
+                      accessibilityRole="link"
+                      accessibilityLabel={`${i === 0 ? "Today, " : ""}${WEEKDAY_LONG[day.getDay()]}: ${dayPlannedCount} ${dayPlannedCount === 1 ? "meal" : "meals"} planned`}
+                      className="flex-1 items-center gap-1 py-1 active:opacity-60"
+                      hitSlop={{ top: 8, bottom: 8 }}
+                    >
+                      <Text
+                        className={cn(
+                          "text-[11px] font-medium",
+                          i === 0 ? "text-foreground" : "text-muted-foreground",
+                        )}
+                      >
+                        {WEEKDAY_LETTERS[day.getDay()]}
+                      </Text>
+                      {GRID_MEALS.map((slot) => {
+                        const meal = planned.get(`${k}:${slot}`);
+                        // A planned cell wears its recipe's tonalPair, like the Today row.
+                        return meal ? (
+                          <LinearGradient
+                            key={slot}
+                            colors={tonalPair(meal.variant_id ?? meal.id, dark)}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 1 }}
+                            style={{ height: 10, width: "100%", borderRadius: 3 }}
+                          />
+                        ) : (
+                          <View
+                            key={slot}
+                            className="h-2.5 w-full rounded-[3px] border border-border"
+                          />
+                        );
+                      })}
+                    </Pressable>
+                  </Link>
+                );
+              })}
             </View>
           </View>
           <View className="ml-4 border-t border-border" />
