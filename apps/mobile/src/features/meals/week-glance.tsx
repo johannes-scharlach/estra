@@ -138,6 +138,11 @@ export function WeekGlance({ listId }: { listId: string | null }) {
               })}
             </View>
           </View>
+          {meals.length === 0 ? (
+            <Text variant="muted" className="px-4 pb-3">
+              Nothing planned yet. Tap a day to plan a meal you want to make.
+            </Text>
+          ) : null}
           <View className="ml-4 border-t border-border" />
           <Link href="/meals/plan" asChild>
             <Pressable

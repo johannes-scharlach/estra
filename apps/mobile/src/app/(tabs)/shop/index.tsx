@@ -304,9 +304,11 @@ function ListScreen({
             accessibilityLabel="Empty shopping list"
           />
           <Text variant="muted" className="text-center">
-            {mealsToReview > 0
-              ? "Nothing to buy yet. Open Meals to choose what to buy, or add an item."
-              : "Nothing to buy. Add an item when you need it."}
+            {active.length === 0
+          ? mealsToReview > 0
+            ? "Nothing to buy yet. Open Meals to choose what to buy, or add an item."
+            : "Nothing to buy. Plan a meal to choose what to buy for it, or add an item."
+          : `${active.length} to buy${checked.length ? ` · ${checked.length} checked` : ""}`}
           </Text>
         </View>
       ) : (

@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Text } from "@/components/ui/text";
 import type { HouseholdActivity } from "@/features/activity/activities";
 import { HouseholdActivityFeed } from "@/features/activity/household-activity-feed";
+import { ChallengeCard } from "@/features/challenge/challenge-card";
 import { dishMessage, entryMessage } from "@/features/chat/compose";
 import { EntrySelector } from "@/features/chat/entry-selector";
 import {
@@ -24,7 +25,10 @@ import {
   type ImageSource,
 } from "@/features/chat/image-attachment";
 import { ImageAttachmentMenu } from "@/features/chat/image-attachment-menu";
-import { queueMessage } from "@/features/chat/message-queue";
+import {
+  queueMessage,
+  type QueuedMessage,
+} from "@/features/chat/message-queue";
 import { SeededDeck } from "@/features/chat/seeded-deck";
 import {
   useActiveList,
@@ -137,17 +141,27 @@ export default function Home() {
         entry === "ingredients" ? chips.length + Number(!!trimmed) : 0,
       attachment_count: entry === "ingredients" ? attachments.length : 0,
     });
-    startChat(
-      entry === "dish"
-        ? dishMessage(dish)
-        : entryMessage(chips, attachments.length, draft),
-      entry === "dish" ? [] : attachments,
-    );
+    if (entry === "dish") startChat("dish", dishMessage(dish));
+    else
+      startChat(
+        "on_hand",
+        entryMessage(chips, attachments.length, draft),
+        attachments,
+      );
   }
 
-  function startChat(text: string, images: ImageAttachment[] = []) {
+  function startChat(
+    chatEntry: QueuedMessage["entry"],
+    text: string,
+    images: ImageAttachment[] = [],
+  ) {
     const chatId = Crypto.randomUUID();
-    queueMessage({ messageId: Crypto.randomUUID(), text, attachments: images });
+    queueMessage({
+      messageId: Crypto.randomUUID(),
+      text,
+      attachments: images,
+      entry: chatEntry,
+    });
     Keyboard.dismiss();
     setChips([]);
     setDraft("");
@@ -215,6 +229,7 @@ export default function Home() {
           scrollY.current = e.nativeEvent.contentOffset.y;
         }}
       >
+        <ChallengeCard />
         <WeekGlance listId={listId} />
 
         <View className="mx-4 mt-8 gap-3">
@@ -367,7 +382,7 @@ export default function Home() {
               posthog?.capture("meal_ideas_started", {
                 entry_type: "seeded_idea",
               });
-              startChat(text);
+              startChat("idea", text);
             }}
           />
         </View>

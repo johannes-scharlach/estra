@@ -72,7 +72,7 @@ export function RecipeBrowser({
               <Text variant="muted">
                 {search.trim()
                   ? `No matches for “${search.trim()}”.`
-                  : "Your cookbook is empty."}
+                  : "Your cookbook is empty. Import the recipes you love to cook."}
               </Text>
               {!search.trim() ? (
                 <Pressable

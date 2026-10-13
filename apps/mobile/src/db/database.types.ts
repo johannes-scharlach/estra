@@ -98,6 +98,7 @@ export type Database = {
         Row: {
           created_at: string
           created_by: string | null
+          entry: string | null
           id: string
           initial_meal_content_id: string | null
           initial_variant_id: string | null
@@ -110,6 +111,7 @@ export type Database = {
         Insert: {
           created_at?: string
           created_by?: string | null
+          entry?: string | null
           id?: string
           initial_meal_content_id?: string | null
           initial_variant_id?: string | null
@@ -122,6 +124,7 @@ export type Database = {
         Update: {
           created_at?: string
           created_by?: string | null
+          entry?: string | null
           id?: string
           initial_meal_content_id?: string | null
           initial_variant_id?: string | null
@@ -513,6 +516,7 @@ export type Database = {
         Row: {
           activity_id: string | null
           attempt_count: number
+          chat_message_id: string | null
           created_at: string
           delivered_at: string | null
           device_id: string
@@ -534,6 +538,7 @@ export type Database = {
         Insert: {
           activity_id?: string | null
           attempt_count?: number
+          chat_message_id?: string | null
           created_at?: string
           delivered_at?: string | null
           device_id: string
@@ -555,6 +560,7 @@ export type Database = {
         Update: {
           activity_id?: string | null
           attempt_count?: number
+          chat_message_id?: string | null
           created_at?: string
           delivered_at?: string | null
           device_id?: string
@@ -579,6 +585,13 @@ export type Database = {
             columns: ["activity_id"]
             isOneToOne: false
             referencedRelation: "household_activities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notification_deliveries_chat_message_id_fkey"
+            columns: ["chat_message_id"]
+            isOneToOne: false
+            referencedRelation: "chat_messages"
             referencedColumns: ["id"]
           },
           {
@@ -731,6 +744,7 @@ export type Database = {
           from_url: string | null
           id: string
           next_ingredient_id: number
+          origin: string | null
           updated_at: string
         }
         Insert: {
@@ -740,6 +754,7 @@ export type Database = {
           from_url?: string | null
           id?: string
           next_ingredient_id?: number
+          origin?: string | null
           updated_at?: string
         }
         Update: {
@@ -749,6 +764,7 @@ export type Database = {
           from_url?: string | null
           id?: string
           next_ingredient_id?: number
+          origin?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -830,6 +846,8 @@ export type Database = {
           activity_id: string
           actor_name: string
           attempt_count: number
+          chat_id: string
+          chat_title: string
           day_meals: Json
           device_id: string
           expo_push_token: string
@@ -845,6 +863,7 @@ export type Database = {
           previous_meal: string
           previous_meal_name: string
           previous_slot_date: string
+          reply_parts: Json
           slot_date: string
           status: string
           ticket_sent_at: string
@@ -873,6 +892,10 @@ export type Database = {
         Returns: string
       }
       preview_household_invite: { Args: { code: string }; Returns: Json }
+      queue_chat_reply: {
+        Args: { asker_id: string; message_id: string }
+        Returns: undefined
+      }
       queue_meal_reminders: { Args: { now_at?: string }; Returns: undefined }
       register_push_device: {
         Args: {

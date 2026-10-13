@@ -110,6 +110,8 @@ const recipes = new Table({
   next_ingredient_id: column.integer,
   from_name: column.text,
   from_url: column.text,
+  /** 'import' | 'on_hand' | 'dish' | 'idea'; null before spec 0011. */
+  origin: column.text,
   created_by: column.text,
   created_at: column.text,
   updated_at: column.text,
@@ -198,6 +200,8 @@ const chats = new Table(
     initial_variant_id: column.text,
     planned_meal_id: column.text,
     created_by: column.text,
+    /** 'on_hand' | 'dish' | 'idea' for chats started from Home. */
+    entry: column.text,
     initial_meal_content_id: column.text,
     title: column.text,
     created_at: column.text,
