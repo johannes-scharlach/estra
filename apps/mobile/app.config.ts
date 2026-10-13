@@ -28,8 +28,8 @@ const config: ExpoConfig = {
   scheme: "magpie",
   userInterfaceStyle: "automatic",
   ios: {
-    icon: "./assets/expo.icon",
-    bundleIdentifier: `com.magpie.app${variant.idSuffix}`,
+    icon: "./assets/images/icon.png",
+    bundleIdentifier: `com.magpiemeals.app${variant.idSuffix}`,
     supportsTablet: true,
     infoPlist: {
       ...(APP_ENV === "prod"
@@ -47,12 +47,12 @@ const config: ExpoConfig = {
     },
   },
   android: {
-    package: `com.magpie.app${variant.idSuffix}`,
-    // Download new Firebase registrations for com.magpie.app and each variant.
+    package: `com.magpiemeals.app${variant.idSuffix}`,
+    // Download new Firebase registrations for com.magpiemeals.app and each variant.
     // Do not relabel the old credentials.
     googleServicesFile: "./google-services.json",
     adaptiveIcon: {
-      backgroundColor: "#E6F4FE",
+      backgroundColor: "#FBF8F4",
       foregroundImage: "./assets/images/android-icon-foreground.png",
       backgroundImage: "./assets/images/android-icon-background.png",
       monochromeImage: "./assets/images/android-icon-monochrome.png",
@@ -66,6 +66,7 @@ const config: ExpoConfig = {
   plugins: [
     "expo-router",
     "expo-secure-store",
+    "expo-splash-screen",
     [
       "expo-notifications",
       {
@@ -90,7 +91,7 @@ const config: ExpoConfig = {
     posthogProjectToken: process.env.EXPO_PUBLIC_POSTHOG_PROJECT_TOKEN,
     posthogHost: process.env.EXPO_PUBLIC_POSTHOG_HOST,
     eas: {
-      projectId: "9d346f03-cba0-486d-b35c-7a4755567232",
+      projectId: "e270b2e9-0b2c-4518-9d46-2f8777b681e0",
     },
   },
 };
