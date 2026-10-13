@@ -1,21 +1,21 @@
 {
   "project_info": {
-    "project_number": "78441389095",
-    "project_id": "estra-9cb04",
-    "storage_bucket": "estra-9cb04.firebasestorage.app"
+    "project_number": "70748427566",
+    "project_id": "magpie-1939b",
+    "storage_bucket": "magpie-1939b.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:78441389095:android:74369896882bc98c3d4202",
+        "mobilesdk_app_id": "1:70748427566:android:0eb94054513f62f67a56bf",
         "android_client_info": {
-          "package_name": "com.estra.app"
+          "package_name": "com.magpiemeals.app"
         }
       },
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyCV7o8jJXjhqjmHSPYXn1RygtjIfvF9b6o"
+          "current_key": "AIzaSyDTbNlsy-RuFvfCI1DDzpQ1DmcS5KLaBFw"
         }
       ],
       "services": {
@@ -26,15 +26,15 @@
     },
     {
       "client_info": {
-        "mobilesdk_app_id": "1:78441389095:android:455959eaaca9cc113d4202",
+        "mobilesdk_app_id": "1:70748427566:android:169f8b1000eca9127a56bf",
         "android_client_info": {
-          "package_name": "com.estra.app.local"
+          "package_name": "com.magpiemeals.app.local"
         }
       },
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyCV7o8jJXjhqjmHSPYXn1RygtjIfvF9b6o"
+          "current_key": "AIzaSyDTbNlsy-RuFvfCI1DDzpQ1DmcS5KLaBFw"
         }
       ],
       "services": {
