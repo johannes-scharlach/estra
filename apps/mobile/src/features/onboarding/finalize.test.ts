@@ -7,8 +7,8 @@ const sqlite = new DatabaseSync(":memory:");
 sqlite.exec(`
   CREATE TABLE lists (id TEXT PRIMARY KEY, name TEXT, invite_code TEXT, created_by TEXT, created_at TEXT, updated_at TEXT);
   CREATE TABLE list_members (id TEXT PRIMARY KEY, list_id TEXT, user_id TEXT, joined_at TEXT, UNIQUE(list_id, user_id));
-  CREATE TABLE household_profiles (id TEXT PRIMARY KEY, goals TEXT, kitchen_equipment TEXT, pantry TEXT, fresh_ingredients TEXT, restrictions TEXT, meals_at_home TEXT, main_supermarket TEXT, other_shops TEXT, created_at TEXT, updated_at TEXT);
-  CREATE TABLE household_people (id TEXT PRIMARY KEY, list_id TEXT, user_id TEXT, name TEXT, age_group TEXT, diet TEXT, diet_other TEXT, meal_times TEXT, created_at TEXT, updated_at TEXT, UNIQUE(list_id, user_id));
+  CREATE TABLE household_profiles (id TEXT PRIMARY KEY, goals TEXT, kitchen_equipment TEXT, pantry TEXT, fresh_ingredients TEXT, restrictions TEXT, ingredient_avoidances TEXT, shops TEXT, meals_at_home TEXT, main_supermarket TEXT, other_shops TEXT, created_at TEXT, updated_at TEXT);
+  CREATE TABLE household_people (id TEXT PRIMARY KEY, list_id TEXT, user_id TEXT, name TEXT, age_group TEXT, diet TEXT, diet_other TEXT, meal_times TEXT, portion_reference REAL, created_at TEXT, updated_at TEXT, UNIQUE(list_id, user_id));
 `);
 const tx = {
   async execute(sql: string, parameters: unknown[] = []) {
@@ -45,6 +45,11 @@ function setup() {
   draft.user_id = userId;
   draft.people[0]!.name = "Sam";
   draft.profile.restrictions = "Peanut allergy";
+  draft.people[0]!.portion_reference = 1.25;
+  draft.profile.shops = [{ name: "Asian shop", access: "detour" }];
+  draft.profile.ingredient_avoidances = [
+    { ingredient: "Coriander", kind: "dislike", detail: "" },
+  ];
   return draft;
 }
 afterEach(() =>
@@ -75,6 +80,17 @@ it("replays completion without duplicates or overwriting subsequent edits", asyn
   expect(
     await tx.getOptional("SELECT restrictions FROM household_profiles"),
   ).toEqual({ restrictions: "Peanut allergy" });
+  expect(
+    await tx.getOptional("SELECT portion_reference FROM household_people"),
+  ).toEqual({ portion_reference: 1.25 });
+  const saved = await tx.getOptional<{
+    shops: string;
+    ingredient_avoidances: string;
+  }>("SELECT shops, ingredient_avoidances FROM household_profiles");
+  expect(JSON.parse(saved!.shops)).toEqual(draft.profile.shops);
+  expect(JSON.parse(saved!.ingredient_avoidances)).toEqual(
+    draft.profile.ingredient_avoidances,
+  );
 });
 
 it("rolls back partial setup and can retry using the same verified identity", async () => {

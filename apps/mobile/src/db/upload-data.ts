@@ -6,6 +6,8 @@ const JSON_COLUMNS: Record<string, readonly string[]> = {
     "kitchen_equipment",
     "pantry",
     "fresh_ingredients",
+    "ingredient_avoidances",
+    "shops",
   ],
 };
 

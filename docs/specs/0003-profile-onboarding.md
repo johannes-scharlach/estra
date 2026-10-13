@@ -2,6 +2,11 @@
 
 Status: implementation in place; backend rollout and native acceptance pending. Scope and persisted data model confirmed with product owner.
 
+**2026-10-13 update:** [Onboarding redesign](0012-onboarding-redesign.md)
+supersedes the presentation, restriction/shop entry, pantry/fresh options and
+defaults, and adds per-person portion references. Other auth/draft/finalization
+requirements below still apply.
+
 Source: Hobs. Hobs is behavioral reference. A web project that serves as the prototype for Magpie. This document is self-contained; access to Hobs source is not needed.
 
 ## Problem Statement

@@ -36,6 +36,7 @@ streams:
         )
 
   household_profiles:
+    # SELECT * includes ingredient_avoidances and shops (onboarding choices).
     auto_subscribe: true
     priority: 2
     query: |
@@ -44,6 +45,7 @@ streams:
       WHERE list_members.user_id = auth.user_id()
 
   household_people:
+    # SELECT * includes the per-person portion_reference.
     auto_subscribe: true
     priority: 2
     query: |

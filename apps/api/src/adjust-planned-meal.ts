@@ -1,11 +1,13 @@
-import { ingredientSpec, mealIngredients, type MealSwaps, type IngredientLine } from "@magpie/meals";
+import {
+  ingredientSpec,
+  mealIngredients,
+  type MealSwaps,
+  type IngredientLine,
+} from "@magpie/meals";
 import type { PoolClient } from "pg";
 
 import { inTransaction, pool } from "./db.js";
-import {
-  PlannedMealNotFoundError,
-  VariantNotFoundError,
-} from "./errors.js";
+import { PlannedMealNotFoundError, VariantNotFoundError } from "./errors.js";
 import {
   assertListMember,
   assertListMemberUntilCommit,
@@ -49,6 +51,7 @@ type Person = {
   age_group: string | null;
   diet: string | null;
   diet_other: string | null;
+  portion_reference: number;
 };
 
 export type AdjustContext = {
@@ -92,7 +95,7 @@ export async function loadAdjustContext(
 
     const people = (
       await client.query<Person>(
-        "SELECT id, name, age_group, diet, diet_other FROM household_people WHERE list_id = $1 ORDER BY created_at, id",
+        "SELECT id, name, age_group, diet, diet_other, portion_reference FROM household_people WHERE list_id = $1 ORDER BY created_at, id",
         [meal.list_id],
       )
     ).rows;
@@ -110,11 +113,7 @@ const joinNames = (names: string[]) =>
     : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
 
 /** The ask, in words. The schema descriptions carry the ingredient format. */
-export function adjustPrompt({
-  meal,
-  variant,
-  eaters,
-}: AdjustContext): string {
+export function adjustPrompt({ meal, variant, eaters }: AdjustContext): string {
   const swaps = mealIngredients(variant.ingredient_lines, meal.ingredient_swaps)
     .filter((s) => s.swap)
     .map((s) => {
@@ -123,7 +122,7 @@ export function adjustPrompt({
     });
   const who = eaters.map((p) => {
     const diet = p.diet === "other" ? p.diet_other : p.diet;
-    return `${p.name} (${[p.age_group ?? "adult", diet].filter(Boolean).join(", ")})`;
+    return `${p.name} (${[p.age_group ?? "adult", diet, `${p.portion_reference} portion reference`].filter(Boolean).join(", ")})`;
   });
   const extraPortions =
     meal.extra_portions > 0
@@ -139,7 +138,7 @@ export function adjustPrompt({
     `A swap may change how the food is cooked or how long it takes — often that is exactly why the cook picked it. Follow the consequence through: rewrite every step whose method, order or timing it affects, and set totalTime to the new wall-clock time from the first thing the cook does until the food is ready. Never keep the old time when the work changed. Say so in the description too, when a shortcut is what makes this version different.`,
     "",
     `Eating: ${who.length ? who.join("; ") : "the household"}${extraPortions}.`,
-    `The recipe as written says it serves: "${variant.recipe_yield ?? "unknown"}". Scale every amount, including each step's ingredient amounts, for exactly these eaters and extra. A child eats less than an adult; a teenager about as much.`,
+    `The recipe as written says it serves: "${variant.recipe_yield ?? "unknown"}". Scale every amount, including each step's ingredient amounts, for exactly these eaters and extra: ${eaters.reduce((sum, p) => sum + p.portion_reference, meal.extra_portions)} regular adult portions in total. The explicit portion references already describe appetite; do not reduce them again based on age.`,
     `Write recipeYield as who it is sized for: "${yieldFor}".`,
     "",
     ...(swaps.length
@@ -205,8 +204,12 @@ export async function saveAdjusted(opts: {
         extra_portions: context.meal.extra_portions,
       },
     });
-    await repointMealVariant(client, { mealId: plannedMealId, variantId,
-      expectedVariantId: oldVariantId, expectedSwaps: context.meal.ingredient_swaps });
+    await repointMealVariant(client, {
+      mealId: plannedMealId,
+      variantId,
+      expectedVariantId: oldVariantId,
+      expectedSwaps: context.meal.ingredient_swaps,
+    });
     return { recipeId, variantId };
   });
 }

@@ -1,5 +1,4 @@
 import * as Haptics from "expo-haptics";
-import { Image } from "expo-image";
 import { Redirect, useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -10,7 +9,10 @@ import {
   View,
   useWindowDimensions,
 } from "react-native";
-import { KeyboardAvoidingView } from "react-native-keyboard-controller";
+import {
+  KeyboardAwareScrollView,
+  KeyboardStickyView,
+} from "react-native-keyboard-controller";
 import { useReducedMotion } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { PrimaryAction } from "@/components/action";
@@ -25,11 +27,12 @@ import {
 } from "@/features/onboarding/email-auth";
 import { useOnboarding } from "@/features/onboarding/provider";
 import {
-  artByStep,
   SetupQuestion,
   subtitles,
   titles,
 } from "@/features/onboarding/setup-question";
+import { ScrollEdgeFade } from "@/features/onboarding/scroll-edge-fade";
+import { KitchenArtwork } from "@/features/onboarding/artwork";
 
 export function SetupFlow() {
   const { draft } = useOnboarding();
@@ -47,7 +50,7 @@ function Questions({ initialStep }: { initialStep: Step }) {
   const pager = useRef<ScrollView>(null);
   const moving = useRef(false);
   const [busy, setBusy] = useState(false);
-  const [attempted, setAttempted] = useState(false);
+  const [attempted, setAttempted] = useState(0);
   const [footerHeight, setFooterHeight] = useState(0);
   const [index, setIndex] = useState(() => steps.indexOf(initialStep));
   const [settledIndex, setSettledIndex] = useState(index);
@@ -67,7 +70,7 @@ function Questions({ initialStep }: { initialStep: Step }) {
       Keyboard.dismiss();
       try {
         await update((d) => ({ ...d, step: targetStep }));
-        setAttempted(false);
+        setAttempted(0);
         setIndex(target);
         if (reduced) setSettledIndex(target);
         AccessibilityInfo.announceForAccessibility(
@@ -134,7 +137,7 @@ function Questions({ initialStep }: { initialStep: Step }) {
     if (moving.current || locked) return;
     if (!valid) {
       // The button stays enabled so a tap can say what is missing.
-      setAttempted(true);
+      setAttempted((value) => value + 1);
       void Haptics.notificationAsync(
         Haptics.NotificationFeedbackType.Warning,
       ).catch(() => {});
@@ -161,19 +164,13 @@ function Questions({ initialStep }: { initialStep: Step }) {
     isAuth && !session
       ? auth.primaryAction
       : {
-          label: busy
-            ? "Saving…"
-            : finishing
-              ? "Finish setup"
-              : step === "restrictions" && !draft.profile.restrictions.trim()
-                ? "No restrictions"
-                : "Continue",
+          label: busy ? "Saving…" : finishing ? "Finish setup" : "Continue",
           disabled: false,
           onPress: () => void next(),
         };
 
   return (
-    <KeyboardAvoidingView behavior="padding" className="flex-1 bg-background">
+    <View className="flex-1 bg-background">
       <View className="flex-1">
         <ScrollView
           ref={pager}
@@ -217,11 +214,12 @@ function Questions({ initialStep }: { initialStep: Step }) {
           }}
         >
           {pages.map((pageStep, pageIndex) => {
-            const art = artByStep[pageStep];
             const authPage = pageStep === "email" || pageStep === "code";
             return (
-              <ScrollView
+              <KeyboardAwareScrollView
                 key={pageStep}
+                enabled={pageIndex === index}
+                bottomOffset={footerHeight - Math.max(insets.bottom, 14) + 20}
                 style={{ width }}
                 contentContainerClassName="flex-grow gap-6 px-6"
                 contentContainerStyle={{
@@ -267,21 +265,8 @@ function Questions({ initialStep }: { initialStep: Step }) {
                       : subtitles[pageStep]}
                   </Text>
                 </View>
-                {art ? (
-                  <View
-                    className="overflow-hidden rounded-2xl border border-border"
-                    style={{ borderCurve: "continuous" }}
-                  >
-                    <Image
-                      source={art.source}
-                      accessibilityLabel={art.accessibilityLabel}
-                      contentFit="cover"
-                      style={{
-                        width: "100%",
-                        aspectRatio: art.aspectRatio ?? 2,
-                      }}
-                    />
-                  </View>
+                {pageStep === "email" ? (
+                  <KitchenArtwork profile={draft.profile} />
                 ) : null}
                 {authPage ? (
                   !session ? (
@@ -294,19 +279,21 @@ function Questions({ initialStep }: { initialStep: Step }) {
                   <SetupQuestion
                     step={pageStep}
                     onNext={() => void next()}
-                    showErrors={attempted && pageIndex === index}
+                    validationAttempt={pageIndex === index ? attempted : 0}
                   />
                 )}
-              </ScrollView>
+              </KeyboardAwareScrollView>
             );
           })}
         </ScrollView>
-        <View
+        <KeyboardStickyView
           pointerEvents="box-none"
           className="absolute bottom-0 left-0 right-0 gap-3 px-6 pt-3"
+          offset={{ opened: Math.max(insets.bottom, 14) - 8 }}
           style={{ paddingBottom: Math.max(insets.bottom, 14) }}
           onLayout={(event) => setFooterHeight(event.nativeEvent.layout.height)}
         >
+          <ScrollEdgeFade height={footerHeight} />
           <FormError message={error} />
           <View
             className={
@@ -328,8 +315,8 @@ function Questions({ initialStep }: { initialStep: Step }) {
               />
             </View>
           </View>
-        </View>
+        </KeyboardStickyView>
       </View>
-    </KeyboardAvoidingView>
+    </View>
   );
 }

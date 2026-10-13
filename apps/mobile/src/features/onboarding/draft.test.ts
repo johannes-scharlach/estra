@@ -51,4 +51,25 @@ describe("onboarding draft recovery", () => {
       other: ["Camping burner"],
     });
   });
+  it("restores old categories without turning them into items, and retains new choices", () => {
+    const draft = createDraft(personId, listId);
+    const raw = JSON.parse(JSON.stringify(draft));
+    delete raw.people[0].portion_reference;
+    raw.profile.pantry = { cannedFoods: true, other: ["Polenta"] };
+    expect(
+      restoreDraft(JSON.stringify(raw))?.people[0]?.portion_reference,
+    ).toBe(1);
+    expect(restoreDraft(JSON.stringify(raw))?.profile.pantry).toEqual(
+      raw.profile.pantry,
+    );
+    draft.people[0]!.portion_reference = 0.75;
+    draft.profile.pantry = { "canned-corn": true, other: [] };
+    draft.profile.ingredient_avoidances = [
+      { ingredient: "Coriander", kind: "dislike", detail: "" },
+    ];
+    draft.profile.shops = [{ name: "Asian shop", access: "detour" }];
+    const restored = restoreDraft(JSON.stringify(draft))!;
+    expect(restored.people[0]?.portion_reference).toBe(0.75);
+    expect(restored.profile).toEqual(draft.profile);
+  });
 });

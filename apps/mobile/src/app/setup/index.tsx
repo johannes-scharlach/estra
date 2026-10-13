@@ -1,13 +1,12 @@
 import { householdSchema } from "@magpie/profile";
 import * as Crypto from "expo-crypto";
-import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import { Pressable, View } from "react-native";
 import { Text } from "@/components/ui/text";
 import { useAuth } from "@/db/provider";
 import { useHouseholdAccess } from "@/features/onboarding/access";
-import { onboardingArt } from "@/features/onboarding/art";
+import { Artwork } from "@/features/onboarding/artwork";
 import { CompleteSetup } from "@/features/onboarding/complete";
 import { createDraft } from "@/features/onboarding/draft";
 import { OnboardingScreen } from "@/features/onboarding/onboarding-screen";
@@ -88,29 +87,16 @@ export default function Welcome() {
         <Text className="text-[25px] font-semibold tracking-tight text-primary">
           magpie
         </Text>
-        <View
-          className="overflow-hidden rounded-2xl border border-border"
-          style={{ borderCurve: "continuous" }}
-        >
-          <Image
-            source={onboardingArt.welcome.source}
-            accessibilityLabel={onboardingArt.welcome.accessibilityLabel}
-            contentFit="cover"
-            style={{
-              width: "100%",
-              aspectRatio: onboardingArt.welcome.aspectRatio,
-            }}
-          />
-        </View>
+        <Artwork id="welcome-market-find" hero />
         <Text
           accessibilityRole="header"
           className="text-4xl font-bold leading-11 tracking-tight"
         >
-          Meals you actually want to make
+          Found something good? Let’s cook it.
         </Text>
         <Text className="text-xl leading-6 text-muted-foreground">
-          Cook what you love, use what you have, and never wonder what’s for
-          dinner.
+          Choose the meals you want. Magpie helps with the ingredients, the
+          shopping, and making it all work when plans change.
         </Text>
       </View>
       <FormError message={error ?? access.error} />

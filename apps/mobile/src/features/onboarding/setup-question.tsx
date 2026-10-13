@@ -5,57 +5,41 @@ import {
 } from "@magpie/profile";
 import { useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import { View, type TextInput } from "react-native";
+import { Pressable, View, type TextInput } from "react-native";
 import { AddRow } from "@/components/add-row";
 import { Text } from "@/components/ui/text";
-import { onboardingArt } from "@/features/onboarding/art";
 import { type Step } from "@/features/onboarding/draft";
 import { PersonRow } from "@/features/onboarding/person-row";
 import { useOnboarding } from "@/features/onboarding/provider";
-import {
-  DietEditor,
-  Field,
-  MealRoutineEditor,
-  RestrictionsEditor,
-  SelectionEditor,
-} from "@/features/profile/form";
+import { DietEditor, Field, MealRoutineEditor } from "@/features/profile/form";
+import { ChoiceTiles } from "@/features/profile/choice-tiles";
+import { AvoidancesEditor } from "@/features/profile/avoidances-editor";
+import { ShopsEditor } from "@/features/profile/shops-editor";
 
 export const titles: Record<Step, string> = {
-  name: "What should Magpie call you?",
-  goals: "What matters most in your kitchen?",
+  name: "What’s your name?",
+  goals: "What would you like help with?",
   diet: "How do you eat?",
-  household: "Who are you cooking for?",
+  household: "Who do you cook for?",
   restrictions: "Anything to avoid?",
   groceries: "Where do you shop?",
   kitchen: "What equipment do you have?",
-  pantry: "What’s in your pantry?",
-  fresh: "What fresh ingredients belong in your rotation?",
-  email: "Save your setup",
+  pantry: "What do you nearly always have?",
+  fresh: "What do you buy regularly?",
+  email: "Save your kitchen",
   code: "Check your inbox",
 };
 
 export const subtitles: Record<Exclude<Step, "email" | "code">, string> = {
-  name: "This is how Magpie will address you.",
-  goals: "Magpie will steer recipes and ideas toward your goals.",
-  diet: "Your dietary baseline for recipes.",
-  household: "Add anyone who regularly eats with you.",
-  restrictions: "Allergies, intolerances, or things nobody in the house likes.",
-  groceries: "So recipes only call for ingredients you can actually find.",
-  kitchen: "Magpie can adjust recipes to make sense in your kitchen.",
-  pantry: "The things waiting in your cupboards, ready to cook with.",
-  fresh: "So recipes feature the fresh staples you’re excited to buy and cook.",
-};
-
-export const artByStep: Partial<
-  Record<
-    Step,
-    { source: number; accessibilityLabel: string; aspectRatio?: number }
-  >
-> = {
-  diet: onboardingArt.diet,
-  kitchen: onboardingArt.kitchen,
-  pantry: onboardingArt.pantry,
-  fresh: onboardingArt.fresh,
+  name: "First name or nickname is fine.",
+  goals: "Choose what matters to you.",
+  diet: "Start with yourself. You can set a different diet for each person.",
+  household: "Add the people you regularly cook for.",
+  restrictions: "For anyone you cook for.",
+  groceries: "Your usual shop, and anywhere else you go for food.",
+  kitchen: "Tap the appliances you have.",
+  pantry: "Cupboard staples. Tap a few — you can add more later.",
+  fresh: "Fresh food you buy often, even if it’s not in the fridge today.",
 };
 
 function HouseholdEditor({
@@ -82,21 +66,27 @@ function HouseholdEditor({
           person.diet === "other"
             ? person.diet_other
             : dietOptions[person.diet];
-        const detail = `${person.age_group} · ${diet} · Usually here: ${person.meal_times}`;
+        const detail = `${person.age_group} · ${diet} · ${person.portion_reference} portion${person.portion_reference === 1 ? "" : "s"} · ${person.meal_times}`;
         return (
           <View
             key={person.id}
             className={index ? "border-t border-border" : undefined}
           >
             {isCurrentPerson ? (
-              <View className="min-h-16 gap-1 px-4 py-3">
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Edit your details"
+                onPress={() => onEdit(person.id)}
+                className="min-h-16 gap-1 px-4 py-3 active:bg-accent"
+              >
                 <Text className="text-[17px] font-medium">
                   {person.name || "You"} (You)
                 </Text>
                 <Text className="text-sm leading-5 text-muted-foreground">
                   {detail}
                 </Text>
-              </View>
+                <Text className="text-sm text-primary">Edit your details</Text>
+              </Pressable>
             ) : (
               <PersonRow
                 name={person.name}
@@ -116,21 +106,22 @@ function HouseholdEditor({
 export function SetupQuestion({
   step,
   onNext,
-  showErrors,
+  validationAttempt,
 }: {
   step: Step;
   onNext: () => void;
   /** Continue was tapped with a required answer missing. */
-  showErrors: boolean;
+  validationAttempt: number;
 }) {
   const router = useRouter();
   const { draft, update } = useOnboarding();
   const nameRef = useRef<TextInput>(null);
+  const showErrors = validationAttempt > 0;
   // Mounted on the step it opens at, so resuming elsewhere stays quiet.
   const [openedHere] = useState(() => draft?.step === step);
   useEffect(() => {
     if (showErrors && step === "name") nameRef.current?.focus();
-  }, [showErrors, step]);
+  }, [showErrors, step, validationAttempt]);
   if (!draft) return null;
   const person = draft.people.find((p) => p.id === draft.onboarding_person_id)!;
   function editProfile(changes: Partial<CookingProfile>) {
@@ -168,7 +159,7 @@ export function SetupQuestion({
         />
       ) : null}
       {step === "goals" ? (
-        <SelectionEditor
+        <ChoiceTiles
           field="goals"
           value={draft.profile.goals}
           onChange={(goals) => editProfile({ goals })}
@@ -179,6 +170,7 @@ export function SetupQuestion({
           person={person}
           onChange={editPerson}
           allowOtherDiet
+          validationAttempt={validationAttempt}
           otherError={
             showErrors && person.diet === "other" && !person.diet_other.trim()
               ? "Describe your diet in a few words."
@@ -212,49 +204,34 @@ export function SetupQuestion({
         </View>
       ) : null}
       {step === "restrictions" ? (
-        <RestrictionsEditor
-          hideLabel
-          value={draft.profile.restrictions}
-          onChange={(restrictions) => editProfile({ restrictions })}
+        <AvoidancesEditor
+          value={draft.profile.ingredient_avoidances}
+          onChange={(ingredient_avoidances) =>
+            editProfile({ ingredient_avoidances })
+          }
+          notes={draft.profile.restrictions}
+          onNotes={(restrictions) => editProfile({ restrictions })}
         />
       ) : null}
       {step === "groceries" ? (
-        <View className="gap-6">
-          <Field
-            label="Main grocery store"
-            value={draft.profile.main_supermarket}
-            onChangeText={(main_supermarket) =>
-              editProfile({ main_supermarket })
-            }
-            placeholder="e.g. Trader Joe’s, Tesco, Rewe, or Aldi"
-          />
-          <Field
-            label="Other shops & how often you go"
-            multiline
-            value={draft.profile.other_shops}
-            onChangeText={(other_shops) => editProfile({ other_shops })}
-            placeholder="e.g. Asian grocery once a month, farmer’s market on Saturdays, bakery for fresh bread"
-          />
-        </View>
+        <ShopsEditor profile={draft.profile} onChange={editProfile} />
       ) : null}
       {step === "kitchen" ? (
-        <SelectionEditor
+        <ChoiceTiles
           field="kitchen_equipment"
           value={draft.profile.kitchen_equipment}
           onChange={(kitchen_equipment) => editProfile({ kitchen_equipment })}
         />
       ) : null}
-      {/* Follow-up feature: Apple Music grid redesign — replace high-level
-          buckets with item-level staple chips ("Pick at least 3" low-floor/high-ceiling). */}
       {step === "pantry" ? (
-        <SelectionEditor
+        <ChoiceTiles
           field="pantry"
           value={draft.profile.pantry}
           onChange={(pantry) => editProfile({ pantry })}
         />
       ) : null}
       {step === "fresh" ? (
-        <SelectionEditor
+        <ChoiceTiles
           field="fresh_ingredients"
           value={draft.profile.fresh_ingredients}
           onChange={(fresh_ingredients) => editProfile({ fresh_ingredients })}

@@ -2,7 +2,7 @@ import { newPerson, personSchema, type HouseholdPerson } from "@magpie/profile";
 import * as Crypto from "expo-crypto";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
-import { Keyboard, Platform, Pressable, View } from "react-native";
+import { Platform, ScrollView, View } from "react-native";
 import { CloseButton } from "@/components/close-button";
 import { Button } from "@/components/ui/button";
 import { Text } from "@/components/ui/text";
@@ -20,14 +20,17 @@ export function EditSetupPerson() {
     () => existing ?? newPerson(Crypto.randomUUID()),
   );
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [validationAttempt, setValidationAttempt] = useState(0);
   const [busy, setBusy] = useState(false);
 
   async function save() {
+    if (busy) return;
     const parsed = personSchema.safeParse(person);
     if (!parsed.success) {
-      setError(
-        parsed.error.issues[0]?.message ?? "Check this person's details.",
-      );
+      setValidationAttempt((value) => value + 1);
+      const issue = parsed.error.issues[0];
+      setFieldErrors(issue ? { [String(issue.path[0])]: issue.message } : {});
       return;
     }
     setBusy(true);
@@ -49,7 +52,7 @@ export function EditSetupPerson() {
   }
 
   async function remove() {
-    if (!existing) return;
+    if (!existing || existing.id === draft?.onboarding_person_id) return;
     setBusy(true);
     try {
       await commit((draft) => ({
@@ -69,24 +72,22 @@ export function EditSetupPerson() {
     : existing
       ? "Save changes"
       : "Add person";
-  const removeButton = existing ? (
-    <Button variant="ghost" disabled={busy} onPress={() => void remove()}>
-      <Text className="text-destructive">Remove person</Text>
-    </Button>
-  ) : null;
+  const removeButton =
+    existing && existing.id !== draft?.onboarding_person_id ? (
+      <Button variant="ghost" disabled={busy} onPress={() => void remove()}>
+        <Text className="text-destructive">Remove person</Text>
+      </Button>
+    ) : null;
 
   if (Platform.OS === "ios") {
-    // formSheet: content is compact enough (no scrolling needed) to sidestep
-    // the ScrollView-in-formSheet detent bug (react-native-screens #3634).
-    // No opaque background either — the sheet's own glass material shows
-    // through — and dismiss is a corner X, not the full-screen back button.
-    // Without scrolling, the keyboard covers the action, so a tap anywhere
-    // outside a field puts it away.
     return (
-      <Pressable
-        collapsable={false}
-        accessible={false}
-        onPress={Keyboard.dismiss}
+      <ScrollView
+        style={{ flex: 1 }}
+        automaticallyAdjustKeyboardInsets
+        contentInsetAdjustmentBehavior="automatic"
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+        contentContainerClassName="pb-10"
       >
         <View className="flex-row items-center justify-between gap-4 px-6 pt-4">
           <Text className="flex-1 text-lg font-semibold">{title}</Text>
@@ -98,6 +99,8 @@ export function EditSetupPerson() {
             person={person}
             onChange={setPerson}
             autoFocusName={!existing}
+            errors={fieldErrors}
+            validationAttempt={validationAttempt}
           />
           <PrimaryAction
             label={actionLabel}
@@ -106,7 +109,7 @@ export function EditSetupPerson() {
           />
           {removeButton}
         </View>
-      </Pressable>
+      </ScrollView>
     );
   }
 
@@ -122,7 +125,12 @@ export function EditSetupPerson() {
       title={title}
     >
       <FormError message={error} />
-      <PersonFields person={person} onChange={setPerson} />
+      <PersonFields
+        person={person}
+        onChange={setPerson}
+        errors={fieldErrors}
+        validationAttempt={validationAttempt}
+      />
       {removeButton}
     </OnboardingScreen>
   );

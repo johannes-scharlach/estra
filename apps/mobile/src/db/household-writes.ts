@@ -12,7 +12,7 @@ export async function insertPerson(
   now: string,
 ): Promise<void> {
   await tx.execute(
-    "INSERT INTO household_people (id, list_id, user_id, name, age_group, diet, diet_other, meal_times, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    "INSERT INTO household_people (id, list_id, user_id, name, age_group, diet, diet_other, meal_times, portion_reference, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
     [
       person.id,
       listId,
@@ -22,6 +22,7 @@ export async function insertPerson(
       person.diet,
       person.diet_other,
       person.meal_times,
+      person.portion_reference,
       now,
       now,
     ],
@@ -57,7 +58,7 @@ export async function insertProfile(
   now: string,
 ): Promise<void> {
   await tx.execute(
-    "INSERT INTO household_profiles (id, goals, kitchen_equipment, pantry, fresh_ingredients, restrictions, meals_at_home, main_supermarket, other_shops, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    "INSERT INTO household_profiles (id, goals, kitchen_equipment, pantry, fresh_ingredients, restrictions, meals_at_home, main_supermarket, other_shops, ingredient_avoidances, shops, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
     [
       listId,
       JSON.stringify(p.goals),
@@ -68,6 +69,8 @@ export async function insertProfile(
       p.meals_at_home,
       p.main_supermarket,
       p.other_shops,
+      JSON.stringify(p.ingredient_avoidances),
+      JSON.stringify(p.shops),
       now,
       now,
     ],

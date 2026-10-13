@@ -8,6 +8,7 @@ import {
   ScrollView,
   View,
 } from "react-native";
+import { Image } from "expo-image";
 import Animated from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -40,6 +41,7 @@ const HIGHLIGHT_MS = 4500;
 // tint colour (see `iconRenderingMode` below), so they follow light and dark.
 const ADD_ICON = require("../../../../assets/icons/add.xml");
 const MEALS_ICON = require("../../../../assets/icons/restaurant.xml");
+const EMPTY_SHOP_ICON = require("../../../../assets/images/spot/empty-shop.png");
 type Held = Browse & { hold: HeldPosition };
 type Entry = { key: string } & (
   | { kind: "header"; title: string }
@@ -165,11 +167,15 @@ function ListScreen({
   });
   // Resolve category and name before sorting outstanding ingredients. Purchases
   // keep the SQL query's check-off order and their captured details.
-  const outstanding = rows.filter((item) => item.status === "active").sort((a, b) =>
-    (categoryById.get(a.category_id ?? "")?.sort_order ?? 999) -
-    (categoryById.get(b.category_id ?? "")?.sort_order ?? 999) ||
-    (a.name ?? "").localeCompare(b.name ?? "") || a.id.localeCompare(b.id),
-  );
+  const outstanding = rows
+    .filter((item) => item.status === "active")
+    .sort(
+      (a, b) =>
+        (categoryById.get(a.category_id ?? "")?.sort_order ?? 999) -
+          (categoryById.get(b.category_id ?? "")?.sort_order ?? 999) ||
+        (a.name ?? "").localeCompare(b.name ?? "") ||
+        a.id.localeCompare(b.id),
+    );
   const active = holdPositions(
     outstanding,
     [...browsing.values()].map((held) => held.hold),
@@ -212,7 +218,11 @@ function ListScreen({
     if (!session) {
       const options = orderedAlternatives(
         item.name ?? "",
-        alternativesForItem(item.name ?? "", item.ingredient_lines, item.ingredient_id),
+        alternativesForItem(
+          item.name ?? "",
+          item.ingredient_lines,
+          item.ingredient_id,
+        ),
       );
       if (options.length < 2) return false;
       const hold: HeldPosition = {
@@ -285,13 +295,27 @@ function ListScreen({
       removeClippedSubviews={false}
       contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
     >
-      <Text variant="muted" className="px-4 pb-1 android:pt-3">
-        {active.length === 0
+      {entries.length === 0 ? (
+        <View className="items-center gap-4 px-6 py-16">
+          <Image
+            source={EMPTY_SHOP_ICON}
+            contentFit="contain"
+            style={{ width: 140, height: 140 }}
+            accessibilityLabel="Empty shopping list"
+          />
+          <Text variant="muted" className="text-center">
+            {active.length === 0
           ? mealsToReview > 0
             ? "Nothing to buy yet. Open Meals to choose what to buy, or add an item."
             : "Nothing to buy. Plan a meal to choose what to buy for it, or add an item."
           : `${active.length} to buy${checked.length ? ` · ${checked.length} checked` : ""}`}
-      </Text>
+          </Text>
+        </View>
+      ) : (
+        <Text variant="muted" className="px-4 pb-1 android:pt-3">
+          {`${active.length} to buy${checked.length ? ` · ${checked.length} checked` : ""}`}
+        </Text>
+      )}
       {entries.map((entry, index) => {
         if (entry.kind === "header") {
           return (

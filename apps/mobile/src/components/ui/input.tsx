@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils";
-import { Platform, TextInput } from "react-native";
+import { TextInput } from "react-native";
+import { useState } from "react";
 import { useResolveClassNames } from "uniwind";
 
 // NOTE: uniwind has no placeholderClassName (that's NativeWind-only), and the
@@ -7,31 +8,29 @@ import { useResolveClassNames } from "uniwind";
 // black), so the colour is resolved from the theme and passed explicitly.
 function Input({
   className,
+  onFocus,
+  onBlur,
   ...props
 }: React.ComponentProps<typeof TextInput> & React.RefAttributes<TextInput>) {
   const placeholderColor = useResolveClassNames("text-muted-foreground").color;
+  const [focused, setFocused] = useState(false);
   return (
     <TextInput
       className={cn(
-        "bg-muted text-foreground flex h-10 w-full min-w-0 flex-row items-center rounded-xl px-3 py-1 text-base leading-5 sm:h-9",
-        props.editable === false &&
-          cn(
-            "opacity-50",
-            Platform.select({
-              web: "disabled:pointer-events-none disabled:cursor-not-allowed",
-            }),
-          ),
-        Platform.select({
-          web: cn(
-            "placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground outline-none transition-[color,box-shadow] md:text-sm",
-            "focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]",
-            "aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
-          ),
-          native: "placeholder:text-muted-foreground/70",
-        }),
+        "bg-card text-foreground flex min-h-12 w-full min-w-0 rounded-xl border border-border px-3 py-3 text-base leading-5",
+        focused && "border-primary",
+        props.editable === false && "opacity-50",
         className,
       )}
       placeholderTextColor={placeholderColor}
+      onFocus={(event) => {
+        setFocused(true);
+        onFocus?.(event);
+      }}
+      onBlur={(event) => {
+        setFocused(false);
+        onBlur?.(event);
+      }}
       {...props}
     />
   );

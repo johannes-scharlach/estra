@@ -11,14 +11,11 @@ import { PrimaryAction } from "@/components/action";
 import { Text } from "@/components/ui/text";
 import { saveProfileSection } from "@/db/profiles";
 import { useHouseholdAccess } from "@/features/onboarding/access";
-import {
-  Field,
-  FormError,
-  MealRoutineEditor,
-  RestrictionsEditor,
-  SelectionEditor,
-} from "@/features/profile/form";
+import { FormError, MealRoutineEditor } from "@/features/profile/form";
 import { useHousehold } from "@/features/profile/use-household";
+import { ChoiceTiles } from "@/features/profile/choice-tiles";
+import { AvoidancesEditor } from "@/features/profile/avoidances-editor";
+import { ShopsEditor } from "@/features/profile/shops-editor";
 
 const titles: Record<string, string> = {
   goals: "Goals",
@@ -109,9 +106,13 @@ function SectionEditor({
           ? {
               main_supermarket: draft.main_supermarket,
               other_shops: draft.other_shops,
+              shops: draft.shops,
             }
           : section === "restrictions"
-            ? { restrictions: draft.restrictions }
+            ? {
+                restrictions: draft.restrictions,
+                ingredient_avoidances: draft.ingredient_avoidances,
+              }
             : { meals_at_home: draft.meals_at_home };
       await saveProfileSection(listId, changes);
       router.back();
@@ -129,16 +130,20 @@ function SectionEditor({
     <SectionSheet title={titles[section] ?? "Profile"} busy={busy}>
       <FormError message={error} />
       {selection && (
-        <SelectionEditor
+        <ChoiceTiles
           field={selection}
           value={draft[selection]}
           onChange={(value) => setDraft((d) => ({ ...d, [selection]: value }))}
         />
       )}
       {section === "restrictions" && (
-        <RestrictionsEditor
-          value={draft.restrictions}
-          onChange={(restrictions) => setDraft((d) => ({ ...d, restrictions }))}
+        <AvoidancesEditor
+          value={draft.ingredient_avoidances}
+          onChange={(ingredient_avoidances) =>
+            setDraft((d) => ({ ...d, ingredient_avoidances }))
+          }
+          notes={draft.restrictions}
+          onNotes={(restrictions) => setDraft((d) => ({ ...d, restrictions }))}
         />
       )}
       {section === "meals_at_home" && (
@@ -150,25 +155,10 @@ function SectionEditor({
         />
       )}
       {section === "shops" && (
-        <>
-          <Field
-            label="Main grocery store"
-            value={draft.main_supermarket}
-            onChangeText={(main_supermarket) =>
-              setDraft((d) => ({ ...d, main_supermarket }))
-            }
-            placeholder="e.g. Trader Joe’s, Tesco, Rewe, or Aldi"
-          />
-          <Field
-            label="Other shops & how often you go"
-            multiline
-            value={draft.other_shops}
-            onChangeText={(other_shops) =>
-              setDraft((d) => ({ ...d, other_shops }))
-            }
-            placeholder="e.g. Asian grocery once a month, farmer’s market on Saturdays, bakery for fresh bread"
-          />
-        </>
+        <ShopsEditor
+          profile={draft}
+          onChange={(changes) => setDraft((d) => ({ ...d, ...changes }))}
+        />
       )}
       <PrimaryAction
         label={busy ? "Saving…" : "Save"}

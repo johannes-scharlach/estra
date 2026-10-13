@@ -1,4 +1,4 @@
-import { newPerson, type HouseholdPerson } from "@magpie/profile";
+import { newPerson, personSchema, type HouseholdPerson } from "@magpie/profile";
 import * as Crypto from "expo-crypto";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useState, type ReactNode } from "react";
@@ -72,10 +72,21 @@ function PersonEditor({
     () => initial ?? newPerson(Crypto.randomUUID()),
   );
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [validationAttempt, setValidationAttempt] = useState(0);
   const [busy, setBusy] = useState(false);
   const router = useRouter();
   async function commit(remove = false) {
     if (busy) return;
+    if (!remove) {
+      const parsed = personSchema.safeParse(person);
+      if (!parsed.success) {
+        setValidationAttempt((value) => value + 1);
+        const issue = parsed.error.issues[0];
+        setFieldErrors(issue ? { [String(issue.path[0])]: issue.message } : {});
+        return;
+      }
+    }
     setBusy(true);
     setError(null);
     try {
@@ -99,6 +110,8 @@ function PersonEditor({
         person={person}
         onChange={setPerson}
         autoFocusName={!initial}
+        errors={fieldErrors}
+        validationAttempt={validationAttempt}
       />
       <PrimaryAction
         label={busy ? "Saving…" : "Save person"}
