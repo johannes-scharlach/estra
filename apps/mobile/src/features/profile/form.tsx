@@ -55,6 +55,7 @@ export function FormScreen({
 export function Field({
   label,
   hideLabel,
+  error,
   multiline,
   style,
   ref,
@@ -62,9 +63,11 @@ export function Field({
 }: TextInputProps & {
   label: string;
   hideLabel?: boolean;
+  /** Shown under the input, where the eye already is. */
+  error?: string | null;
 } & React.RefAttributes<TextInput>) {
   return (
-    <View className={hideLabel ? "" : "gap-2"}>
+    <View className="gap-2">
       {hideLabel ? (
         <Text className="sr-only">{label}</Text>
       ) : (
@@ -78,6 +81,7 @@ export function Field({
         style={[multiline ? { textAlignVertical: "top" } : undefined, style]}
         {...props}
       />
+      <FormError message={error} />
     </View>
   );
 }
@@ -303,11 +307,13 @@ export function DietEditor({
   onChange,
   allowOtherDiet = false,
   compact = false,
+  otherError,
 }: {
   person: HouseholdPerson;
   onChange: (p: HouseholdPerson) => void;
   allowOtherDiet?: boolean;
   compact?: boolean;
+  otherError?: string | null;
 }) {
   const entries = Object.entries(dietOptions).filter(
     ([key]) => allowOtherDiet || key !== "other",
@@ -352,6 +358,7 @@ export function DietEditor({
       {person.diet === "other" && (
         <Field
           label="Describe your diet"
+          error={otherError}
           multiline
           value={person.diet_other}
           onChangeText={(diet_other) => onChange({ ...person, diet_other })}
@@ -387,9 +394,11 @@ export function RestrictionsEditor({
 export function PersonFields({
   person,
   onChange,
+  autoFocusName,
 }: {
   person: HouseholdPerson;
   onChange: (p: HouseholdPerson) => void;
+  autoFocusName?: boolean;
 }) {
   return (
     <>
@@ -398,6 +407,8 @@ export function PersonFields({
         value={person.name}
         onChangeText={(name) => onChange({ ...person, name })}
         autoCapitalize="words"
+        autoFocus={autoFocusName}
+        returnKeyType="done"
       />
       <PickerRow
         label="Age group"
@@ -420,6 +431,7 @@ export function PersonFields({
         label="Which meals are they usually here for?"
         value={person.meal_times}
         onChangeText={(meal_times) => onChange({ ...person, meal_times })}
+        returnKeyType="done"
       />
     </>
   );

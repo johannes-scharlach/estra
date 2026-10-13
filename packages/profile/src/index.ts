@@ -25,7 +25,7 @@ export const dietDescriptions = {
   pescetarian: "Vegetarian, plus seafood",
   vegetarian: "Dairy and eggs, but no meat or fish",
   vegan: "No animal products at all",
-  other: "I have a different diet",
+  other: "Describe it in your own words",
 } as const;
 export const equipmentOptions = {
   oven: "Oven",

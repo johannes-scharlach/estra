@@ -95,7 +95,11 @@ function PersonEditor({
   return (
     <PersonSheet busy={busy}>
       <FormError message={error} />
-      <PersonFields person={person} onChange={setPerson} />
+      <PersonFields
+        person={person}
+        onChange={setPerson}
+        autoFocusName={!initial}
+      />
       <PrimaryAction
         label={busy ? "Saving…" : "Save person"}
         disabled={busy}

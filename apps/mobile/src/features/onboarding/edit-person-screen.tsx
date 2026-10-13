@@ -2,7 +2,7 @@ import { newPerson, personSchema, type HouseholdPerson } from "@magpie/profile";
 import * as Crypto from "expo-crypto";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
-import { Platform, View } from "react-native";
+import { Keyboard, Platform, Pressable, View } from "react-native";
 import { CloseButton } from "@/components/close-button";
 import { Button } from "@/components/ui/button";
 import { Text } from "@/components/ui/text";
@@ -80,15 +80,25 @@ export function EditSetupPerson() {
     // the ScrollView-in-formSheet detent bug (react-native-screens #3634).
     // No opaque background either — the sheet's own glass material shows
     // through — and dismiss is a corner X, not the full-screen back button.
+    // Without scrolling, the keyboard covers the action, so a tap anywhere
+    // outside a field puts it away.
     return (
-      <View collapsable={false}>
+      <Pressable
+        collapsable={false}
+        accessible={false}
+        onPress={Keyboard.dismiss}
+      >
         <View className="flex-row items-center justify-between gap-4 px-6 pt-4">
           <Text className="flex-1 text-lg font-semibold">{title}</Text>
           <CloseButton onPress={() => router.back()} disabled={busy} />
         </View>
         <View className="mt-4 gap-4 px-6">
           <FormError message={error} />
-          <PersonFields person={person} onChange={setPerson} />
+          <PersonFields
+            person={person}
+            onChange={setPerson}
+            autoFocusName={!existing}
+          />
           <PrimaryAction
             label={actionLabel}
             disabled={busy}
@@ -96,7 +106,7 @@ export function EditSetupPerson() {
           />
           {removeButton}
         </View>
-      </View>
+      </Pressable>
     );
   }
 

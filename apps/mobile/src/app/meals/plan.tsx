@@ -327,7 +327,7 @@ export default function PlanMeals() {
               textAlignVertical="top"
               accessibilityLabel="What do you have in mind? (optional)"
               placeholderTextColor={mutedColor}
-              placeholder="Something you're craving, quick dinners, guests, ingredients to use up…"
+              placeholder="Something you’re craving, quick dinners, guests, ingredients to use up…"
               className="min-h-28 px-4 py-3 text-base text-foreground placeholder:text-muted-foreground/70"
             />
             <View className="gap-2 px-4 pb-2">

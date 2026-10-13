@@ -4,7 +4,8 @@ import {
   type HouseholdPerson,
 } from "@magpie/profile";
 import { useRouter } from "expo-router";
-import { View } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { View, type TextInput } from "react-native";
 import { AddRow } from "@/components/add-row";
 import { Text } from "@/components/ui/text";
 import { onboardingArt } from "@/features/onboarding/art";
@@ -42,7 +43,7 @@ export const subtitles: Record<Exclude<Step, "email" | "code">, string> = {
   groceries: "So recipes only call for ingredients you can actually find.",
   kitchen: "Magpie can adjust recipes to make sense in your kitchen.",
   pantry: "The things waiting in your cupboards, ready to cook with.",
-  fresh: "So recipes feature the fresh staples you're excited to buy and cook.",
+  fresh: "So recipes feature the fresh staples you’re excited to buy and cook.",
 };
 
 export const artByStep: Partial<
@@ -115,12 +116,21 @@ function HouseholdEditor({
 export function SetupQuestion({
   step,
   onNext,
+  showErrors,
 }: {
   step: Step;
   onNext: () => void;
+  /** Continue was tapped with a required answer missing. */
+  showErrors: boolean;
 }) {
   const router = useRouter();
   const { draft, update } = useOnboarding();
+  const nameRef = useRef<TextInput>(null);
+  // Mounted on the step it opens at, so resuming elsewhere stays quiet.
+  const [openedHere] = useState(() => draft?.step === step);
+  useEffect(() => {
+    if (showErrors && step === "name") nameRef.current?.focus();
+  }, [showErrors, step]);
   if (!draft) return null;
   const person = draft.people.find((p) => p.id === draft.onboarding_person_id)!;
   function editProfile(changes: Partial<CookingProfile>) {
@@ -138,12 +148,21 @@ export function SetupQuestion({
     <>
       {step === "name" ? (
         <Field
+          ref={nameRef}
           label="What should Magpie call you?"
           hideLabel
           placeholder="Your first name or nickname"
           value={person.name}
           onChangeText={(name) => editPerson({ ...person, name })}
+          error={
+            showErrors && !person.name.trim()
+              ? "Add a name so Magpie knows what to call you."
+              : null
+          }
+          autoFocus={openedHere}
           autoCapitalize="words"
+          autoComplete="given-name"
+          textContentType="givenName"
           returnKeyType="next"
           onSubmitEditing={onNext}
         />
@@ -156,7 +175,16 @@ export function SetupQuestion({
         />
       ) : null}
       {step === "diet" ? (
-        <DietEditor person={person} onChange={editPerson} allowOtherDiet />
+        <DietEditor
+          person={person}
+          onChange={editPerson}
+          allowOtherDiet
+          otherError={
+            showErrors && person.diet === "other" && !person.diet_other.trim()
+              ? "Describe your diet in a few words."
+              : null
+          }
+        />
       ) : null}
       {step === "household" ? (
         <View className="gap-6">

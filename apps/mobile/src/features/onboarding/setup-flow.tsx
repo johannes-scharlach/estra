@@ -1,3 +1,4 @@
+import * as Haptics from "expo-haptics";
 import { Image } from "expo-image";
 import { Redirect, useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -46,6 +47,7 @@ function Questions({ initialStep }: { initialStep: Step }) {
   const pager = useRef<ScrollView>(null);
   const moving = useRef(false);
   const [busy, setBusy] = useState(false);
+  const [attempted, setAttempted] = useState(false);
   const [footerHeight, setFooterHeight] = useState(0);
   const [index, setIndex] = useState(() => steps.indexOf(initialStep));
   const [settledIndex, setSettledIndex] = useState(index);
@@ -65,6 +67,7 @@ function Questions({ initialStep }: { initialStep: Step }) {
       Keyboard.dismiss();
       try {
         await update((d) => ({ ...d, step: targetStep }));
+        setAttempted(false);
         setIndex(target);
         if (reduced) setSettledIndex(target);
         AccessibilityInfo.announceForAccessibility(
@@ -128,7 +131,15 @@ function Questions({ initialStep }: { initialStep: Step }) {
   const pages = steps.slice(0, Math.max(lastReachable, settledIndex) + 1);
 
   async function next() {
-    if (moving.current || locked || !valid) return;
+    if (moving.current || locked) return;
+    if (!valid) {
+      // The button stays enabled so a tap can say what is missing.
+      setAttempted(true);
+      void Haptics.notificationAsync(
+        Haptics.NotificationFeedbackType.Warning,
+      ).catch(() => {});
+      return;
+    }
     if (finishing) {
       moving.current = true;
       setBusy(true);
@@ -157,7 +168,7 @@ function Questions({ initialStep }: { initialStep: Step }) {
               : step === "restrictions" && !draft.profile.restrictions.trim()
                 ? "No restrictions"
                 : "Continue",
-          disabled: !valid,
+          disabled: false,
           onPress: () => void next(),
         };
 
@@ -280,7 +291,11 @@ function Questions({ initialStep }: { initialStep: Step }) {
                     />
                   ) : null
                 ) : (
-                  <SetupQuestion step={pageStep} onNext={() => void next()} />
+                  <SetupQuestion
+                    step={pageStep}
+                    onNext={() => void next()}
+                    showErrors={attempted && pageIndex === index}
+                  />
                 )}
               </ScrollView>
             );

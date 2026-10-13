@@ -194,7 +194,6 @@ export function EmailAuthFields({
 }) {
   return (
     <View className="gap-4">
-      <FormError message={state.error} />
       {state.codeMode ? (
         <>
           <View className="gap-2">
@@ -206,6 +205,7 @@ export function EmailAuthFields({
               onChange={state.changeCode}
               accessibilityLabel="Verification code"
             />
+            <FormError message={state.error} />
           </View>
           {state.resendAction ? (
             <Pressable
@@ -251,6 +251,7 @@ export function EmailAuthFields({
           autoComplete="email"
           textContentType="emailAddress"
           placeholder="you@example.com"
+          error={state.error}
           editable={!state.busy}
           returnKeyType="send"
           onSubmitEditing={state.primaryAction.onPress}
