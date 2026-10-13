@@ -38,6 +38,11 @@ changes, `docs/schema-changes.md` before touching the schema or sync rules.
 ## Conventions
 
 - Files are kebab-case.
+- Repo files are either tracked or gitignored, never left untracked.
+- `tickets/` and `supabase/snippets/` are local-only (ignored). Stale
+  copies that search finds are worse than absent — agents trust what
+  they find. Give agents explicit paths when one is needed; reading
+  ignored files by path works fine.
 
 ## Communication
 

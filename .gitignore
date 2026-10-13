@@ -26,6 +26,14 @@ supabase/.temp/
 supabase/.branches/
 supabase/signing_keys.json
 
+# Local-only planning scratch. Ignored on purpose: these go stale fast,
+# and agents trust what they find in search. Hand paths to agents
+# explicitly instead — reading ignored files by path works fine.
+tickets/
+
+# Supabase CLI scratch queries
+supabase/snippets/
+
 # Native
 *.p8
 *.p12
