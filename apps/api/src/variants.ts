@@ -2,6 +2,7 @@ import { assignIngredientIds, type IngredientLine, type SizedFor } from "@magpie
 import { randomUUID } from "node:crypto";
 import type { Client, PoolClient } from "pg";
 
+import type { ChatEntry } from "./recipe-chat.js";
 import type { RecipeInput } from "./recipe-schema.js";
 import { AppError } from "./errors.js";
 
@@ -16,16 +17,20 @@ export async function findVariantIdentity(
   return row ? { recipeId: row.recipe_id, variantId } : null;
 }
 
+/** Where a recipe came from; null for a chat with no entry. */
+export type RecipeOrigin = "import" | ChatEntry | null;
+
 /** Create the recipe grouping explicitly before adding its first variant. */
 export async function createRecipe(
   client: PoolClient,
   userId: string,
+  origin: RecipeOrigin,
   from?: RecipeInput["from"],
 ): Promise<string> {
   const recipeId = randomUUID();
   await client.query(
-    `INSERT INTO recipes (id, from_name, from_url, created_by) VALUES ($1,$2,$3,$4)`,
-    [recipeId, from?.name ?? null, from?.url ?? null, userId],
+    `INSERT INTO recipes (id, from_name, from_url, created_by, origin) VALUES ($1,$2,$3,$4,$5)`,
+    [recipeId, from?.name ?? null, from?.url ?? null, userId, origin],
   );
   return recipeId;
 }

@@ -98,6 +98,7 @@ export type Database = {
         Row: {
           created_at: string
           created_by: string | null
+          entry: string | null
           id: string
           initial_meal_content_id: string | null
           initial_variant_id: string | null
@@ -110,6 +111,7 @@ export type Database = {
         Insert: {
           created_at?: string
           created_by?: string | null
+          entry?: string | null
           id?: string
           initial_meal_content_id?: string | null
           initial_variant_id?: string | null
@@ -122,6 +124,7 @@ export type Database = {
         Update: {
           created_at?: string
           created_by?: string | null
+          entry?: string | null
           id?: string
           initial_meal_content_id?: string | null
           initial_variant_id?: string | null
@@ -722,6 +725,7 @@ export type Database = {
           from_url: string | null
           id: string
           next_ingredient_id: number
+          origin: string | null
           updated_at: string
         }
         Insert: {
@@ -731,6 +735,7 @@ export type Database = {
           from_url?: string | null
           id?: string
           next_ingredient_id?: number
+          origin?: string | null
           updated_at?: string
         }
         Update: {
@@ -740,6 +745,7 @@ export type Database = {
           from_url?: string | null
           id?: string
           next_ingredient_id?: number
+          origin?: string | null
           updated_at?: string
         }
         Relationships: []

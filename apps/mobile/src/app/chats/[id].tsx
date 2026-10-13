@@ -246,6 +246,7 @@ export default function ChatScreen() {
         signal: controller.signal,
         recipeContext: queuedMsg?.recipeContext,
         mealContext: queuedMsg?.mealContext,
+        entry: queuedMsg?.entry,
       })) {
         lastReply = reply;
         setInFlight(reply);

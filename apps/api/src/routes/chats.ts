@@ -28,6 +28,7 @@ import { env } from "../env.js";
 import { readChatMeal, readChatVariant } from "../chat-variants.js";
 import { AppError } from "../errors.js";
 import {
+  ChatEntrySchema,
   orderRecipeSeed,
   RecipeContextSchema,
   MealContextSchema,
@@ -231,6 +232,7 @@ chats.post("/:id/messages", async (c) => {
       localDate?: unknown;
       recipeContext?: unknown;
       mealContext?: unknown;
+      entry?: unknown;
     }>()
     .catch(() => ({
       listId: undefined,
@@ -239,6 +241,7 @@ chats.post("/:id/messages", async (c) => {
       localDate: undefined,
       recipeContext: undefined,
       mealContext: undefined,
+      entry: undefined,
     }));
   if (typeof body.listId !== "string" || !UUID.test(body.listId)) {
     return c.json(
@@ -290,6 +293,14 @@ chats.post("/:id/messages", async (c) => {
   if ((mealContext && !mealContext.success) || (mealContext && start)) {
     return c.json(
       { error: { code: "INVALID_REQUEST", message: "Invalid meal context" } },
+      400,
+    );
+  }
+  const entry =
+    body.entry === undefined ? null : ChatEntrySchema.safeParse(body.entry);
+  if (entry && (!entry.success || start || mealContext)) {
+    return c.json(
+      { error: { code: "INVALID_REQUEST", message: "Invalid chat entry" } },
       400,
     );
   }
@@ -376,7 +387,7 @@ chats.post("/:id/messages", async (c) => {
         409,
       );
     const existing = await client.query<RecipeChat>(
-      "SELECT list_id, recipe_id, initial_variant_id, planned_meal_id, initial_meal_content_id FROM chats WHERE id = $1",
+      "SELECT list_id, recipe_id, initial_variant_id, planned_meal_id, initial_meal_content_id, entry FROM chats WHERE id = $1",
       [chatId],
     );
     if (existing.rowCount === 0) {
@@ -399,9 +410,10 @@ chats.post("/:id/messages", async (c) => {
         initial_variant_id: variant?.variantId ?? null,
         planned_meal_id: meal?.id ?? null,
         initial_meal_content_id: meal?.content_id ?? null,
+        entry: entry?.data ?? null,
       };
       await client.query(
-        "INSERT INTO chats (id, list_id, created_by, title, recipe_id, initial_variant_id, planned_meal_id, initial_meal_content_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+        "INSERT INTO chats (id, list_id, created_by, title, recipe_id, initial_variant_id, planned_meal_id, initial_meal_content_id, entry) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
         [
           chatId,
           listId,
@@ -411,6 +423,7 @@ chats.post("/:id/messages", async (c) => {
           chat.initial_variant_id,
           chat.planned_meal_id,
           chat.initial_meal_content_id,
+          chat.entry,
         ],
       );
       if (variant && start) {

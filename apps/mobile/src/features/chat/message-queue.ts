@@ -17,6 +17,8 @@ export type QueuedMessage = {
     plannedMealId?: string;
     previewSwaps?: Record<number, number>;
   };
+  /** How a Home chat started; its saved recipes count for the challenge. */
+  entry?: "on_hand" | "dish" | "idea";
   messageId: string;
   text: string;
   attachments: ImageAttachment[];

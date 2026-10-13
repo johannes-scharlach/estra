@@ -48,7 +48,7 @@ export function RecipeBrowser({ onSelect, disabled, target, error, onImport }: {
         ListHeaderComponent={error ? <Text className="p-6 text-destructive">{error}</Text> : null}
         ListEmptyComponent={isLoading ? <ActivityIndicator className="mt-12" /> : (
           <View className="items-center gap-4 px-6 py-12">
-            <Text variant="muted">{search.trim() ? `No matches for “${search.trim()}”.` : "Your cookbook is empty."}</Text>
+            <Text variant="muted" className="text-center">{search.trim() ? `No matches for “${search.trim()}”.` : "Your cookbook is empty. Import the recipes you love to cook."}</Text>
             {!search.trim() ? <Pressable accessibilityRole="button" onPress={onImport} disabled={disabled}><Text className="text-primary">Import a recipe</Text></Pressable> : null}
           </View>
         )}

@@ -49,6 +49,7 @@ export async function* streamReply(opts: {
   signal?: AbortSignal;
   recipeContext?: QueuedMessage["recipeContext"];
   mealContext?: QueuedMessage["mealContext"];
+  entry?: QueuedMessage["entry"];
 }): AsyncGenerator<AssistantUIMessage> {
   const headers = await authorization();
   const chatFetch: typeof globalThis.fetch = async (...args) => {
@@ -80,6 +81,7 @@ export async function* streamReply(opts: {
         localDate: dateKey(new Date()),
         recipeContext: opts.recipeContext,
         mealContext: opts.mealContext,
+        entry: opts.entry,
       },
     }),
   });

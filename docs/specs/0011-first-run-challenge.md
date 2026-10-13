@@ -56,7 +56,7 @@ choosing what to buy are learned there, not in the challenge.
 
 Progress is derived from data the app already writes. The challenge stores
 no state of its own, so resuming needs nothing extra. Only the finish moment
-needs to know it was shown.
+is remembered (see below).
 
 | Goal          | Counted from                                         |
 | ------------- | ---------------------------------------------------- |
@@ -79,11 +79,11 @@ needs to know it was shown.
 Follow `docs/schema-changes.md`: both columns land in the migration, the sync
 config and the client schema.
 
-## Open for implementation
+## Finish moment
 
-- Where "the finish moment was shown" lives (per user, synced, so a second
-  device does not replay it).
-- Copy for each goal and each empty state.
+When every goal is met, the card reads "Challenge complete" with a Done
+button. Done stores `first_run_challenge_finished_at` in the user's Supabase
+auth metadata, so the card stays gone on every device without a table.
 
 ## Not in this spec
 

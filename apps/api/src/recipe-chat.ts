@@ -11,12 +11,17 @@ export const RecipeContextSchema = z.object({
 
 export const MealContextSchema = z.object({ plannedMealId: z.uuid() });
 
+/** How a chat started from Home; its saved recipes carry it as origin (spec 0011). */
+export const ChatEntrySchema = z.enum(["on_hand", "dish", "idea"]);
+export type ChatEntry = z.infer<typeof ChatEntrySchema>;
+
 export type RecipeChat = {
   list_id: string;
   recipe_id: string | null;
   initial_variant_id: string | null;
   planned_meal_id: string | null;
   initial_meal_content_id?: string | null;
+  entry?: ChatEntry | null;
 };
 
 /** An actual server read, recorded in the same format as later tool reads.

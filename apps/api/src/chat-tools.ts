@@ -186,7 +186,11 @@ export function buildChatTools(
               }
             }
 
-            const recipeId = await createRecipe(client, userId);
+            const recipeId = await createRecipe(
+              client,
+              userId,
+              context.chat.entry ?? null,
+            );
             return insertVariant(client, {
               recipeId,
               variantId: randomUUID(),

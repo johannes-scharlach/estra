@@ -46,7 +46,7 @@ export async function saveImport(
     const existing = await findVariantIdentity(client, variantId);
     if (existing) return existing;
 
-    const recipeId = await createRecipe(client, userId, recipe.from);
+    const recipeId = await createRecipe(client, userId, "import", recipe.from);
     const saved = await insertVariant(client, { recipeId, variantId, recipe });
     if (request.plan) {
       const { listId, date, slot } = request.plan;
