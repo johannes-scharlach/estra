@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AppState, Pressable, View } from "react-native";
+import { AppState, Pressable, View, type TextInput } from "react-native";
+import { type OTPInputRef } from "input-otp-native";
 import { z } from "zod";
 import { InputOTP } from "@/components/ui/input-otp";
 import { Text } from "@/components/ui/text";
@@ -22,6 +23,7 @@ export type EmailAuthState = {
   email: string;
   busy: boolean;
   error: string | null;
+  focusRequest: number;
   primaryAction: {
     label: string;
     disabled: boolean;
@@ -50,6 +52,7 @@ export function useEmailAuth({
   const [busy, setBusy] = useState(false);
   const inFlight = useRef(false);
   const [error, setError] = useState<string | null>(null);
+  const [focusRequest, setFocusRequest] = useState(0);
   const [resendAt, setResendAt] = useState<number | null>(() =>
     initialCode ? Date.now() + 60_000 : null,
   );
@@ -81,6 +84,7 @@ export function useEmailAuth({
     const parsed = z.email().safeParse(email.trim());
     if (!parsed.success) {
       setError("Enter a valid email address.");
+      setFocusRequest((value) => value + 1);
       return;
     }
     inFlight.current = true;
@@ -108,7 +112,12 @@ export function useEmailAuth({
 
   const verify = useCallback(
     async (value: string) => {
-      if (inFlight.current || value.length !== 6) return;
+      if (inFlight.current) return;
+      if (value.length !== 6) {
+        setError("Enter all six digits.");
+        setFocusRequest((value) => value + 1);
+        return;
+      }
       inFlight.current = true;
       setBusy(true);
       setError(null);
@@ -159,10 +168,11 @@ export function useEmailAuth({
     email,
     busy,
     error,
+    focusRequest,
     primaryAction: initialCode
       ? {
           label: busy ? "Verifying…" : "Verify email",
-          disabled: busy || code.length !== 6,
+          disabled: busy,
           onPress: () => void verify(code),
         }
       : {
@@ -192,6 +202,13 @@ export function EmailAuthFields({
   signup: boolean;
   state: EmailAuthState;
 }) {
+  const emailInput = useRef<TextInput>(null);
+  const codeInput = useRef<OTPInputRef>(null);
+  useEffect(() => {
+    if (!state.focusRequest) return;
+    if (state.codeMode) codeInput.current?.focus();
+    else emailInput.current?.focus();
+  }, [state.focusRequest, state.codeMode]);
   return (
     <View className="gap-4">
       {state.codeMode ? (
@@ -199,11 +216,16 @@ export function EmailAuthFields({
           <View className="gap-2">
             <Text className="font-medium">Verification code</Text>
             <InputOTP
+              ref={codeInput}
               maxLength={6}
               autoFocus
               value={state.code}
               onChange={state.changeCode}
               accessibilityLabel="Verification code"
+              invalid={!!state.error}
+              autoComplete="one-time-code"
+              textContentType="oneTimeCode"
+              keyboardType="number-pad"
             />
             <FormError message={state.error} />
           </View>
@@ -243,6 +265,7 @@ export function EmailAuthFields({
       ) : (
         <Field
           label="Email address"
+          ref={emailInput}
           value={state.email}
           onChangeText={state.onEmail}
           keyboardType="email-address"

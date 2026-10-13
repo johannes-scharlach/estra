@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { newPerson, newProfile, profileContext } from "@magpie/profile";
+import {
+  newPerson,
+  newProfile,
+  profileContext,
+  householdSchema,
+  profileChangesSchema,
+} from "@magpie/profile";
 
 test("household context preserves restrictions and routines without inventing inventory or equipment", () => {
   const profile = newProfile();
@@ -11,6 +17,8 @@ test("household context preserves restrictions and routines without inventing in
   profile.kitchen_equipment = { other: [] };
   profile.meals_at_home = "Weekday dinners, lunches and dinners on weekends";
   profile.other_shops = "The Asian shop takes a special trip";
+  // Old broad selections remain broad; they must not invent specific foods.
+  profile.pantry = { cannedFoods: true, other: [] };
   const person = {
     ...newPerson("9c5b42f7-fbea-4df2-b8d3-d42d37ed9a1d"),
     name: "Sam",
@@ -48,4 +56,61 @@ test("household context preserves restrictions and routines without inventing in
   assert.doesNotMatch(context, /tuna|chickpeas/);
   assert.match(context, /not current inventory/);
   assert.match(context, /allergies and restrictions over preferences/);
+});
+
+test("onboarding choices retain their meaning through validation and assistant context", () => {
+  const household = householdSchema.parse({
+    profile: {
+      ...newProfile(),
+      pantry: { "canned-tomatoes": true, other: ["Polenta"] },
+      fresh_ingredients: {
+        "greek-yoghurt": true,
+        "chinese-cabbage": true,
+        other: [],
+      },
+      ingredient_avoidances: [
+        { ingredient: "Peanuts", kind: "allergy", detail: "Sam" },
+        { ingredient: "Coriander", kind: "dislike", detail: "" },
+      ],
+      shops: [{ name: "Asian supermarket", access: "detour" }],
+    },
+    people: [
+      {
+        ...newPerson("9c5b42f7-fbea-4df2-b8d3-d42d37ed9a1d"),
+        name: "Sam",
+        portion_reference: 0.75,
+      },
+    ],
+  });
+  const context = profileContext(household, "caller");
+  const data = JSON.parse(context.slice(context.indexOf('{"people"')));
+  assert.equal(data.people[0].portion_reference, 0.75);
+  assert.deepEqual(data.usual_pantry_items, ["Canned tomatoes", "Polenta"]);
+  assert.deepEqual(data.regular_fresh_purchases, [
+    "Greek yoghurt",
+    "Chinese cabbage",
+  ]);
+  assert.equal(data.ingredient_avoidances[0].kind, "allergy");
+  assert.equal(data.ingredient_avoidances[1].kind, "dislike");
+  assert.deepEqual(data.shops, [
+    { name: "Asian supermarket", access: "detour" },
+  ]);
+  assert.match(context, /portion_reference.*extra portions/);
+  assert.match(context, /rotation/);
+  assert.deepEqual(newProfile().pantry, { other: [] });
+  assert.deepEqual(newProfile().fresh_ingredients, { other: [] });
+  assert.equal(
+    householdSchema.safeParse({
+      ...household,
+      people: [{ ...household.people[0], portion_reference: 0.3 }],
+    }).success,
+    false,
+  );
+});
+
+test("editing one profile section never inserts defaults into other sections", () => {
+  assert.deepEqual(profileChangesSchema.parse({ main_supermarket: "Aldi" }), {
+    main_supermarket: "Aldi",
+  });
+  assert.deepEqual(profileChangesSchema.parse({ shops: [] }), { shops: [] });
 });

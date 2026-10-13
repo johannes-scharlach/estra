@@ -1,7 +1,7 @@
 import {
   householdSchema,
   personSchema,
-  profileSchema,
+  profileChangesSchema,
   type CookingProfile,
   type Household,
   type HouseholdPerson,
@@ -19,6 +19,8 @@ export function decodeHousehold(
     "kitchen_equipment",
     "pantry",
     "fresh_ingredients",
+    "ingredient_avoidances",
+    "shops",
   ]) {
     if (typeof profile[key] === "string")
       profile[key] = JSON.parse(profile[key]);
@@ -29,7 +31,7 @@ export async function saveProfileSection(
   listId: string,
   changes: Partial<CookingProfile>,
 ): Promise<void> {
-  const parsed = profileSchema.partial().parse(changes);
+  const parsed = profileChangesSchema.parse(changes);
   const fields = Object.keys(parsed) as (keyof CookingProfile)[];
   if (!fields.length) return;
   await powersync.execute(
@@ -58,13 +60,14 @@ export async function savePerson(
     );
     if (existing) {
       await tx.execute(
-        "UPDATE household_people SET name = ?, age_group = ?, diet = ?, diet_other = ?, meal_times = ?, updated_at = ? WHERE id = ? AND list_id = ?",
+        "UPDATE household_people SET name = ?, age_group = ?, diet = ?, diet_other = ?, meal_times = ?, portion_reference = ?, updated_at = ? WHERE id = ? AND list_id = ?",
         [
           p.name,
           p.age_group,
           p.diet,
           p.diet_other,
           p.meal_times,
+          p.portion_reference,
           now,
           p.id,
           listId,

@@ -2,6 +2,8 @@ import { Host } from "@expo/ui";
 import {
   dietOptions,
   selectionLabels,
+  avoidanceKinds,
+  shopAccessOptions,
   type SelectionField,
 } from "@magpie/profile";
 import { useNavigation, useRouter } from "expo-router";
@@ -95,6 +97,7 @@ export default function ProfileScreen() {
               }
               detail={[
                 p.age_group,
+                `${p.portion_reference} portion${p.portion_reference === 1 ? "" : "s"}`,
                 p.diet === "other" ? p.diet_other : dietOptions[p.diet],
                 // "Always" is the default; only say it when it's not.
                 p.meal_times && p.meal_times !== "Always"
@@ -120,7 +123,7 @@ export default function ProfileScreen() {
         <SettingsSection title="Cooking">
           <SettingsRow
             detail={
-              household.profile.restrictions || "No restrictions supplied"
+              [...household.profile.ingredient_avoidances.map((item) => `${item.ingredient} (${avoidanceKinds[item.kind]}${item.detail ? `: ${item.detail}` : ""})`), household.profile.restrictions].filter(Boolean).join(", ") || "Nothing to avoid"
             }
             onPress={() => router.push("/household/restrictions" as never)}
             title="Household restrictions"
@@ -149,7 +152,7 @@ export default function ProfileScreen() {
             title="Main shop"
           />
           <SettingsRow
-            detail={household.profile.other_shops || "Not specified"}
+            detail={[...household.profile.shops.map((shop) => `${shop.name} · ${shopAccessOptions[shop.access]}`), household.profile.other_shops].filter(Boolean).join(", ") || "Not specified"}
             onPress={() => router.push("/household/shops" as never)}
             title="Other shops and routine"
           />

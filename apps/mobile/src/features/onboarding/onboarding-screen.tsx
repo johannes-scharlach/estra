@@ -2,12 +2,17 @@ import { Image } from "expo-image";
 import { GlassView } from "expo-glass-effect";
 import { SymbolView } from "expo-symbols";
 import { type ReactNode } from "react";
-import { Pressable, ScrollView, View } from "react-native";
-import { KeyboardAvoidingView } from "react-native-keyboard-controller";
+import { useState } from "react";
+import { Pressable, View } from "react-native";
+import {
+  KeyboardAwareScrollView,
+  KeyboardStickyView,
+} from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useResolveClassNames } from "uniwind";
 import { PrimaryAction } from "@/components/action";
 import { Text } from "@/components/ui/text";
+import { ScrollEdgeFade } from "@/features/onboarding/scroll-edge-fade";
 
 const BACK_ICON = { ios: "chevron.left", android: "arrow_back" } as const;
 
@@ -41,17 +46,20 @@ export function OnboardingScreen({
   action?: OnboardingAction;
 }) {
   const insets = useSafeAreaInsets();
+  const [footerHeight, setFooterHeight] = useState(0);
   const iconColor = useResolveClassNames("text-foreground").color;
   return (
-    <KeyboardAvoidingView behavior="padding" className="flex-1 bg-background">
+    <View className="flex-1 bg-background">
       <View className="flex-1">
-        <ScrollView
+        <KeyboardAwareScrollView
+          bottomOffset={footerHeight - Math.max(insets.bottom, 14) + 20}
           contentInsetAdjustmentBehavior="never"
           keyboardDismissMode="interactive"
           keyboardShouldPersistTaps="handled"
-          contentContainerClassName="flex-grow gap-6 px-6 pb-28"
+          contentContainerClassName="flex-grow gap-6 px-6"
           contentContainerStyle={{
             paddingTop: insets.top + (onBack && !step ? 64 : 18),
+            paddingBottom: footerHeight + 24,
           }}
         >
           {step ? (
@@ -95,7 +103,7 @@ export function OnboardingScreen({
             </View>
           ) : null}
           {children}
-        </ScrollView>
+        </KeyboardAwareScrollView>
         {onBack ? (
           <View
             pointerEvents="box-none"
@@ -123,19 +131,24 @@ export function OnboardingScreen({
           </View>
         ) : null}
         {action ? (
-          <View
+          <KeyboardStickyView
             pointerEvents="box-none"
             className="absolute bottom-0 left-0 right-0 px-6 pt-3"
+            offset={{ opened: Math.max(insets.bottom, 14) - 8 }}
             style={{ paddingBottom: Math.max(insets.bottom, 14) }}
+            onLayout={(event) =>
+              setFooterHeight(event.nativeEvent.layout.height)
+            }
           >
+            <ScrollEdgeFade height={footerHeight} />
             <PrimaryAction
               label={action.label}
               disabled={action.disabled}
               onPress={action.onPress}
             />
-          </View>
+          </KeyboardStickyView>
         ) : null}
       </View>
-    </KeyboardAvoidingView>
+    </View>
   );
 }

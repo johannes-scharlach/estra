@@ -41,3 +41,16 @@ uploading when a message is sent is seen one turn late.
   a plan edit.
 
 Behavior: `docs/specs/0002-household-meals-and-extra-portions.md`.
+
+## 2026-10-13: per-person portion references
+
+Each household person now has an editable `portion_reference`, in quarter
+steps (0.25–4), with 1 meaning a regular adult helping. Recipe generation and
+adjustment sum the selected eaters' references and add the meal's extra portions.
+The explicit reference replaces age-based appetite guessing. Extra portions
+retain their existing meaning. Editing a reference does not rewrite an existing
+recipe; the next generation or explicit adjustment uses the new value.
+
+The original `sized_for` stamp still names eaters and extra, as with age and diet
+changes; it is not a historical snapshot of each person's appetite.
+See `docs/specs/0012-onboarding-redesign.md`.

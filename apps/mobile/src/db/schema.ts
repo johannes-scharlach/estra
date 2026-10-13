@@ -45,6 +45,8 @@ const household_profiles = new Table({
   pantry: column.text,
   fresh_ingredients: column.text,
   restrictions: column.text,
+  ingredient_avoidances: column.text,
+  shops: column.text,
   meals_at_home: column.text,
   main_supermarket: column.text,
   other_shops: column.text,
@@ -61,6 +63,7 @@ const household_people = new Table(
     diet: column.text,
     diet_other: column.text,
     meal_times: column.text,
+    portion_reference: column.real,
     created_at: column.text,
     updated_at: column.text,
   },
@@ -95,7 +98,12 @@ const household_activity_recipients = new Table(
     user_id: column.text,
     seen_at: column.text,
   },
-  { indexes: { by_user_list: ["user_id", "list_id"], by_activity: ["activity_id"] } },
+  {
+    indexes: {
+      by_user_list: ["user_id", "list_id"],
+      by_activity: ["activity_id"],
+    },
+  },
 );
 
 const recipes = new Table({

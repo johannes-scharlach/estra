@@ -1,6 +1,7 @@
 # Household Profile rollout and native verification
 
 Implementation spec: `specs/0003-profile-onboarding.md`.
+Current redesign and native acceptance: `specs/0012-onboarding-redesign.md`.
 Data decision: `decisions/0011-household-profiles.md`.
 
 ## Apply to the development stack
@@ -56,13 +57,16 @@ Use the spec's complete manual acceptance list, especially:
   Verify both survive. Cancel a person edit and test removing a custom entry.
 - Send a message immediately after setup and after an edit in an existing chat.
   Verify that context uses that chat's household, latest routine/restrictions,
-  category labels rather than examples, and the correct serving baseline.
+  item-level staples versus legacy categories, distinct fresh-purchase habits,
+  avoidance reasons, shop access, and person references plus extra portions.
 - iOS and Android: keyboard visibility, six-digit paste/autofill, native switch
   and picker sizing, screen readers, larger text, back gestures, and safe areas.
 - Setup paging: questions move horizontally while progress and navigation
   stay fixed. The Previous arrow is a 44pt native clear-glass circle on iOS.
-  Controls float above content without a footer background; scroll the last
-  field clear of them. Paging must not flash Saving or dim the controls. Try slow drags, fast flicks, interrupted button transitions, rotation,
+  Controls float over a translucent scroll-edge fade without a footer bar;
+  scroll the last field clear of them, also above the keyboard. Both buttons
+  move together with 8pt below them when the keyboard is open. Paging must not
+  flash Saving or dim the controls. Try slow drags, fast flicks, interrupted button transitions, rotation,
   and returning from the person editor. Required name/custom diet answers block
   forward paging. Email sending, verification, and Finish setup require their
   explicit actions (code autofill still verifies as before).

@@ -6,15 +6,12 @@ import { powersync } from "@/db/system";
 import { posthog } from "@/lib/posthog";
 import { supabase } from "@/lib/supabase";
 import { FormError } from "@/features/profile/form";
-import { onboardingArt } from "./art";
+import { KitchenArtwork } from "./artwork";
 import { useHouseholdAccess } from "./access";
 import { finalizeProfile } from "./finalize";
 import { bindDraft } from "./draft";
 import { OnboardingScreen } from "./onboarding-screen";
 import { useOnboarding } from "./provider";
-
-const wait = (ms: number) =>
-  new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 async function waitForLocalHousehold(listId: string, userId: string) {
   const [list, member, profile, person] = await Promise.all([
@@ -58,7 +55,6 @@ export function CompleteSetup() {
       beginPreparation();
       // The local commit below makes the first app frame complete. Upload must
       // not gate this screen: setup also works while the device is offline.
-      const minimumPresentation = wait(3000);
       const bound = await update((d) =>
         bindDraft(d, session!.user.id, access.listId),
       );
@@ -66,10 +62,7 @@ export function CompleteSetup() {
       if (current.data.session?.user.id !== bound.user_id)
         throw new Error("Your account changed. Please try again.");
       await finalizeProfile(powersync, bound, session!.user.id);
-      await Promise.all([
-        minimumPresentation,
-        waitForLocalHousehold(bound.list_id, session!.user.id),
-      ]);
+      await waitForLocalHousehold(bound.list_id, session!.user.id);
       await clear();
       posthog?.capture("household_setup_completed", {
         household_member_count: bound.people.length,
@@ -109,14 +102,10 @@ export function CompleteSetup() {
             }
           : undefined
       }
-      art={onboardingArt.kitchen}
-      subtitle={
-        error
-          ? "Your answers are still here."
-          : "Tailoring meal ideas and recipes to your household."
-      }
-      title="Getting your kitchen ready"
+      subtitle={error ? "Your answers are still here." : undefined}
+      title={error ? "Couldn’t save just yet" : "Saving your kitchen"}
     >
+      {draft ? <KitchenArtwork profile={draft.profile} /> : null}
       <FormError message={error} />
       {!error ? (
         <Text className="text-muted-foreground">Just a moment…</Text>

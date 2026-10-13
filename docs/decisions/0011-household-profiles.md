@@ -40,3 +40,8 @@ gate on completion.
 - Stored preset keys support future localization; localization is out of scope.
 
 Full behavior: `docs/specs/0003-profile-onboarding.md`.
+
+The 2026-10-13 onboarding redesign adds per-person portion references and
+structured avoidance/shop arrays alongside existing notes. Pantry and fresh
+selections now support concrete items while retaining legacy categories without
+inferring inventory. See `docs/specs/0012-onboarding-redesign.md`.
