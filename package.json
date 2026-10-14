@@ -25,6 +25,9 @@
     "sync:reload": "docker compose restart powersync",
     "fn:serve": "supabase functions serve",
     "fn:deploy": "supabase functions deploy",
+    "assets:optimize": "node scripts/optimize-onboarding-art.mjs",
+    "assets:test": "node --test scripts/optimize-onboarding-art.test.mjs",
+    "assets:matting:test": "node --test scripts/chroma-key.test.mjs",
     "typecheck": "pnpm -r typecheck",
     "lint": "pnpm -r lint"
   },
@@ -37,6 +40,7 @@
     ]
   },
   "devDependencies": {
+    "sharp": "^0.35.5",
     "supabase": "^2.115.0",
     "typescript": "~6.0.3"
   },

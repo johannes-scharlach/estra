@@ -1,16 +1,37 @@
 # Onboarding Artwork Style & Prompts
 
-The onboarding and setup artwork uses a **Tactile Polymer Clay / Claymorphism** mascot and culinary illustration style. It features handcrafted, pillowy plasticine volumes, smooth matte textures with soft rounded edges, warm studio lighting from the top-left casting gentle shadows, and a solid flat background matching the app's light theme (`#FBF8F4` from `apps/mobile/src/global.css`).
+The onboarding and setup artwork uses a **Tactile Polymer Clay / Claymation** mascot and culinary illustration style (inspired by stop-motion clay animation like Aardman, Wallace & Gromit). It features handcrafted, pillowy plasticine volumes, smooth matte textures with soft rounded edges, and warm studio lighting from the top-left. The warm palette complements the app's light theme (`#FBF8F4` from `apps/mobile/src/global.css`); generation backdrops are temporary and must be removed, not shipped.
+
+## Mascot Character Reference (Magpie)
+
+Whenever generating an image containing the Magpie mascot, always reference the official app logo and reference artwork:
+
+- **Logo Icon**: `apps/mobile/assets/images/icon.png`
+- **Reference Scene**: `apps/mobile/src/features/onboarding/art/art-welcome.png`
+
+### Mascot Anatomical Requirements
+
+- **Style**: Stop-motion **claymation** character, NOT a realistic bird and NOT digital claymorphism.
+- **Eyes**: Large, prominent, expressive round white cartoon eyes positioned close together on the front of the face, with circular black pupils looking curious and friendly, plus subtle curved dark clay eyebrows. Strictly **never** small, beady, or realistic bird eyes.
+- **Beak**: Short, friendly, curved dark-grey matte clay beak with a gentle cheerful smile line at the corners. Strictly **never** a long, sharp crow/raven beak.
+- **Body & Plumage**: Plump, rounded, handcrafted matte black plasticine head, back, and wings; clean white plasticine belly, chest, and wing flash. Pillowy volume with delicate handmade thumbprints and clay-modeling textures.
+- **Legs & Feet**: Chunky dark-grey matte clay legs with three stubby rounded toes in front and one behind.
 
 ## Style Formula
 
 ```text
-[Subject description]. Matte polymer clay art style, smooth plasticine with soft rounded edges, pillowy volume, cute handmade tactile feel, soft studio lighting from top-left with gentle shadows, solid flat background with exact color #FBF8F4. No text, words, labels, or lettering.
+[Subject description]. Handcrafted stop-motion claymation art style, matte polymer plasticine with soft rounded edges, pillowy volume, cute tactile handmade feel, soft studio lighting from top-left with gentle shadows, solid flat background with exact color #FBF8F4. No text, words, labels, or lettering.
 ```
 
 ### Generation Settings & Transparent Asset Workflow
 
 All tile and welcome assets rendered in the UI require a **transparent background** (alpha channel) so they composite natively over cards and dynamic backgrounds in both light and dark themes.
+
+AI source renders are opaque. Keep those untouched originals separately from
+the transparent PNG masters. Both script modes require a **new output path**
+and reject inputs that already contain transparency. Never re-key a master.
+Neutral-grey matting is an **opt-in experiment**, not a new production default;
+see the trial below before changing prompts or replacing assets.
 
 #### Pipeline
 
@@ -20,22 +41,156 @@ All tile and welcome assets rendered in the UI require a **transparent backgroun
    - **Important**: Subjects must NOT contain blue tones (e.g. use cream, white, or charcoal for air fryers/appliances) so chroma extraction doesn't clip the subject.
    - **Margins**: Always enforce 15% clear margin on all sides.
    - **Aspect Ratio**: `1:1` for tile items; `3:2` for `welcome-market-find`.
+   - Replace the background clause in the subject prompt with the chosen
+     backdrop instruction; do not ask for theme cream and chroma blue together.
 
 2. **Chroma Key Post-Processing**:
    Run the project keying script to extract a transparent feathered PNG:
+
    ```bash
    node scripts/chroma-key.js <generated_image.jpg> apps/mobile/src/features/onboarding/art/<id>.png
    ```
+
    The script performs:
    - Soft alpha feathering between edge tolerance boundaries (`diff = b - max(r, g)`).
    - Color despill clamping residual blue reflections on boundary pixels.
+   - Transparent margin autocropping to tight bounding box with 16px padding.
 
-3. **Wiring Into App**:
-   Register newly delivered assets in `apps/mobile/src/features/onboarding/artwork.tsx` inside `deliveredAssets`:
-   ```ts
-   "<id>": require("./art/<id>.png"),
+   **Known limitation:** this legacy keyer can leave cyan/grey fringes and
+   contaminate translucent glass. Making blue pixels transparent and clamping
+   their blue channel does not reconstruct clean foreground edge colours. Keep
+   the untouched generated image for comparison. Changing the screen colour
+   alone does not solve this. The experimental mode below uses foreground
+   matting and colour estimation instead. Both modes decode with Sharp, without
+   the old macOS `sips` step or temporary conversion file. Check results over
+   both light and dark backgrounds before accepting a master.
+
+3. **Optimize for the app**:
+   From the repo root, run:
+
+   ```bash
+   pnpm assets:optimize
    ```
 
+   This reads the PNG masters in this folder and writes WebP files into
+   `optimized/`. It prints dimensions and per-file/total size savings. It never
+   changes the masters or deletes files; identical exports are not rewritten.
+   It preserves the supplied transparency, but does not repair keying fringes.
+
+   Settings live at the top of `scripts/optimize-onboarding-art.mjs`:
+   - Tiles: at most **512 px on the longest edge**.
+   - `welcome-*.png` and startup `art-welcome.png`: at most **1024 px**.
+   - WebP quality **82**, with lossless alpha encoding. No background flattening.
+   - Preserve aspect ratio, without cropping or upscaling. Strip source metadata.
+   - Skip the retired `art-diet`, `art-kitchen`, `art-pantry`, and `art-fresh` banners.
+
+   Review texture and transparent edges on light/dark backgrounds, including
+   tablet and large-text layouts, before lowering dimensions or quality further.
+   Track the WebP exports alongside their PNG masters so fresh checkouts can
+   build without running the processor. This is an explicit asset-authoring
+   command, not a dev/build hook. Sharp is a root dev dependency, not a mobile
+   runtime dependency. Run its real-image command tests with `pnpm assets:test`.
+
+   To try another folder without touching the normal exports:
+
+   ```bash
+   pnpm assets:optimize --input /path/to/png-masters --output /path/to/webp-exports
+   ```
+
+   The same filename-based tile/hero settings and retired-banner exclusions apply.
+
+4. **Wiring Into App**:
+   Register newly delivered assets in `apps/mobile/src/features/onboarding/artwork.tsx` inside `deliveredAssets`:
+   ```ts
+   "<id>": require("./art/optimized/<id>.webp"),
+   ```
+
+---
+
+## Neutral-grey matting experiment — not production
+
+Question: can neutral-grey AI renders plus foreground matting produce cleaner
+cutouts than the current blue-screen keyer, especially around glass?
+
+Start with **equipment-oven** and **pantry-pasta**. Do not regenerate the full
+set, overwrite masters, or change app imports for this trial.
+
+### Generate trial sources
+
+Use the same subject briefs, framing, warm lighting, and reference artwork as
+above. Keep a blue-background original for the baseline. For the grey variant,
+**replace** the whole background clause (including any `#FBF8F4` or `#0047FF`)
+with:
+
+> Solid flat uniform neutral mid-grey background, exact colour #808080. Completely plain and seamless, no gradients, texture, cast shadows on the background, or ground plane. Neutral studio lighting on the subject, no coloured rim lighting or background-coloured reflections. Preserve the subject's own colours; grey applies only to the backdrop.
+
+Keep 15% clear margins. Do not ask the generator to paint a transparency
+checkerboard. Grey is not chroma-keyed away: a foreground model supplies the
+mask, so blue/grey subject details are not deliberately excluded by colour.
+Glass and translucent contents remain hard cases that need visual acceptance.
+
+### Run the opt-in processor
+
+Install [uv](https://docs.astral.sh/uv/getting-started/installation/) if needed.
+The flag runs `scripts/experimental-art-matting.py` in an isolated uv environment
+with Python 3.12 and pinned `rembg[cpu]` 2.0.85. The first run installs local
+dependencies (and Python if absent); the first **automatic-mask** run downloads
+the `isnet-general-use` model, about 170 MiB, cached under `~/.u2net/` by default.
+Images stay local. None of these dependencies or model files ship in the app.
+
+The automatic path estimates a foreground mask, refines soft alpha with
+closed-form matting, then estimates foreground colours to remove background
+contamination. It fails rather than silently falling back to a mask-only
+cutout. It crops with 16px padding, just like the legacy path.
+
+Use the gitignored folder below. The WebP optimizer does not scan it:
+
+```bash
+mkdir -p apps/mobile/src/features/onboarding/art/experiments/neutral-matting
+
+# Baseline: original blue render through the legacy keyer.
+node scripts/chroma-key.js /path/to/oven-blue-original.jpg apps/mobile/src/features/onboarding/art/experiments/neutral-matting/oven-blue-key.png
+
+# Same source through matting: isolate the processor change.
+node scripts/chroma-key.js /path/to/oven-blue-original.jpg apps/mobile/src/features/onboarding/art/experiments/neutral-matting/oven-blue-matted.png --experimental-matting
+
+# Grey source through matting: trial the proposed generation workflow.
+node scripts/chroma-key.js /path/to/oven-grey-original.jpg apps/mobile/src/features/onboarding/art/experiments/neutral-matting/oven-grey-matted.png --experimental-matting
+```
+
+Repeat for the pasta jar. Each output path must be unused; choose a new filename
+when adjusting an experiment. The normal two-argument command remains the
+legacy blue-screen mode. No matting runs during development or app builds.
+
+To separate colour cleanup from model selection, supply an authored **alpha
+mask**, matching the source's oriented dimensions. White means opaque, black
+transparent, and grey partial coverage. The script uses that exact coverage
+and estimates foreground colours; it does not re-estimate alpha or download
+model weights on this path:
+
+```bash
+node scripts/chroma-key.js /path/to/original.jpg apps/mobile/src/features/onboarding/art/experiments/neutral-matting/mask-assisted.png --experimental-matting --mask /path/to/alpha-mask.png
+pnpm assets:matting:test
+```
+
+Those command tests use known synthetic renders/masks to check edge-colour
+recovery, cropping, source preservation, and refusal to overwrite files or
+reprocess transparent masters. They **do not** validate model selection on
+real clay artwork. Routine `pnpm assets:test` stays Node-only.
+
+### Acceptance before promotion
+
+- Composite each result over theme cream `#FBF8F4` and dark grey `#242424`.
+  Check at actual tile size and zoomed in, including tablet layouts.
+- No blue/cyan rim, neutral halo, jagged edge, or lost fine details.
+- Preserve subject colours, jar outlines, contents, and intentional holes.
+- Compare the blue-keyed and blue-matted pair before attributing an improvement
+  to grey. Record failures as well as improvements; AI rerenders can differ.
+- If these two subjects pass, agree on the workflow before replacing any
+  production master. Only approved masters enter `pnpm assets:optimize`.
+
+Current PNG/WebP assets are unchanged by this experiment. Old keyed PNGs cannot
+reliably recover original edge colours; use their untouched source renders.
 
 ---
 
@@ -43,7 +198,8 @@ All tile and welcome assets rendered in the UI require a **transparent backgroun
 
 The UI deliberately renders named placeholders until the artwork is delivered.
 Each heading below is the **exact ID shown in the placeholder**. Export as
-`<id>.png`; wire the resulting asset into `../artwork.tsx`, keeping its ID.
+`<id>.png` as the master; run `pnpm assets:optimize` and wire
+`optimized/<id>.webp` into `../artwork.tsx`, keeping its ID.
 No image generation is part of this implementation. Native checkmarks, arrows,
 menus, and close controls remain system symbols, not commissioned artwork.
 
@@ -53,7 +209,7 @@ menus, and close controls remain system symbols, not commissioned artwork.
   three-quarter view, same apparent object scale. Keep 15% clear space on all
   sides. The UI fits these into a roughly 1.35:1 space without cropping the subject.
 - Welcome: **3:2, 1536×1024 PNG**. This is the only large onboarding scene.
-- Match the existing clay mascot reference and palette. Background #FBF8F4.
+- Match the existing clay mascot reference (`apps/mobile/assets/images/icon.png`) and palette. Background #FBF8F4.
 - No baked-in text, labels, selection marks, borders, or sparkle effects.
   Ingredient names, controls, and selected states belong to the app.
 - Each prompt below is complete and can be handed to the generator as-is.
@@ -66,7 +222,7 @@ menus, and close controls remain system symbols, not commissioned artwork.
 Placement: welcome hero. Show a real reason to change a meal: finding something
 appealing while shopping. Keep the composition readable at phone width.
 
-> A clay magpie has found a beautiful purple aubergine at a small food market and is lifting it into its shopping basket with obvious interest. The basket already contains tomatoes and a packet of pasta, suggesting a meal that can accommodate the new find. One simple market crate, no busy shop interior. Wide 3:2 composition with the bird and aubergine as the focal point, generous space around them. Match the provided Magpie mascot reference. Matte polymer clay, soft rounded handmade forms, soft top-left studio lighting and gentle shadows, flat background #FBF8F4. No text, lettering, labels, borders, checkmarks, or sparkles.
+> A friendly stop-motion claymation magpie mascot matching the character from `apps/mobile/assets/images/icon.png` (plump black-and-white plasticine body, large expressive round white cartoon eyes with black pupils, friendly curved short dark-grey beak, chunky dark grey clay feet) has found a beautiful purple clay aubergine at a small food market and is lifting it into its woven clay shopping basket with obvious delight. The basket already contains clay tomatoes and a packet of pasta, suggesting a meal that can accommodate the new find. One simple rustic wooden clay crate beside it, no busy background. Wide 3:2 composition with the claymation bird and aubergine as the focal point, generous 15% margin around them. Handcrafted matte polymer clay, soft rounded handmade forms, soft top-left studio lighting and gentle shadows, flat background #FBF8F4 (or chroma blue #0047FF for keying). Strictly no small beady realistic bird eyes, no sharp long crow beak, no text, lettering, labels, borders, checkmarks, or sparkles.
 
 ## Goal tiles
 
@@ -236,9 +392,11 @@ Food illustrates the choice, rather than adding a generic icon above it.
 
 ## Existing assets
 
-`art-welcome.png` remains in use on the app's startup screen. The old diet,
-kitchen, pantry, and fresh banner files are retained but are no longer used by
-the onboarding questions. They are not on the production request list.
+`art-welcome.png` is the master for the startup screen's
+`optimized/art-welcome.webp`. The old diet, kitchen, pantry, and fresh banner
+files are retained as references, but are neither exported nor imported into
+the app. They are not on the production request list. Only generated WebP files
+are referenced by runtime code; PNG masters do not enter Metro's asset graph.
 
 ## Original asset prompts (reference only)
 

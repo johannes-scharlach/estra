@@ -35,6 +35,24 @@ Finalization tests use real in-memory SQLite transactions: rollback on failure,
 retry, preservation of subsequent edits, and account-binding rejection. These
 tests do not verify Postgres RLS or PowerSync delivery.
 
+## Shop editor regression (2026-10-14)
+
+Embedded native sheets need `RNHostView` around React Native content: without
+it, the presented window has no RN touch handler. Android also opens expanded
+to its content height, rather than hiding Save in the half-height state.
+
+Verified in the running iOS 26.5 simulator and Android API 36 emulator:
+
+- Access choices stay visible in one grouped card; selecting a row moves the
+  checkmark/radio indicator. Saving closes the editor with the chosen access.
+- iOS: adding a named shop works, including the saved shop's access label.
+- Both platforms: Add with a blank name shows the inline validation error.
+  iOS selection and validation also work with the keyboard open.
+
+This is native interaction verification, not a mocked React test. Large text,
+screen readers, nested household-section sheets, and backend delivery remain
+part of the acceptance pass below.
+
 ## Native acceptance pass (pending)
 
 Use the spec's complete manual acceptance list, especially:

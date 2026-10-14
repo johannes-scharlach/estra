@@ -99,13 +99,17 @@ test("onboarding choices retain their meaning through validation and assistant c
   assert.match(context, /rotation/);
   assert.deepEqual(newProfile().pantry, { other: [] });
   assert.deepEqual(newProfile().fresh_ingredients, { other: [] });
-  assert.equal(
+  const acceptsPortion = (portion_reference: number) =>
     householdSchema.safeParse({
       ...household,
-      people: [{ ...household.people[0], portion_reference: 0.3 }],
-    }).success,
-    false,
-  );
+      people: [{ ...household.people[0], portion_reference }],
+    }).success;
+  assert.equal(acceptsPortion(0.25), true);
+  assert.equal(acceptsPortion(0.3), true);
+  assert.equal(acceptsPortion(2), true);
+  assert.equal(acceptsPortion(0.2), false);
+  assert.equal(acceptsPortion(0.31), false);
+  assert.equal(acceptsPortion(2.05), false);
 });
 
 test("editing one profile section never inserts defaults into other sections", () => {

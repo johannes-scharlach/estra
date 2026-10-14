@@ -2,6 +2,7 @@ import {
   ageGroups,
   dietDescriptions,
   dietOptions,
+  portionReferenceRange,
   type HouseholdPerson,
 } from "@magpie/profile";
 import { useEffect, useRef, type ReactNode } from "react";
@@ -330,6 +331,9 @@ function PortionReference({
 }) {
   const primary = useResolveClassNames("text-primary").color;
   const track = useResolveClassNames("bg-muted").backgroundColor;
+  const stepsPerPortion = 1 / portionReferenceRange.step;
+  const snapToStep = (next: number) =>
+    Math.round(next * stepsPerPortion) / stepsPerPortion;
   return (
     <View className="gap-2">
       <View className="flex-row items-center justify-between gap-4">
@@ -342,8 +346,8 @@ function PortionReference({
         accessibilityLabel="Usual portion"
         accessibilityHint="1 is a regular adult portion"
         accessibilityValue={{
-          min: 0.25,
-          max: 4,
+          min: portionReferenceRange.min,
+          max: portionReferenceRange.max,
           now: value,
           text: `${value} portions`,
         }}
@@ -351,22 +355,26 @@ function PortionReference({
         onAccessibilityAction={(event) =>
           onChange(
             Math.min(
-              4,
+              portionReferenceRange.max,
               Math.max(
-                0.25,
-                value +
-                  (event.nativeEvent.actionName === "increment" ? 0.25 : -0.25),
+                portionReferenceRange.min,
+                snapToStep(
+                  value +
+                    (event.nativeEvent.actionName === "increment"
+                      ? portionReferenceRange.step
+                      : -portionReferenceRange.step),
+                ),
               ),
             ),
           )
         }
       >
         <Slider
-          minimumValue={0.25}
-          maximumValue={4}
-          step={Platform.OS === "ios" ? 0.25 : undefined}
+          minimumValue={portionReferenceRange.min}
+          maximumValue={portionReferenceRange.max}
+          step={Platform.OS === "ios" ? portionReferenceRange.step : undefined}
           value={value}
-          onValueChange={(next) => onChange(Math.round(next * 4) / 4)}
+          onValueChange={(next) => onChange(snapToStep(next))}
           {...(Platform.OS === "android" && {
             minimumTrackTintColor: primary,
             maximumTrackTintColor: track,

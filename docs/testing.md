@@ -67,6 +67,8 @@ not evidence of more confidence.
 ## Commands
 
 - Full static checks: `pnpm typecheck` and `pnpm lint`
+- Artwork processing command (real image/filesystem checks): `pnpm assets:test`
+- Opt-in matting experiment (requires uv; supplied masks, no model weights): `pnpm assets:matting:test`
 - Mobile tests: `pnpm --filter mobile test`
 - API unit tests (no database): `pnpm --filter api test`
 - Shared rules: `pnpm --filter @magpie/meals test`

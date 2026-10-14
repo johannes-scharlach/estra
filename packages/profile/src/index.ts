@@ -134,6 +134,11 @@ export const ageGroups = [
   "Toddler",
   "Infant",
 ] as const;
+export const portionReferenceRange = {
+  min: 0.25,
+  max: 2,
+  step: 0.05,
+} as const;
 export const selectionOptions = {
   goals: goalOptions,
   kitchen_equipment: equipmentOptions,
@@ -158,7 +163,10 @@ export const profileSchema = z.object({
   goals: selectionSchema(goalOptions),
   kitchen_equipment: selectionSchema(equipmentOptions),
   pantry: selectionSchema({ ...legacyPantryOptions, ...pantryOptions }),
-  fresh_ingredients: selectionSchema({ ...legacyFreshOptions, ...freshOptions }),
+  fresh_ingredients: selectionSchema({
+    ...legacyFreshOptions,
+    ...freshOptions,
+  }),
   restrictions: z.string(),
   ingredient_avoidances: z.array(avoidanceSchema).default([]),
   meals_at_home: z.string().default("Dinner"),
@@ -170,7 +178,9 @@ export type CookingProfile = z.infer<typeof profileSchema>;
 // Zod applies defaults even inside optional fields. Section edits must only
 // write the supplied fields, never reset another section to its defaults.
 export const profileChangesSchema = profileSchema.partial().extend({
-  ingredient_avoidances: profileSchema.shape.ingredient_avoidances.removeDefault().optional(),
+  ingredient_avoidances: profileSchema.shape.ingredient_avoidances
+    .removeDefault()
+    .optional(),
   shops: profileSchema.shape.shops.removeDefault().optional(),
   meals_at_home: profileSchema.shape.meals_at_home.removeDefault().optional(),
 });
@@ -188,7 +198,12 @@ export const personSchema = z
     ),
     diet_other: z.string(),
     meal_times: z.string(),
-    portion_reference: z.number().min(0.25).max(4).multipleOf(0.25).default(1),
+    portion_reference: z
+      .number()
+      .min(portionReferenceRange.min)
+      .max(portionReferenceRange.max)
+      .multipleOf(portionReferenceRange.step)
+      .default(1),
   })
   .refine((p) => p.diet !== "other" || p.diet_other.trim().length > 0, {
     message: "Describe your diet.",
@@ -239,7 +254,11 @@ export function selectionLabels(
 ): string[] {
   return [
     ...Object.entries({
-      ...(field === "pantry" ? legacyPantryOptions : field === "fresh_ingredients" ? legacyFreshOptions : {}),
+      ...(field === "pantry"
+        ? legacyPantryOptions
+        : field === "fresh_ingredients"
+          ? legacyFreshOptions
+          : {}),
       ...selectionOptions[field],
     })
       .filter(([key]) => value[key] === true)
@@ -278,10 +297,26 @@ export function profileContext(household: Household, userId: string): string {
       main_supermarket: profile.main_supermarket,
       other_shops: profile.other_shops,
       shops: profile.shops,
-      usual_pantry_items: [...Object.entries(pantryOptions).filter(([key]) => profile.pantry[key] === true).map(([, label]) => label), ...profile.pantry.other],
-      regular_fresh_purchases: [...Object.entries(freshOptions).filter(([key]) => profile.fresh_ingredients[key] === true).map(([, label]) => label), ...profile.fresh_ingredients.other],
-      usual_pantry_categories: Object.entries(legacyPantryOptions).filter(([key]) => profile.pantry[key] === true).map(([, label]) => label),
-      usual_fresh_categories: Object.entries(legacyFreshOptions).filter(([key]) => key !== "eggs" && profile.fresh_ingredients[key] === true).map(([, label]) => label),
+      usual_pantry_items: [
+        ...Object.entries(pantryOptions)
+          .filter(([key]) => profile.pantry[key] === true)
+          .map(([, label]) => label),
+        ...profile.pantry.other,
+      ],
+      regular_fresh_purchases: [
+        ...Object.entries(freshOptions)
+          .filter(([key]) => profile.fresh_ingredients[key] === true)
+          .map(([, label]) => label),
+        ...profile.fresh_ingredients.other,
+      ],
+      usual_pantry_categories: Object.entries(legacyPantryOptions)
+        .filter(([key]) => profile.pantry[key] === true)
+        .map(([, label]) => label),
+      usual_fresh_categories: Object.entries(legacyFreshOptions)
+        .filter(
+          ([key]) => key !== "eggs" && profile.fresh_ingredients[key] === true,
+        )
+        .map(([, label]) => label),
     }),
   ].join("\n\n");
 }

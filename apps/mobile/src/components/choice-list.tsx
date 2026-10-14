@@ -36,7 +36,7 @@ export function ChoiceList({
           <Pressable
             key={choice.key}
             accessibilityRole={selection === "single" ? "radio" : "checkbox"}
-            accessibilityState={{ selected }}
+            accessibilityState={{ checked: selected }}
             className={
               index
                 ? "min-h-14 flex-row items-center gap-4 border-t border-border px-4 py-3 active:bg-accent"
@@ -69,7 +69,9 @@ export function ChoiceList({
           </Pressable>
         );
       })}
-      {children ? <View className="border-t border-border">{children}</View> : null}
+      {children ? (
+        <View className="border-t border-border">{children}</View>
+      ) : null}
     </View>
   );
 }

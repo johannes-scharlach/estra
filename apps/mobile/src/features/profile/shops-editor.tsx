@@ -2,6 +2,7 @@ import { shopAccessOptions, type CookingProfile, type Shop } from "@magpie/profi
 import { useRef, useState } from "react";
 import { Pressable, View, type TextInput } from "react-native";
 import { PrimaryAction } from "@/components/action";
+import { ChoiceList } from "@/components/choice-list";
 import { EditorSheet } from "@/components/editor-sheet";
 import { Text } from "@/components/ui/text";
 import { Field } from "@/features/profile/form";
@@ -42,14 +43,15 @@ export function ShopsEditor({ profile, onChange }: {
       {profile.other_shops ? <Field label="Your existing shopping notes" multiline value={profile.other_shops} onChangeText={(other_shops) => onChange({ other_shops })} /> : null}
       {editing ? (
         <EditorSheet title={editing.index < 0 ? "Add a shop" : "Edit shop"} onDismiss={() => setEditing(null)}>
-          <Field ref={input} label="Shop name" value={editing.shop.name} onChangeText={(name) => setEditing({ ...editing, shop: { ...editing.shop, name } })} autoFocus={!editing.shop.name} error={attempted && !editing.shop.name.trim() ? "Enter a shop name." : null} />
-          <Text className="font-medium">How easy is it to get there?</Text>
+          <Field ref={input} label="Shop name" value={editing.shop.name} onChangeText={(name) => setEditing({ ...editing, shop: { ...editing.shop, name } })} autoFocus={!editing.shop.name} returnKeyType="done" error={attempted && !editing.shop.name.trim() ? "Enter a shop name." : null} />
           <View className="gap-2">
-            {(Object.entries(shopAccessOptions) as [Shop["access"], string][]).map(([access, label]) => (
-              <Pressable key={access} accessibilityRole="radio" accessibilityState={{ checked: editing.shop.access === access }} className={editing.shop.access === access ? "min-h-14 flex-row items-center justify-between rounded-xl border border-primary bg-accent px-4 py-3" : "min-h-14 justify-center rounded-xl border border-border bg-card px-4 py-3"} onPress={() => setEditing({ ...editing, shop: { ...editing.shop, access } })}>
-                <Text className="font-medium">{label}</Text>{editing.shop.access === access ? <Text className="text-primary">✓</Text> : null}
-              </Pressable>
-            ))}
+            <Text className="font-medium">How easy is it to get there?</Text>
+            <ChoiceList
+              choices={Object.entries(shopAccessOptions).map(([key, title]) => ({ key, title }))}
+              selectedKeys={[editing.shop.access]}
+              selection="single"
+              onSelect={(access) => setEditing({ ...editing, shop: { ...editing.shop, access: access as Shop["access"] } })}
+            />
           </View>
           <PrimaryAction label={editing.index < 0 ? "Add shop" : "Save"} onPress={save} />
           {editing.index >= 0 ? <Pressable accessibilityRole="button" className="min-h-11 items-center justify-center" onPress={() => { onChange({ shops: profile.shops.filter((_, index) => index !== editing.index) }); setEditing(null); }}><Text className="font-medium text-destructive">Remove shop</Text></Pressable> : null}

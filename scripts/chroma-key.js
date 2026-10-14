@@ -1,111 +1,100 @@
-const fs = require("fs");
-const { execSync } = require("child_process");
-const { PNG } = require("pngjs");
+/* global __dirname */
+const { execFileSync } = require("node:child_process");
+const { access, readFile, writeFile } = require("node:fs/promises");
+const { join } = require("node:path");
+const { parseArgs } = require("node:util");
+const sharp = require("sharp");
 
-function trimTransparent(png, padding = 16) {
-  let minX = png.width;
+function cropBounds({ data, info: { width, height } }, padding = 16) {
+  let minX = width;
   let maxX = 0;
-  let minY = png.height;
+  let minY = height;
   let maxY = 0;
-
-  for (let y = 0; y < png.height; y++) {
-    for (let x = 0; x < png.width; x++) {
-      const idx = (png.width * y + x) << 2;
-      const alpha = png.data[idx + 3];
-      if (alpha > 10) {
-        if (x < minX) minX = x;
-        if (x > maxX) maxX = x;
-        if (y < minY) minY = y;
-        if (y > maxY) maxY = y;
-      }
-    }
-  }
-
-  if (minX > maxX || minY > maxY) {
-    return png; // empty image, return as is
-  }
-
-  minX = Math.max(0, minX - padding);
-  minY = Math.max(0, minY - padding);
-  maxX = Math.min(png.width - 1, maxX + padding);
-  maxY = Math.min(png.height - 1, maxY + padding);
-
-  const croppedWidth = maxX - minX + 1;
-  const croppedHeight = maxY - minY + 1;
-  const cropped = new PNG({ width: croppedWidth, height: croppedHeight });
-
-  for (let y = 0; y < croppedHeight; y++) {
-    for (let x = 0; x < croppedWidth; x++) {
-      const srcIdx = (png.width * (minY + y) + (minX + x)) << 2;
-      const destIdx = (croppedWidth * y + x) << 2;
-      cropped.data[destIdx] = png.data[srcIdx];
-      cropped.data[destIdx + 1] = png.data[srcIdx + 1];
-      cropped.data[destIdx + 2] = png.data[srcIdx + 2];
-      cropped.data[destIdx + 3] = png.data[srcIdx + 3];
-    }
-  }
-
-  return cropped;
-}
-
-/**
- * Chroma keys a blue-screen (#0047FF) clay render into a transparent PNG.
- * Includes soft edge feathering, blue despill along edges, and autocropping
- * to remove excessive dead margin.
- */
-function chromaKey(inputPath, outputPath) {
-  const tempPng = `/tmp/temp_key_${Date.now()}.png`;
-  execSync(`sips -s format png "${inputPath}" --out "${tempPng}"`);
-
-  const data = fs.readFileSync(tempPng);
-  const png = PNG.sync.read(data);
-  const { width, height } = png;
 
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
-      const idx = (width * y + x) << 2;
-      const r = png.data[idx];
-      const g = png.data[idx + 1];
-      const b = png.data[idx + 2];
-
-      const maxRG = Math.max(r, g);
-      const diff = b - maxRG;
-
-      // Soft thresholding for smooth edges
-      const k1 = 25; // edge transition start
-      const k2 = 80; // definite blue background
-
-      if (diff >= k2) {
-        png.data[idx + 3] = 0;
-      } else if (diff <= k1) {
-        png.data[idx + 3] = 255;
-      } else {
-        const alphaFraction = 1 - (diff - k1) / (k2 - k1);
-        png.data[idx + 3] = Math.round(255 * alphaFraction);
-        png.data[idx + 2] = Math.min(b, maxRG); // despill
-      }
-
-      // Despill remaining edge pixels where blue reflection lingers
-      if (png.data[idx + 3] > 0 && b > maxRG) {
-        png.data[idx + 2] = maxRG;
+      if (data[(width * y + x) * 4 + 3] > 10) {
+        minX = Math.min(minX, x);
+        maxX = Math.max(maxX, x);
+        minY = Math.min(minY, y);
+        maxY = Math.max(maxY, y);
       }
     }
   }
 
-  // Trim transparent whitespace so the subject fills its bounding frame cleanly
-  const trimmed = trimTransparent(png, 16);
-
-  const outBuffer = PNG.sync.write(trimmed);
-  fs.writeFileSync(outputPath, outBuffer);
-  try {
-    fs.unlinkSync(tempPng);
-  } catch {}
-  console.log(`Saved transparent cropped image (${trimmed.width}x${trimmed.height}): ${outputPath}`);
+  if (minX > maxX || minY > maxY) throw new Error("No visible foreground found.");
+  const left = Math.max(0, minX - padding);
+  const top = Math.max(0, minY - padding);
+  return {
+    left,
+    top,
+    width: Math.min(width - 1, maxX + padding) - left + 1,
+    height: Math.min(height - 1, maxY + padding) - top + 1,
+  };
 }
 
-const [, , inputPath, outputPath] = process.argv;
-if (!inputPath || !outputPath) {
-  console.error("Usage: node scripts/chroma-key.js <input.jpg|png> <output.png>");
-  process.exit(1);
+// Legacy blue-screen mode stays available for comparison. It is not matting:
+// clamping the blue channel can still leave cyan/grey contamination at edges.
+function keyBlue(data) {
+  for (let offset = 0; offset < data.length; offset += 4) {
+    const maxRG = Math.max(data[offset], data[offset + 1]);
+    const blue = data[offset + 2];
+    const difference = blue - maxRG;
+    data[offset + 3] = difference >= 80 ? 0 : difference <= 25 ? 255
+      : Math.round(255 * (1 - (difference - 25) / 55));
+    if (data[offset + 3] > 0) data[offset + 2] = Math.min(blue, maxRG);
+  }
 }
-chromaKey(inputPath, outputPath);
+
+async function main() {
+  const { values, positionals } = parseArgs({
+    allowPositionals: true,
+    options: {
+      "experimental-matting": { type: "boolean", default: false },
+      mask: { type: "string" },
+    },
+  });
+  if (positionals.length !== 2) {
+    throw new Error("Usage: node scripts/chroma-key.js <input.jpg|png> <output.png> [--experimental-matting [--mask mask.png]]");
+  }
+  if (values.mask && !values["experimental-matting"]) {
+    throw new Error("--mask requires --experimental-matting.");
+  }
+  const [inputPath, outputPath] = positionals;
+  const exists = await access(outputPath).then(() => true).catch((error) => {
+    if (error.code !== "ENOENT") throw error;
+    return false;
+  });
+  if (exists) throw new Error("Output already exists; choose a fresh path to preserve originals and comparisons.");
+  const original = await readFile(inputPath);
+  let image = await sharp(original).rotate().ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+  for (let offset = 3; offset < image.data.length; offset += 4) {
+    if (image.data[offset] < 255) {
+      throw new Error("Input already contains transparency; use the original unkeyed render, not a PNG master.");
+    }
+  }
+
+  if (values["experimental-matting"]) {
+    const normalized = await sharp(image.data, { raw: image.info }).png().toBuffer();
+    const args = ["run", "--no-project", "--python", "3.12", "--script", join(__dirname, "experimental-art-matting.py")];
+    if (values.mask) args.push("--mask", values.mask);
+    const cutout = execFileSync("uv", args, {
+      input: normalized,
+      maxBuffer: 128 * 1024 * 1024,
+      stdio: ["pipe", "pipe", "inherit"],
+    });
+    image = await sharp(cutout).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+  } else {
+    keyBlue(image.data);
+  }
+
+  const bounds = cropBounds(image);
+  const result = await sharp(image.data, { raw: image.info }).extract(bounds).png().toBuffer();
+  await writeFile(outputPath, result, { flag: "wx" });
+  console.log(`Saved transparent cropped image (${bounds.width}x${bounds.height}): ${outputPath}`);
+}
+
+main().catch((error) => {
+  console.error(error.message);
+  process.exitCode = 1;
+});

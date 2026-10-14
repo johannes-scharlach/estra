@@ -6,6 +6,9 @@ node_modules/
 docs/.screenshots/
 apps/mobile/docs/.screenshots/
 
+# Local-only artwork matting trials; never import these into the app.
+apps/mobile/src/features/onboarding/art/experiments/
+
 # Expo
 .expo/
 dist/

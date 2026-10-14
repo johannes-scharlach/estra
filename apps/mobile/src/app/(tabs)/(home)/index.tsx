@@ -252,7 +252,7 @@ export default function Home() {
                   onChangeText={setDish}
                   placeholder="What would you like to make?"
                   accessibilityLabel="Dish in mind"
-                  className="h-12 flex-1 bg-transparent px-3.5"
+                  className="h-12 min-h-0 flex-1 border-0 bg-transparent px-3.5 py-1"
                   autoCapitalize="sentences"
                   autoCorrect
                   returnKeyType="go"
@@ -325,7 +325,7 @@ export default function Home() {
                         : "Two or three things you have…"
                     }
                     accessibilityLabel="Ingredient"
-                    className="h-8 min-w-24 flex-1 rounded-none bg-transparent px-1.5 py-0"
+                    className="h-8 min-h-0 min-w-24 flex-1 rounded-none border-0 bg-transparent px-1.5 py-0"
                     autoCapitalize="sentences"
                     autoCorrect
                     returnKeyType="go"

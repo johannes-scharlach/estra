@@ -1,4 +1,4 @@
-import { BottomSheet } from "@expo/ui";
+import { BottomSheet, RNHostView } from "@expo/ui";
 import { useState, type ReactNode } from "react";
 import { View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -28,28 +28,31 @@ export function EditorSheet({
       snapPoints={[{ height: Math.round(contentHeight) }]}
       contentPadding={{ top: 12, bottom: bottomInset, left: 24, right: 24 }}
     >
-      <View
-        style={{ width: Math.min(width - 48, 540) }}
-        className="gap-5"
-        onLayout={(e) => {
-          const h = e.nativeEvent.layout.height;
-          const target = h + 12 + bottomInset + 16;
-          if (h > 40 && Math.abs(contentHeight - target) > 4) {
-            setContentHeight(target);
-          }
-        }}
-      >
-        <View className="flex-row items-center justify-between gap-4">
-          <Text
-            accessibilityRole="header"
-            className="flex-1 text-xl font-semibold"
-          >
-            {title}
-          </Text>
-          <CloseButton onPress={onDismiss} />
+      {/* Presented content needs its own RN touch handler on both platforms. */}
+      <RNHostView matchContents>
+        <View
+          style={{ width: Math.min(width - 48, 540) }}
+          className="gap-5"
+          onLayout={(e) => {
+            const h = e.nativeEvent.layout.height;
+            const target = h + 12 + bottomInset + 16;
+            if (h > 40 && Math.abs(contentHeight - target) > 4) {
+              setContentHeight(target);
+            }
+          }}
+        >
+          <View className="flex-row items-center justify-between gap-4">
+            <Text
+              accessibilityRole="header"
+              className="flex-1 text-xl font-semibold"
+            >
+              {title}
+            </Text>
+            <CloseButton onPress={onDismiss} />
+          </View>
+          {children}
         </View>
-        {children}
-      </View>
+      </RNHostView>
     </BottomSheet>
   );
 }
