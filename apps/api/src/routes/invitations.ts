@@ -63,7 +63,7 @@ invitations.get("/:code", (c) => {
   `);
 });
 
-function installUrl(value: string | undefined): string | null {
+export function installUrl(value: string | undefined): string | null {
   if (!value) return null;
   try {
     const url = new URL(value);

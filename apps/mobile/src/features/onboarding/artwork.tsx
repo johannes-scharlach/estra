@@ -27,6 +27,10 @@ const deliveredAssets: Partial<Record<ArtworkId, number>> = {
   "pantry-canned-tomatoes": require("./art/optimized/pantry-canned-tomatoes.webp"),
   "pantry-noodles": require("./art/optimized/pantry-noodles.webp"),
   "pantry-canned-corn": require("./art/optimized/pantry-canned-corn.webp"),
+  "pantry-canned-tuna": require("./art/optimized/pantry-canned-tuna.webp"),
+  "pantry-chickpeas": require("./art/optimized/pantry-chickpeas.webp"),
+  "pantry-lentils": require("./art/optimized/pantry-lentils.webp"),
+  "pantry-canned-beans": require("./art/optimized/pantry-canned-beans.webp"),
 };
 
 export function Artwork({

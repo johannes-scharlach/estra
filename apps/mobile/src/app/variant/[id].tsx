@@ -52,6 +52,7 @@ import { Text } from "@/components/ui/text";
 import { setMealSwap } from "@/db/meal-ingredients";
 import { useAuth } from "@/db/provider";
 import type { PlannedMeal, Variant, Recipe } from "@/db/schema";
+import { deleteRecipe } from "@/db/recipes";
 import { parseVariant } from "@/db/variants";
 import { Composer } from "@/features/chat/composer";
 import { adjustRecipeMessage } from "@/features/chat/compose";
@@ -69,12 +70,13 @@ import {
   alternativesForLine,
   type Alternative,
 } from "@/features/shop/alternatives";
+import { sharedRecipeUrl } from "@/features/sharing/links";
 import { prettyQuantity } from "@/features/shop/spec";
 import { tonalPair } from "@/features/variants/tonal";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useCommitTick } from "@/hooks/use-commit-tick";
 import { useToday } from "@/hooks/use-today";
-import { useActiveList } from "@/features/onboarding/access";
+import { env } from "@/lib/env";
 
 const HERO_HEIGHT = 320;
 // Two 22-point icons with 8-point padding on each side.
@@ -413,7 +415,6 @@ export default function VariantPage() {
   const reducedMotion = useReducedMotion();
   const [composerHeight, setComposerHeight] = useState(96);
   const [readingRecipe, setReadingRecipe] = useState(false);
-  const list = useActiveList();
   const today = useToday();
 
   const scrollY = useSharedValue(0);
@@ -746,7 +747,8 @@ export default function VariantPage() {
     [ingredientLines, meal, chosenIngredients, persistSwap],
   );
 
-  const conversationListId = meal?.list_id ?? list?.id;
+  // Recipe chats live in the recipe's household (ADR 27).
+  const conversationListId = variant?.list_id;
   const startChat = (text: string, attachments: ImageAttachment[] = []) => {
     if (!variant || !recipeId || !conversationListId) return;
     const chatId = Crypto.randomUUID();
@@ -767,8 +769,10 @@ export default function VariantPage() {
     router.push({ pathname: "/chats/[id]", params: { id: chatId } });
   };
 
+  // A link, not the recipe: the friend gets it by opening Magpie (ADR 28).
   const onShare = useCallback(async () => {
-    const message = [variant?.name, variant?.description, recipe?.from_url]
+    if (!variant) return;
+    const message = [variant.name, sharedRecipeUrl(env.apiUrl, variant.id)]
       .filter(Boolean)
       .join("\n");
     try {
@@ -776,7 +780,30 @@ export default function VariantPage() {
     } catch {
       // share sheet cancelled or unavailable — ignore
     }
-  }, [variant?.name, variant?.description, recipe?.from_url]);
+  }, [variant]);
+
+  const confirmDelete = () =>
+    Alert.alert(
+      "Delete this recipe?",
+      "It goes for everyone in your household, with all its variants and chats.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: () => {
+            deleteRecipe(recipeId)
+              .then(() => router.back())
+              .catch((e: unknown) =>
+                Alert.alert(
+                  "Couldn't delete recipe",
+                  e instanceof Error ? e.message : String(e),
+                ),
+              );
+          },
+        },
+      ],
+    );
 
   if (isLoading || mealsLoading || !mealReady) {
     return (
@@ -1021,6 +1048,12 @@ export default function VariantPage() {
                           },
                         ]
                       : []),
+                    {
+                      id: "delete",
+                      title: "Delete recipe",
+                      image: "trash",
+                      attributes: { destructive: true },
+                    },
                   ]}
                   onPressAction={({ nativeEvent: { event } }) => {
                     if (event === "plan") openPlan();
@@ -1028,6 +1061,7 @@ export default function VariantPage() {
                     if (event === "eaters") openEaters();
                     if (event === "adjust") adjustMeal();
                     if (event === "shopping") openShopping();
+                    if (event === "delete") confirmDelete();
                     if (event === "history")
                       router.push({
                         pathname: "/chats/history",

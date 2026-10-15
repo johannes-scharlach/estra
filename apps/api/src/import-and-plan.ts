@@ -8,6 +8,7 @@ import {
   findVariantIdentity,
   insertVariant,
 } from "./variants.js";
+import { ListAccessError } from "./errors.js";
 import type { ImportRequest } from "./import-request.js";
 import { deriveVariantIdForImport } from "./import-identity.js";
 import {
@@ -40,13 +41,19 @@ export async function saveImport(
 ) {
   const variantId = deriveVariantIdForImport(userId, request);
   return inTransaction(userId, async (client) => {
-    if (request.plan)
-      await assertListMemberUntilCommit(client, userId, request.plan.listId);
+    const listId =
+      request.plan?.listId ?? request.listId ?? (await firstListOf(client, userId));
+    await assertListMemberUntilCommit(client, userId, listId);
     await serializeImportSaves(client, variantId);
     const existing = await findVariantIdentity(client, variantId);
     if (existing) return existing;
 
-    const recipeId = await createRecipe(client, userId, "import", recipe.from);
+    const recipeId = await createRecipe(client, {
+      userId,
+      listId,
+      origin: "import",
+      from: recipe.from,
+    });
     const saved = await insertVariant(client, { recipeId, variantId, recipe });
     if (request.plan) {
       const { listId, date, slot } = request.plan;
@@ -60,6 +67,16 @@ export async function saveImport(
     }
     return saved;
   });
+}
+
+/** Where an import from a build that sends no list lands (ADR 27). */
+async function firstListOf(client: Client, userId: string): Promise<string> {
+  const first = await client.query<{ list_id: string }>(
+    "SELECT list_id FROM list_members WHERE user_id = $1 ORDER BY joined_at, list_id LIMIT 1",
+    [userId],
+  );
+  if (!first.rows[0]) throw new ListAccessError();
+  return first.rows[0].list_id;
 }
 
 /**

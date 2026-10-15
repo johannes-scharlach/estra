@@ -44,7 +44,7 @@ export async function setPlannedMeal(client: PoolClient, opts: {
   extraPortions?: number;
   ifOccupied: "reject" | "replace";
 }): Promise<{ plannedMealId: string; name: string | null; items: string[] }> {
-  const { listId, slotDate, meal, variantId } = opts;
+  const { listId, slotDate, meal } = opts;
   const extraPortions = opts.extraPortions ?? 0;
   if (!Number.isFinite(extraPortions) || extraPortions < 0 || Number(extraPortions.toFixed(2)) !== extraPortions) {
     throw new Error("Extra portions must be zero or more with at most two decimal places");
@@ -55,12 +55,12 @@ export async function setPlannedMeal(client: PoolClient, opts: {
   if (eaterIds.some((id) => !known.has(id))) throw new UnknownHouseholdPersonError();
 
   const id = plannedMealId(listId, slotDate, meal);
-  const v = await client.query<{ recipe_id: string; name: string | null }>(
-    "SELECT recipe_id, name FROM variants WHERE id = $1",
-    [variantId],
-  );
-  const variant = v.rows[0];
-  if (!variant) throw new VariantNotFoundError();
+  const source = await readVariant(client, opts.variantId);
+  if (!source) throw new VariantNotFoundError();
+  // Another list's recipe is planned as this list's copy of it (ADR 27).
+  const variant = source.list_id === listId
+    ? source
+    : (await readVariant(client, await copyVariantToList(client, source.id, listId)))!;
 
   const written = await client.query(
     `INSERT INTO planned_meals (id, list_id, recipe_id, variant_id, slot_date, meal, eater_ids, extra_portions)
@@ -74,13 +74,30 @@ export async function setPlannedMeal(client: PoolClient, opts: {
            eater_ids = EXCLUDED.eater_ids, extra_portions = EXCLUDED.extra_portions,
            updated_at = now()`}
      RETURNING id`,
-    [id, listId, variant.recipe_id, variantId, slotDate, meal, JSON.stringify(eaterIds), extraPortions],
+    [id, listId, variant.recipe_id, variant.id, slotDate, meal, JSON.stringify(eaterIds), extraPortions],
   );
 
   if (!written.rowCount) throw new MealSlotOccupiedError();
 
   await client.query("DELETE FROM list_items WHERE planned_meal_id = $1", [id]);
   return { plannedMealId: id, name: variant.name, items: [] };
+}
+
+/** Idempotent public.copy_variant_to_list; derived ids, so repeats reuse the copy. */
+async function copyVariantToList(client: PoolClient, variantId: string, listId: string) {
+  const copied = await client.query<{ id: string }>(
+    "SELECT copy_variant_to_list($1, $2) AS id",
+    [variantId, listId],
+  );
+  return copied.rows[0]!.id;
+}
+
+async function readVariant(client: PoolClient, id: string) {
+  const v = await client.query<{ id: string; recipe_id: string; list_id: string; name: string | null }>(
+    "SELECT id, recipe_id, list_id, name FROM variants WHERE id = $1",
+    [id],
+  );
+  return v.rows[0];
 }
 
 export async function clearPlannedMeal(client: PoolClient, listId: string, slotDate: string, meal: MealSlot): Promise<boolean> {

@@ -10,6 +10,7 @@ import {
   updatePlannedMealEaters,
 } from "./planned-meals";
 import { decideIngredients } from "./meal-shopping";
+import { deleteRecipe } from "./recipes";
 import { MEALS_WITH_SHOPPING } from "./shopping-meals";
 import { resolveShoppingItem, setMealSwap } from "./meal-ingredients";
 import { applySwap, setItemStatus } from "./items";
@@ -61,7 +62,9 @@ beforeEach(() => {
   state.db.exec(`
     CREATE TABLE household_people (id TEXT, list_id TEXT, created_at TEXT);
     INSERT INTO household_people VALUES ('person', 'household', '2026-01-01');
-    CREATE TABLE variants (id TEXT PRIMARY KEY, recipe_id TEXT, name TEXT, ingredient_lines TEXT, instructions TEXT, sized_for TEXT, created_at TEXT);
+    CREATE TABLE recipes (id TEXT PRIMARY KEY, list_id TEXT, from_name TEXT, from_url TEXT, origin TEXT, next_ingredient_id INTEGER, created_by TEXT, created_at TEXT, updated_at TEXT);
+    CREATE TABLE variants (id TEXT PRIMARY KEY, recipe_id TEXT, list_id TEXT DEFAULT 'household', name TEXT, description TEXT, locale TEXT, total_time TEXT, recipe_yield TEXT,
+      content_markdown TEXT, recipe_category TEXT, recipe_cuisine TEXT, ingredient_lines TEXT, instructions TEXT, sized_for TEXT, created_at TEXT, updated_at TEXT);
     CREATE TABLE planned_meals (
       id TEXT PRIMARY KEY, list_id TEXT, recipe_id TEXT, variant_id TEXT, name TEXT, content_id TEXT NOT NULL,
       slot_date TEXT, meal TEXT, eater_ids TEXT, extra_portions REAL, shopping_reviewed_variant_id TEXT, ingredient_swaps TEXT DEFAULT '{}', ingredients_at_home TEXT DEFAULT '[]', created_at TEXT, updated_at TEXT,
@@ -75,6 +78,48 @@ beforeEach(() => {
   `);
 });
 afterEach(() => state.db?.close());
+
+it("plans another household's recipe as this household's copy, with the server's ids", async () => {
+  // Ids from public.copy_variant for the same list and variant (ADR 27).
+  const annas = "b2700000-0000-4000-8000-000000000001";
+  const bens = "b2700000-0000-4000-8000-000000000002";
+  const cookies = "f2700000-0000-4000-8000-000000000002";
+  state.db!.exec(`
+    INSERT INTO recipes (id, list_id, from_url, origin, next_ingredient_id, created_by)
+      VALUES ('annas-recipe', '${annas}', 'https://example.com/cookies', 'import', 5, 'anna');
+    INSERT INTO variants (id, recipe_id, list_id, name, ingredient_lines, instructions, sized_for)
+      VALUES ('${cookies}', 'annas-recipe', '${annas}', 'Cookies', '[{"id":4,"item_name":"butter"}]', '[]', '{"eater_ids":[],"extra_portions":0}');
+  `);
+  const plan = (meal: string) =>
+    setPlannedMeal({ listId: bens, slotDate: date, meal, recipeId: "annas-recipe", variantId: cookies });
+  await plan("treat");
+  await plan("lunch");
+
+  const copy = { recipe: "01fc58b1-4257-5978-bbbd-4d174e940b41", variant: "7d6e49bd-e7fc-517a-9cc1-561c36c1f928" };
+  expect(all("planned_meals").map((m) => [m.recipe_id, m.variant_id])).toEqual([
+    [copy.recipe, copy.variant], [copy.recipe, copy.variant],
+  ]);
+  expect(state.db!.prepare("SELECT * FROM recipes WHERE id = ?").get(copy.recipe)).toMatchObject({
+    list_id: bens, from_url: "https://example.com/cookies", origin: null, next_ingredient_id: 5, created_by: null,
+  });
+  expect(state.db!.prepare("SELECT * FROM variants WHERE id = ?").get(copy.variant)).toMatchObject({
+    recipe_id: copy.recipe, list_id: bens, name: "Cookies", ingredient_lines: '[{"id":4,"item_name":"butter"}]', sized_for: null,
+  });
+});
+
+it("deletes a recipe with all its variants, but not while a meal uses it", async () => {
+  state.db!.exec(`
+    INSERT INTO recipes (id, list_id) VALUES ('recipe', 'household');
+    INSERT INTO variants (id, recipe_id, ingredient_lines) VALUES ('v1', 'recipe', '[]'), ('v2', 'recipe', '[]');
+  `);
+  await setPlannedMeal({ listId, slotDate: date, meal: "lunch", recipeId: "recipe", variantId: "v1" });
+  await expect(deleteRecipe("recipe")).rejects.toThrow(/meal plan/);
+  expect(all("variants")).toHaveLength(2);
+
+  await clearPlannedMeal(listId, date, "lunch");
+  await deleteRecipe("recipe");
+  expect([...all("recipes"), ...all("variants")]).toEqual([]);
+});
 
 it("keeps at-home swaps on the meal and snapshots the actual purchase before later changes", async () => {
   const fish = [{ id: 7, item_name: "Sardines", qty_text: "3 tins", category_id: "grains",

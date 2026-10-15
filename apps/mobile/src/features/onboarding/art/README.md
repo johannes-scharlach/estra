@@ -65,6 +65,16 @@ see the trial below before changing prompts or replacing assets.
    the old macOS `sips` step or temporary conversion file. Check results over
    both light and dark backgrounds before accepting a master.
 
+2b. **Sprite Sheet Slicing (Budget Saver)**:
+   To save request quota, multiple items can be generated in a 3×3 or 2×2 sprite sheet on a neutral mid-grey (`#808080`) or chroma blue backdrop.
+   Run the sheet slicer to matte, segment, and crop each cell into individual masters:
+
+   ```bash
+   pnpm assets:slice <spritesheet.png|jpg> --ids id1,id2,id3,id4,id5,id6,id7,id8,id9 --rows 3 --cols 3
+   ```
+
+   This applies foreground matting via `rembg`, isolates each cell's foreground bounds with 16px padding, and exports individual `<id>.png` masters directly into this folder. Run unit tests with `pnpm assets:slice:test`.
+
 3. **Optimize for the app**:
    From the repo root, run:
 

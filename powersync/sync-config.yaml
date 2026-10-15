@@ -70,28 +70,23 @@ streams:
       WHERE list_members.user_id = auth.user_id()
         AND household_activity_recipients.user_id = auth.user_id()
 
-  # Every item on every list you belong to, including purchased ones —
-  # those are the "recent" suggestions and the autocomplete source, so they
-  # have to be on the device to work offline.
-  #
-  # If lists ever accumulate enough history for this to hurt, this is the
-  # stream to split: active items auto-subscribed, purchased on demand.
-  # Recipes and variants are global for alpha/beta — like categories, every
-  # device gets every row. Simple, offline-friendly, fine for hundreds of
-  # recipes. Plan (ADR 6/8): before public scale, scope to
-  #   recipes WHERE created_by = auth.user_id()
-  #            OR EXISTS (planned_meal on a list you're on)
-  # and variants via recipe_id. That needs recipes.created_by
-  # (already in migration) and EXISTS streams here.
+  # Recipes belong to one list (ADR 27). variants repeats list_id so both
+  # keep the same one-join shape as chat_messages.
   recipes:
     auto_subscribe: true
     priority: 3
-    query: SELECT * FROM recipes
+    query: |
+      SELECT recipes.* FROM recipes
+        INNER JOIN list_members ON list_members.list_id = recipes.list_id
+      WHERE list_members.user_id = auth.user_id()
 
   variants:
     auto_subscribe: true
     priority: 3
-    query: SELECT * FROM variants
+    query: |
+      SELECT variants.* FROM variants
+        INNER JOIN list_members ON list_members.list_id = variants.list_id
+      WHERE list_members.user_id = auth.user_id()
 
   planned_meals:
     auto_subscribe: true
@@ -106,6 +101,12 @@ streams:
         INNER JOIN list_members ON list_members.list_id = planned_meals.list_id
       WHERE list_members.user_id = auth.user_id()
 
+  # Every item on every list you belong to, including purchased ones —
+  # those are the "recent" suggestions and the autocomplete source, so they
+  # have to be on the device to work offline.
+  #
+  # If lists ever accumulate enough history for this to hurt, this is the
+  # stream to split: active items auto-subscribed, purchased on demand.
   list_items:
     auto_subscribe: true
     priority: 3

@@ -117,6 +117,13 @@ export default function RootLayout() {
                       }}
                     />
                     <Stack.Screen
+                      name="shared/[id]"
+                      options={{
+                        title: "",
+                        headerBackButtonDisplayMode: "minimal",
+                      }}
+                    />
+                    <Stack.Screen
                       name="variant/versions"
                       options={{
                         title: "Variants",

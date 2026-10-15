@@ -3,8 +3,10 @@ import { magpieUuidV5 } from "@/lib/magpie-uuid";
 import { isValidExtraPortions } from "@/features/meals/eaters";
 import type { MealSlot } from "@/features/meals/slots";
 
+import { variantInList } from "./recipe-copies";
+import type { Variant } from "./schema";
 import { powersync } from "./system";
-import { getVariant, getVariantForRecipe } from "./variants";
+import { getVariantForRecipe } from "./variants";
 
 export function plannedMealId(
   listId: string,
@@ -46,22 +48,27 @@ export async function setPlannedMeal(opts: {
   eaterIds?: string[];
   extraPortions?: number;
 }) {
-  const { listId, slotDate, meal, recipeId } = opts;
+  const { listId, slotDate, meal } = opts;
   const id = plannedMealId(listId, slotDate, meal);
   const now = new Date().toISOString();
   const extraPortions = opts.extraPortions ?? 0;
   assertValidExtra(extraPortions);
 
   await powersync.writeTransaction(async (tx) => {
-    let vId = opts.variantId;
-    if (!vId) {
-      const v = await getVariantForRecipe(tx, recipeId);
-      if (!v) throw new Error(`no variant for recipe ${recipeId}`);
-      vId = v.id;
+    let sourceId = opts.variantId;
+    if (!sourceId) {
+      const v = await getVariantForRecipe(tx, opts.recipeId);
+      if (!v) throw new Error(`no variant for recipe ${opts.recipeId}`);
+      sourceId = v.id;
     }
-    const variant = await getVariant(tx, vId);
-    if (!variant || variant.recipe_id !== recipeId)
+    const source = (await tx.getOptional(
+      "SELECT * FROM variants WHERE id = ?",
+      [sourceId],
+    )) as Variant | null;
+    if (!source || source.recipe_id !== opts.recipeId)
       throw new Error("Recipe variant not found");
+    // Another household's recipe is planned as this one's copy (ADR 27).
+    const { recipeId, variantId: vId } = await variantInList(tx, source, listId);
     const eaterIds = JSON.stringify(
       opts.eaterIds ?? (await householdEaterIds(tx, listId)),
     );

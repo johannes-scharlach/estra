@@ -15,7 +15,7 @@ test("server planning saves the meal without shopping and rejects occupied slots
     await client.query("BEGIN");
     await client.query(`
       CREATE TEMP TABLE household_people (id uuid, list_id uuid, name text, created_at timestamptz DEFAULT now());
-      CREATE TEMP TABLE variants (id uuid, recipe_id uuid, name text, ingredient_lines jsonb);
+      CREATE TEMP TABLE variants (id uuid, recipe_id uuid, list_id uuid, name text, ingredient_lines jsonb);
       CREATE TEMP TABLE planned_meals (
         id uuid PRIMARY KEY, list_id uuid, recipe_id uuid, variant_id uuid, name text,
         content_id uuid DEFAULT gen_random_uuid(), slot_date text, meal text,
@@ -30,8 +30,8 @@ test("server planning saves the meal without shopping and rejects occupied slots
     `);
     const listId = randomUUID();
     const variantId = randomUUID();
-    await client.query("INSERT INTO variants VALUES ($1, $2, 'Pasta', $3)", [
-      variantId, randomUUID(), JSON.stringify([{ item_name: "Pasta", qty_text: "200g" }, { item_name: "Olive oil", qty_text: "1 tbsp" }]),
+    await client.query("INSERT INTO variants VALUES ($1, $2, $3, 'Pasta', $4)", [
+      variantId, randomUUID(), listId, JSON.stringify([{ item_name: "Pasta", qty_text: "200g" }, { item_name: "Olive oil", qty_text: "1 tbsp" }]),
     ]);
     const opts = { listId, variantId, slotDate: "2026-09-24", meal: "dinner" as const, ifOccupied: "reject" as const };
     const result = await setPlannedMeal(client as PoolClient, opts);

@@ -23,14 +23,19 @@ export type RecipeOrigin = "import" | ChatEntry | null;
 /** Create the recipe grouping explicitly before adding its first variant. */
 export async function createRecipe(
   client: PoolClient,
-  userId: string,
-  origin: RecipeOrigin,
-  from?: RecipeInput["from"],
+  opts: {
+    userId: string;
+    /** The household it belongs to (ADR 27). */
+    listId: string;
+    origin: RecipeOrigin;
+    from?: RecipeInput["from"];
+  },
 ): Promise<string> {
+  const { userId, listId, origin, from } = opts;
   const recipeId = randomUUID();
   await client.query(
-    `INSERT INTO recipes (id, from_name, from_url, created_by, origin) VALUES ($1,$2,$3,$4,$5)`,
-    [recipeId, from?.name ?? null, from?.url ?? null, userId, origin],
+    `INSERT INTO recipes (id, list_id, from_name, from_url, created_by, origin) VALUES ($1,$2,$3,$4,$5,$6)`,
+    [recipeId, listId, from?.name ?? null, from?.url ?? null, userId, origin],
   );
   return recipeId;
 }
@@ -48,13 +53,13 @@ export async function insertVariant(
   },
 ): Promise<{ recipeId: string; variantId: string }> {
   const { recipeId, variantId, recipe, sizedFor } = opts;
-  const counter = (
-    await client.query<{ next_ingredient_id: number }>(
-      "SELECT next_ingredient_id FROM recipes WHERE id = $1 FOR UPDATE",
+  const owner = (
+    await client.query<{ next_ingredient_id: number; list_id: string }>(
+      "SELECT next_ingredient_id, list_id FROM recipes WHERE id = $1 FOR UPDATE",
       [recipeId],
     )
   ).rows[0];
-  if (!counter) throw new Error("Recipe not found");
+  if (!owner) throw new Error("Recipe not found");
   const base = opts.baseVariantId
     ? (await client.query<{ ingredient_lines: IngredientLine[] }>(
         "SELECT ingredient_lines FROM variants WHERE id = $1 AND recipe_id = $2",
@@ -65,7 +70,7 @@ export async function insertVariant(
   const allocated = (() => {
     try {
       return assignIngredientIds(
-        recipe.recipeIngredient, counter.next_ingredient_id, base?.ingredient_lines,
+        recipe.recipeIngredient, owner.next_ingredient_id, base?.ingredient_lines,
       );
     } catch (cause) {
       throw new AppError(
@@ -81,11 +86,12 @@ export async function insertVariant(
     [recipeId, allocated.nextId],
   );
   await client.query(
-    `INSERT INTO variants (id, recipe_id, name, description, locale, total_time, recipe_yield, content_markdown, recipe_category, recipe_cuisine, ingredient_lines, instructions, sized_for)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12::jsonb,$13::jsonb)`,
+    `INSERT INTO variants (id, recipe_id, list_id, name, description, locale, total_time, recipe_yield, content_markdown, recipe_category, recipe_cuisine, ingredient_lines, instructions, sized_for)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,$13::jsonb,$14::jsonb)`,
     [
       variantId,
       recipeId,
+      owner.list_id,
       recipe.name,
       recipe.description,
       recipe.locale,

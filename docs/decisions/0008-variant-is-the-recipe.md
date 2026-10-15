@@ -3,6 +3,8 @@
 Date: 2026-08-25
 Status: Accepted
 Supersedes: 6 (in part)
+Amended by: 27 (recipes belong to a list)
+Amended by: 27 (recipes belong to a list)
 
 ## Context
 

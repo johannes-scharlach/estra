@@ -186,11 +186,11 @@ export function buildChatTools(
               }
             }
 
-            const recipeId = await createRecipe(
-              client,
+            const recipeId = await createRecipe(client, {
               userId,
-              context.chat.entry ?? null,
-            );
+              listId,
+              origin: context.chat.entry ?? null,
+            });
             return insertVariant(client, {
               recipeId,
               variantId: randomUUID(),
@@ -252,9 +252,10 @@ export function buildChatTools(
           ingredient_lines: { item_name: string }[];
         }>(
           `SELECT id, name, description, total_time, ingredient_lines FROM variants
-           WHERE name ILIKE $1 OR description ILIKE $1 OR ingredient_lines::text ILIKE $1
+           WHERE list_id = $2
+             AND (name ILIKE $1 OR description ILIKE $1 OR ingredient_lines::text ILIKE $1)
            ORDER BY created_at DESC LIMIT 10`,
-          [like],
+          [like, listId],
         );
         return rows.rows.map((r) => ({
           variantId: r.id,

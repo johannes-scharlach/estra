@@ -107,6 +107,8 @@ const household_activity_recipients = new Table(
 );
 
 const recipes = new Table({
+  /** The household it belongs to (ADR 27). */
+  list_id: column.text,
   next_ingredient_id: column.integer,
   from_name: column.text,
   from_url: column.text,
@@ -119,6 +121,8 @@ const recipes = new Table({
 
 const variants = new Table({
   recipe_id: column.text,
+  /** Always its recipe's list_id; repeated so it syncs with one join. */
+  list_id: column.text,
   name: column.text,
   description: column.text,
   locale: column.text,

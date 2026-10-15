@@ -25,9 +25,11 @@ test("a meal planned through the API names the user as the actor", { skip: !loca
       INSERT INTO household_people (id, list_id, user_id, name, meal_times) VALUES
         ('c2000000-0000-4000-8000-000000000001', 'b2000000-0000-4000-8000-000000000001',
          'a2000000-0000-4000-8000-000000000001', 'Anna', 'All meals');
-      INSERT INTO recipes (id) VALUES ('f3000000-0000-4000-8000-000000000001');
-      INSERT INTO variants (id, recipe_id, name) VALUES
-        ('f4000000-0000-4000-8000-000000000001', 'f3000000-0000-4000-8000-000000000001', 'Lasagne');
+      INSERT INTO recipes (id, list_id) VALUES
+        ('f3000000-0000-4000-8000-000000000001', 'b2000000-0000-4000-8000-000000000001');
+      INSERT INTO variants (id, recipe_id, list_id, name) VALUES
+        ('f4000000-0000-4000-8000-000000000001', 'f3000000-0000-4000-8000-000000000001',
+         'b2000000-0000-4000-8000-000000000001', 'Lasagne');
     `);
 
     await actAs(client as unknown as PoolClient, "a2000000-0000-4000-8000-000000000001");

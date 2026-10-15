@@ -2,6 +2,7 @@
 
 Date: 2026-09-08
 Status: Accepted
+Amended by: 27 (the recipe belongs to the planned or cookbook list)
 
 Shopping amendment: [ADR 16](0016-intentional-meal-shopping.md) removes automatic
 ingredient additions. Import still saves and plans atomically.

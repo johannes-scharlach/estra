@@ -326,13 +326,13 @@ export type Database = {
           fresh_ingredients: Json
           goals: Json
           id: string
+          ingredient_avoidances: Json
           kitchen_equipment: Json
           main_supermarket: string
           meals_at_home: string
           other_shops: string
           pantry: Json
           restrictions: string
-          ingredient_avoidances: Json
           shops: Json
           updated_at: string
         }
@@ -341,13 +341,13 @@ export type Database = {
           fresh_ingredients?: Json
           goals?: Json
           id: string
+          ingredient_avoidances?: Json
           kitchen_equipment?: Json
           main_supermarket?: string
           meals_at_home?: string
           other_shops?: string
           pantry?: Json
           restrictions?: string
-          ingredient_avoidances?: Json
           shops?: Json
           updated_at?: string
         }
@@ -356,13 +356,13 @@ export type Database = {
           fresh_ingredients?: Json
           goals?: Json
           id?: string
+          ingredient_avoidances?: Json
           kitchen_equipment?: Json
           main_supermarket?: string
           meals_at_home?: string
           other_shops?: string
           pantry?: Json
           restrictions?: string
-          ingredient_avoidances?: Json
           shops?: Json
           updated_at?: string
         }
@@ -743,6 +743,7 @@ export type Database = {
           from_name: string | null
           from_url: string | null
           id: string
+          list_id: string
           next_ingredient_id: number
           origin: string | null
           updated_at: string
@@ -753,6 +754,7 @@ export type Database = {
           from_name?: string | null
           from_url?: string | null
           id?: string
+          list_id: string
           next_ingredient_id?: number
           origin?: string | null
           updated_at?: string
@@ -763,11 +765,20 @@ export type Database = {
           from_name?: string | null
           from_url?: string | null
           id?: string
+          list_id?: string
           next_ingredient_id?: number
           origin?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "recipes_list_id_fkey"
+            columns: ["list_id"]
+            isOneToOne: false
+            referencedRelation: "lists"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       variants: {
         Row: {
@@ -777,6 +788,7 @@ export type Database = {
           id: string
           ingredient_lines: Json
           instructions: Json
+          list_id: string
           locale: string
           name: string | null
           recipe_category: string | null
@@ -794,6 +806,7 @@ export type Database = {
           id?: string
           ingredient_lines?: Json
           instructions?: Json
+          list_id: string
           locale?: string
           name?: string | null
           recipe_category?: string | null
@@ -811,6 +824,7 @@ export type Database = {
           id?: string
           ingredient_lines?: Json
           instructions?: Json
+          list_id?: string
           locale?: string
           name?: string | null
           recipe_category?: string | null
@@ -823,11 +837,11 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "variants_recipe_id_fkey"
-            columns: ["recipe_id"]
+            foreignKeyName: "variants_recipe_id_list_id_fkey"
+            columns: ["recipe_id", "list_id"]
             isOneToOne: false
             referencedRelation: "recipes"
-            referencedColumns: ["id"]
+            referencedColumns: ["id", "list_id"]
           },
         ]
       }
@@ -870,6 +884,14 @@ export type Database = {
           time_zone: string
           user_id: string
         }[]
+      }
+      copy_variant: {
+        Args: { source_variant_id: string; target_list_id: string }
+        Returns: string
+      }
+      copy_variant_to_list: {
+        Args: { source_variant_id: string; target_list_id: string }
+        Returns: string
       }
       empty_day_reminder_due: {
         Args: { day: string; last_planned: string }
@@ -1063,3 +1085,4 @@ export const Constants = {
     Enums: {},
   },
 } as const
+

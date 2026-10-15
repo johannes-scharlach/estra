@@ -10,13 +10,17 @@ import { AppError } from "./errors.js";
 import { plannedMeals } from "./routes/planned-meals.js";
 import { recipes } from "./routes/recipes.js";
 import { invitations } from "./routes/invitations.js";
+import { sharedRecipes } from "./routes/shared-recipes.js";
 
 export const app = new Hono<AppBindings>();
 
-// Invitation paths contain a bearer secret. Do not put them in request logs.
+// Invitation and share paths contain a bearer secret. Keep them out of logs.
 app.use(
   "*",
-  (c, next) => c.req.path.startsWith("/join/") ? next() : logger()(c, next),
+  (c, next) =>
+    c.req.path.startsWith("/join/") || c.req.path.startsWith("/r/")
+      ? next()
+      : logger()(c, next),
 );
 
 // The native app is not subject to CORS; Expo web and browser testing are.
@@ -32,6 +36,7 @@ app.use(
 // Unauthenticated on purpose: Fly's health check has no token to present.
 app.get("/health", (c) => c.json({ ok: true }));
 app.route("/join", invitations);
+app.route("/r", sharedRecipes);
 
 // Everything under /v1 needs a Supabase access token. Mounted after cors so
 // preflight requests, which carry no Authorization header, are not rejected.

@@ -8,6 +8,7 @@ import { CloseButton } from "@/components/close-button";
 import { Input } from "@/components/ui/input";
 import { Text } from "@/components/ui/text";
 import { importRecipe } from "@/features/meals/import-adapters";
+import { useHouseholdAccess } from "@/features/onboarding/access";
 import { PrimaryAction } from "@/components/action";
 import { SheetActions } from "@/components/sheet-actions";
 import { posthog } from "@/lib/posthog";
@@ -17,6 +18,7 @@ import { posthogLogger } from "@/lib/posthog-logs";
  *  so the URL draft is always fresh. Same pattern as variant/plan. */
 export default function ImportRecipeSheet() {
   const router = useRouter();
+  const { listId } = useHouseholdAccess();
   const operation = useRef<{ url: string; operationId: string } | null>(null);
   const [url, setUrl] = useState("");
   const [importing, setImporting] = useState(false);
@@ -24,14 +26,14 @@ export default function ImportRecipeSheet() {
 
   async function onImport() {
     const trimmed = url.trim();
-    if (!trimmed || importing) return;
+    if (!trimmed || !listId || importing) return;
     setImporting(true);
     setError(null);
     try {
       if (operation.current?.url !== trimmed) {
         operation.current = { url: trimmed, operationId: Crypto.randomUUID() };
       }
-      await importRecipe(operation.current);
+      await importRecipe({ ...operation.current, listId });
 
       posthog?.capture("recipe_imported");
       posthogLogger.info("recipe import completed", {

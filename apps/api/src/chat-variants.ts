@@ -70,8 +70,8 @@ export async function readChatVariant(
 ) {
   const row = (
     await client.query<VariantRow>(
-      `SELECT ${dbFields} FROM variants WHERE id = $1`,
-      [variantId],
+      `SELECT ${dbFields} FROM variants WHERE id = $1 AND list_id = $2`,
+      [variantId, listId],
     )
   ).rows[0];
   if (!row) throw new VariantNotFoundError();
@@ -97,10 +97,10 @@ export async function searchChatVariants(
     const pattern = `%${opts.query.replace(/[\\%_]/g, "\\$&")}%`;
     const rows = await client.query<VariantRow>(
       `SELECT ${dbFields} FROM variants
-       WHERE ($1::uuid IS NULL OR recipe_id = $1)
+       WHERE list_id = $4 AND ($1::uuid IS NULL OR recipe_id = $1)
          AND (name ILIKE $2 OR description ILIKE $2 OR ingredient_lines::text ILIKE $2 OR instructions::text ILIKE $2)
        ORDER BY created_at DESC, id LIMIT $3`,
-      [opts.recipeId ?? null, pattern, opts.limit + 1],
+      [opts.recipeId ?? null, pattern, opts.limit + 1, listId],
     );
     const query = opts.query.toLowerCase();
     const matches = await Promise.all(
@@ -219,8 +219,8 @@ export async function writeChatVariant(opts: {
         alreadySaved: true,
       };
     }
-    const base = await findVariantIdentity(client, opts.baseVariantId);
-    if (!base) throw new VariantNotFoundError();
+    // Only this household's recipes take new versions (ADR 27).
+    const base = await readChatVariant(client, opts.listId, opts.baseVariantId);
     if (opts.sizedFor) {
       const people = await client.query<{ id: string }>(
         "SELECT id FROM household_people WHERE list_id = $1",

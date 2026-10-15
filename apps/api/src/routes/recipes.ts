@@ -21,6 +21,7 @@ const google = createGoogleGenerativeAI({ apiKey: env.googleApiKey });
 const FromUrlSchema = z.object({
   url: z.url(),
   operationId: z.uuid(),
+  listId: z.uuid().optional(),
   plan: z
     .object({
       listId: z.string(),

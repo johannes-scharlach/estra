@@ -22,7 +22,8 @@ const permanentErrors = new Set([
 ]);
 
 export async function importRecipe(
-  request: Omit<ImportRequest, "plan"> & { plan?: ImportTarget },
+  request: Omit<ImportRequest, "plan"> &
+    ({ plan: ImportTarget } | { listId: string }),
 ): Promise<ImportResult> {
   const { data } = await supabase.auth.getSession();
   if (!data.session)

@@ -7,6 +7,8 @@ export type ImportRequest = {
   url: string;
   context?: string;
   locale: Locale;
+  /** The cookbook's household; builds before ADR 27 omit it. */
+  listId?: string;
   plan?: ImportTarget;
 };
 export type ImportResult = { recipeId: string; variantId: string };

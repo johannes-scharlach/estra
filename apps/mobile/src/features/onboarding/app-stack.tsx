@@ -5,6 +5,7 @@ import {
   InvitationProvider,
   useInvitation,
 } from "@/features/invitations/provider";
+import { PendingShare } from "@/features/sharing/pending";
 import { useHouseholdAccess } from "./access";
 import { useOnboarding } from "./provider";
 import { StartupScreen } from "./startup-screen";
@@ -56,30 +57,33 @@ function InvitationStack({ children }: { children: ReactNode }) {
     );
   }
   return (
-    // iOS draws pushed screens' headers as floating glass over the content.
-    // Scrolling roots need contentInsetAdjustmentBehavior="automatic".
-    <Stack
-      screenOptions={
-        Platform.OS === "ios"
-          ? { headerTransparent: true, headerShadowVisible: false }
-          : undefined
-      }
-    >
-      <Stack.Protected guard={!!invitation.code}>
-        <Stack.Screen
-          name="join"
-          // No header: the screen's own title changes per step
-          // (You're invited / Check your inbox / Join <name>).
-          options={{ headerShown: false }}
-        />
-      </Stack.Protected>
-      <Stack.Protected guard={showApp && !invitation.code}>
-        {children}
-      </Stack.Protected>
-      <Stack.Protected guard={!showApp && !invitation.code}>
-        <Stack.Screen name="setup" options={{ headerShown: false }} />
-        <Stack.Screen name="sign-in" options={{ headerShown: false }} />
-      </Stack.Protected>
-    </Stack>
+    <>
+      <PendingShare showApp={showApp && !invitation.code} />
+      {/* iOS draws pushed screens' headers as floating glass over the content.
+        Scrolling roots need contentInsetAdjustmentBehavior="automatic". */}
+      <Stack
+        screenOptions={
+          Platform.OS === "ios"
+            ? { headerTransparent: true, headerShadowVisible: false }
+            : undefined
+        }
+      >
+        <Stack.Protected guard={!!invitation.code}>
+          <Stack.Screen
+            name="join"
+            // No header: the screen's own title changes per step
+            // (You're invited / Check your inbox / Join <name>).
+            options={{ headerShown: false }}
+          />
+        </Stack.Protected>
+        <Stack.Protected guard={showApp && !invitation.code}>
+          {children}
+        </Stack.Protected>
+        <Stack.Protected guard={!showApp && !invitation.code}>
+          <Stack.Screen name="setup" options={{ headerShown: false }} />
+          <Stack.Screen name="sign-in" options={{ headerShown: false }} />
+        </Stack.Protected>
+      </Stack>
+    </>
   );
 }

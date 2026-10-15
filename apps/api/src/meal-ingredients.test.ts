@@ -18,9 +18,9 @@ test("migration, identity allocation and adjustment preserve choices and purchas
   try {
     await client.query("BEGIN");
     await client.query(`
-      CREATE TEMP TABLE recipes (id uuid PRIMARY KEY);
+      CREATE TEMP TABLE recipes (id uuid PRIMARY KEY, list_id uuid);
       CREATE TEMP TABLE variants (
-        id uuid PRIMARY KEY, recipe_id uuid, name text, description text, locale text,
+        id uuid PRIMARY KEY, recipe_id uuid, list_id uuid, name text, description text, locale text,
         total_time text, recipe_yield text, content_markdown text, recipe_category text,
         recipe_cuisine text, ingredient_lines jsonb, instructions jsonb, sized_for jsonb,
         created_at timestamptz DEFAULT now()
