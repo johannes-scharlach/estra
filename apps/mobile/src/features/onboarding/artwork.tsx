@@ -31,6 +31,15 @@ const deliveredAssets: Partial<Record<ArtworkId, number>> = {
   "pantry-chickpeas": require("./art/optimized/pantry-chickpeas.webp"),
   "pantry-lentils": require("./art/optimized/pantry-lentils.webp"),
   "pantry-canned-beans": require("./art/optimized/pantry-canned-beans.webp"),
+  "pantry-olive-oil": require("./art/optimized/pantry-olive-oil.webp"),
+  "pantry-soy-sauce": require("./art/optimized/pantry-soy-sauce.webp"),
+  "pantry-vinegar": require("./art/optimized/pantry-vinegar.webp"),
+  "pantry-peanut-butter": require("./art/optimized/pantry-peanut-butter.webp"),
+  "pantry-oats": require("./art/optimized/pantry-oats.webp"),
+  "pantry-flour": require("./art/optimized/pantry-flour.webp"),
+  "pantry-coconut-milk": require("./art/optimized/pantry-coconut-milk.webp"),
+  "pantry-honey": require("./art/optimized/pantry-honey.webp"),
+  "pantry-sugar": require("./art/optimized/pantry-sugar.webp"),
 };
 
 export function Artwork({
