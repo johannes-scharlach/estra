@@ -219,7 +219,7 @@ function Questions({ initialStep }: { initialStep: Step }) {
               <KeyboardAwareScrollView
                 key={pageStep}
                 enabled={pageIndex === index}
-                bottomOffset={footerHeight - Math.max(insets.bottom, 14) + 20}
+                bottomOffset={footerHeight - Math.max(insets.bottom, 14) + 36}
                 style={{ width }}
                 contentContainerClassName="flex-grow gap-6 px-6"
                 contentContainerStyle={{
@@ -286,6 +286,7 @@ function Questions({ initialStep }: { initialStep: Step }) {
             );
           })}
         </ScrollView>
+        <ScrollEdgeFade edge="top" height={insets.top} />
         <KeyboardStickyView
           pointerEvents="box-none"
           className="absolute bottom-0 left-0 right-0 gap-3 px-6 pt-3"

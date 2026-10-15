@@ -1,7 +1,19 @@
 import { DatabaseSync, type SQLInputValue } from "node:sqlite";
+import { readFileSync } from "node:fs";
 import { afterEach, expect, it } from "vitest";
-import { createDraft } from "./draft";
+import { bindDraft, createDraft, restoreDraft } from "./draft";
 import { finalizeProfile, type ProfileWriter } from "./finalize";
+
+const seedSql = readFileSync(
+  new URL("../../../../../supabase/seed.sql", import.meta.url),
+  "utf8",
+);
+const seededUserId = seedSql.match(
+  /insert into auth\.users[\s\S]*?values\s*\(\s*'[^']+'\s*,\s*'([^']+)'/,
+)?.[1];
+const seededListId = seedSql.match(
+  /insert into public\.lists[\s\S]*?values\s*\(\s*'([^']+)'/,
+)?.[1];
 
 const sqlite = new DatabaseSync(":memory:");
 sqlite.exec(`
@@ -112,4 +124,38 @@ it("rolls back partial setup and can retry using the same verified identity", as
   await expect(finalizeProfile(db, draft, "another-user")).rejects.toThrow(
     "different account",
   );
+});
+
+it("finalizes onboarding for the user and list from the local seed", async () => {
+  if (!seededUserId || !seededListId)
+    throw new Error("Could not find seeded user and list IDs");
+
+  const now = new Date().toISOString();
+  const draft = bindDraft(
+    createDraft(
+      "43ac36ba-b96c-4942-a188-f1192ce8ad3a",
+      "d616b672-b51d-4ec9-bb16-d13672330ac9",
+    ),
+    seededUserId,
+    seededListId,
+  );
+  draft.people[0]!.name = "Sam";
+  await tx.execute(
+    "INSERT INTO lists (id, name, invite_code, created_by) VALUES (?, ?, ?, ?)",
+    [seededListId, "Home", "magpiedev", seededUserId],
+  );
+  await tx.execute(
+    "INSERT INTO list_members (id, list_id, user_id, joined_at) VALUES (?, ?, ?, ?)",
+    ["51e0ef18-37df-4fd2-bc34-311540610dab", seededListId, seededUserId, now],
+  );
+
+  await finalizeProfile(db, draft, seededUserId);
+
+  expect(restoreDraft(JSON.stringify(draft))).not.toBeNull();
+  expect(
+    await tx.getOptional(
+      "SELECT user_id FROM household_people WHERE list_id = ?",
+      [seededListId],
+    ),
+  ).toEqual({ user_id: seededUserId });
 });

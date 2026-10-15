@@ -2,6 +2,14 @@
 
 Use screenshots to evaluate the rendered product, not its implementation.
 
+For working simulator operation and native capture commands, read
+[Mobile UI verification](mobile-ui-verification.md). Use that guide to produce
+the images; keep implementation details out of the critic's context.
+
+Visual critique and interaction verification are separate. Check the relevant
+controls on-device and report those results separately; a screenshot or critique
+score does not prove that selecting, saving, or dismissing works.
+
 ## General guidance
 
 ### Capture
@@ -10,6 +18,10 @@ Use screenshots to evaluate the rendered product, not its implementation.
 - Capture the complete screen first. Keep the original capture unchanged.
 - Wait for navigation, layout, and animations to settle before capturing.
 - Capture enough of the flow to judge the design as a system.
+- Record platform/device, theme, text size, keyboard state, and original image
+  dimensions alongside the captures. Use the same conditions for each round.
+- Keep native PNG originals for critique. Compressed previews and desktop window
+  captures used for coordinate calibration are not substitutes.
 
 Store working captures in the directory:
 

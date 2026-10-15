@@ -106,19 +106,21 @@ export function FormError({ message }: { message?: string | null }) {
 }
 /** Label + compact select in one row; boxed on iOS, flat on Android — see
  * MealRoutineEditor's original card-in-a-card writeup for why. */
-function PickerRow({
+export function PickerRow({
   label,
   choices,
   selectedValue,
   onValueChange,
+  grouped = false,
 }: {
   label: string;
   choices: readonly string[];
   selectedValue: string;
   onValueChange: (value: string) => void;
+  grouped?: boolean;
 }) {
   const row = (
-    <View className="min-h-16 flex-row items-center justify-between gap-4 px-4 py-3">
+    <View className="min-h-14 flex-row items-center justify-between gap-4 px-4 py-3">
       <Text className="flex-1 font-medium">{label}</Text>
       <MenuPicker
         label={label}
@@ -128,7 +130,7 @@ function PickerRow({
       />
     </View>
   );
-  if (Platform.OS === "android") return row;
+  if (Platform.OS === "android" || grouped) return row;
   return (
     <View
       className="overflow-hidden rounded-xl border border-border bg-card"
@@ -195,6 +197,7 @@ export function DietEditor({
   onChange,
   allowOtherDiet = false,
   compact = false,
+  grouped = false,
   otherError,
   validationAttempt,
 }: {
@@ -202,17 +205,26 @@ export function DietEditor({
   onChange: (p: HouseholdPerson) => void;
   allowOtherDiet?: boolean;
   compact?: boolean;
+  grouped?: boolean;
   otherError?: string | null;
   validationAttempt?: number;
 }) {
   const entries = Object.entries(dietOptions).filter(
     ([key]) => allowOtherDiet || key !== "other",
   );
+  const isOther = person.diet === "other";
+  const otherRef = useRef<TextInput>(null);
+  const wasOther = useRef(isOther);
+  useEffect(() => {
+    if (isOther && !wasOther.current) otherRef.current?.focus();
+    wasOther.current = isOther;
+  }, [isOther]);
   return (
     <View className="gap-3">
       {compact ? (
         <PickerRow
           label="Diet"
+          grouped={grouped}
           choices={entries.map(([, title]) => title)}
           selectedValue={dietOptions[person.diet]}
           onValueChange={(title) => {
@@ -245,14 +257,16 @@ export function DietEditor({
           }
         />
       )}
-      {person.diet === "other" && (
+      {isOther && (
         <Field
+          ref={otherRef}
           label="Describe your diet"
+          placeholder="e.g. Halal, kosher, low FODMAP"
           error={otherError}
           validationAttempt={validationAttempt}
-          multiline
           value={person.diet_other}
           onChangeText={(diet_other) => onChange({ ...person, diet_other })}
+          returnKeyType="done"
         />
       )}
     </View>
@@ -271,6 +285,38 @@ export function PersonFields({
   errors?: Record<string, string>;
   validationAttempt?: number;
 }) {
+  const ageAndDiet = (
+    <>
+      <PickerRow
+        label="Age group"
+        grouped={Platform.OS === "ios"}
+        choices={ageGroups}
+        selectedValue={person.age_group}
+        onValueChange={(age_group) =>
+          onChange({
+            ...person,
+            age_group: age_group as HouseholdPerson["age_group"],
+          })
+        }
+      />
+      {Platform.OS === "ios" ? (
+        <View className="ml-4 border-t border-border" />
+      ) : null}
+      <DietEditor
+        person={person}
+        onChange={onChange}
+        allowOtherDiet
+        compact
+        grouped={Platform.OS === "ios"}
+        otherError={
+          errors?.diet_other && !person.diet_other.trim()
+            ? errors.diet_other
+            : null
+        }
+        validationAttempt={validationAttempt}
+      />
+    </>
+  );
   return (
     <>
       <Field
@@ -283,29 +329,40 @@ export function PersonFields({
         autoFocus={autoFocusName}
         returnKeyType="done"
       />
-      <PickerRow
-        label="Age group"
-        choices={ageGroups}
-        selectedValue={person.age_group}
-        onValueChange={(age_group) =>
-          onChange({
-            ...person,
-            age_group: age_group as HouseholdPerson["age_group"],
-          })
-        }
-      />
-      <DietEditor
-        person={person}
-        onChange={onChange}
-        allowOtherDiet
-        compact
-        otherError={
-          errors?.diet_other && !person.diet_other.trim()
-            ? errors.diet_other
-            : null
-        }
-        validationAttempt={validationAttempt}
-      />
+      {Platform.OS === "ios" && person.diet !== "other" ? (
+        <View
+          className="overflow-hidden rounded-xl border border-border bg-card"
+          style={{ borderCurve: "continuous" }}
+        >
+          {ageAndDiet}
+        </View>
+      ) : (
+        <>
+          <PickerRow
+            label="Age group"
+            choices={ageGroups}
+            selectedValue={person.age_group}
+            onValueChange={(age_group) =>
+              onChange({
+                ...person,
+                age_group: age_group as HouseholdPerson["age_group"],
+              })
+            }
+          />
+          <DietEditor
+            person={person}
+            onChange={onChange}
+            allowOtherDiet
+            compact
+            otherError={
+              errors?.diet_other && !person.diet_other.trim()
+                ? errors.diet_other
+                : null
+            }
+            validationAttempt={validationAttempt}
+          />
+        </>
+      )}
       <PortionReference
         value={person.portion_reference}
         onChange={(portion_reference) =>
@@ -375,9 +432,9 @@ function PortionReference({
           step={Platform.OS === "ios" ? portionReferenceRange.step : undefined}
           value={value}
           onValueChange={(next) => onChange(snapToStep(next))}
+          minimumTrackTintColor={primary}
+          maximumTrackTintColor={track}
           {...(Platform.OS === "android" && {
-            minimumTrackTintColor: primary,
-            maximumTrackTintColor: track,
             thumbTintColor: primary,
           })}
           style={{ width: "100%", height: 32 }}

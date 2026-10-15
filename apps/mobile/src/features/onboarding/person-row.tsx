@@ -5,5 +5,5 @@ export type PersonRowProps = {
   name: string;
   detail: string;
   onEdit: () => void;
-  onRemove: () => void;
+  onRemove?: () => void;
 };

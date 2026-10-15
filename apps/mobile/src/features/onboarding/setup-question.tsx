@@ -5,9 +5,8 @@ import {
 } from "@magpie/profile";
 import { useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import { Pressable, View, type TextInput } from "react-native";
+import { Platform, View, type TextInput } from "react-native";
 import { AddRow } from "@/components/add-row";
-import { Text } from "@/components/ui/text";
 import { type Step } from "@/features/onboarding/draft";
 import { PersonRow } from "@/features/onboarding/person-row";
 import { useOnboarding } from "@/features/onboarding/provider";
@@ -68,33 +67,26 @@ function HouseholdEditor({
             : dietOptions[person.diet];
         const detail = `${person.age_group} · ${diet} · ${person.portion_reference} portion${person.portion_reference === 1 ? "" : "s"} · ${person.meal_times}`;
         return (
-          <View
-            key={person.id}
-            className={index ? "border-t border-border" : undefined}
-          >
-            {isCurrentPerson ? (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Edit your details"
-                onPress={() => onEdit(person.id)}
-                className="min-h-16 gap-1 px-4 py-3 active:bg-accent"
-              >
-                <Text className="text-[17px] font-medium">
-                  {person.name || "You"} (You)
-                </Text>
-                <Text className="text-sm leading-5 text-muted-foreground">
-                  {detail}
-                </Text>
-                <Text className="text-sm text-primary">Edit your details</Text>
-              </Pressable>
-            ) : (
-              <PersonRow
-                name={person.name}
-                detail={detail}
-                onEdit={() => onEdit(person.id)}
-                onRemove={() => onRemove(person.id)}
+          <View key={person.id}>
+            {index > 0 ? (
+              <View
+                className={
+                  Platform.OS === "ios"
+                    ? "ml-4 border-t border-border"
+                    : "border-t border-border"
+                }
               />
-            )}
+            ) : null}
+            <PersonRow
+              name={
+                isCurrentPerson
+                  ? `${person.name.trim() || "You"} (You)`
+                  : person.name.trim()
+              }
+              detail={detail}
+              onEdit={() => onEdit(person.id)}
+              onRemove={isCurrentPerson ? undefined : () => onRemove(person.id)}
+            />
           </View>
         );
       })}

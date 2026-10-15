@@ -12,6 +12,7 @@ import {
   type SelectionField,
 } from "@magpie/profile";
 import { PrimaryAction } from "@/components/action";
+import { AddRow } from "@/components/add-row";
 import { ChoiceList } from "@/components/choice-list";
 import { EditorSheet } from "@/components/editor-sheet";
 import { Text } from "@/components/ui/text";
@@ -55,6 +56,7 @@ export function ChoiceTiles({
 }) {
   const { width, fontScale } = useWindowDimensions();
   const primary = useResolveClassNames("text-primary").color;
+  const muted = useResolveClassNames("text-muted-foreground").color;
   const [showPrevious, setShowPrevious] = useState(false);
   const [adding, setAdding] = useState(false);
   const [custom, setCustom] = useState("");
@@ -75,13 +77,19 @@ export function ChoiceTiles({
 
   // Goals are intentions, not tangible objects: render as a clear multi-select list.
   if (field === "goals") {
-    const choices = Object.entries(goalOptions).map(([key, title]) => ({
+    const presetChoices = Object.entries(goalOptions).map(([key, title]) => ({
       key,
       title,
     }));
-    const selectedKeys = choices
-      .map((c) => c.key)
-      .filter((key) => value[key] === true);
+    const customChoices = value.other.map((title, index) => ({
+      key: `other:${index}`,
+      title,
+    }));
+    const choices = [...presetChoices, ...customChoices];
+    const selectedKeys = [
+      ...presetChoices.map((c) => c.key).filter((key) => value[key] === true),
+      ...customChoices.map((c) => c.key),
+    ];
 
     return (
       <View className="gap-4">
@@ -91,35 +99,27 @@ export function ChoiceTiles({
           selection="multiple"
           onSelect={(key) => {
             void Haptics.selectionAsync().catch(() => {});
+            if (key.startsWith("other:")) {
+              const target = Number(key.slice("other:".length));
+              onChange({
+                ...value,
+                other: value.other.filter((_, i) => i !== target),
+              });
+              return;
+            }
             onChange({ ...value, [key]: !value[key] });
           }}
-        />
-        <View className="flex-row flex-wrap gap-2">
-          {value.other.map((label, index) => (
-            <ChoiceChip
-              key={`${index}:${label}`}
-              label={label}
-              selected
-              onPress={() =>
-                onChange({
-                  ...value,
-                  other: value.other.filter((_, i) => i !== index),
-                })
-              }
-            />
-          ))}
-          <Pressable
-            accessibilityRole="button"
-            className="min-h-11 justify-center rounded-full border border-border px-4 py-2"
+        >
+          <AddRow
+            label="Add a goal"
+            bordered={false}
             onPress={() => {
               setCustom("");
               setAttempted(false);
               setAdding(true);
             }}
-          >
-            <Text className="font-medium text-primary">+ Add a goal</Text>
-          </Pressable>
-        </View>
+          />
+        </ChoiceList>
         {adding ? (
           <EditorSheet title="Your goal" onDismiss={() => setAdding(false)}>
             <Field
@@ -179,20 +179,22 @@ export function ChoiceTiles({
               style={{ width: tileWidth, borderCurve: "continuous" }}
               className={
                 selected
-                  ? "gap-2 rounded-2xl border-2 border-primary bg-accent p-2"
-                  : "gap-2 rounded-2xl border-2 border-transparent bg-card p-2 active:bg-secondary"
+                  ? "gap-2 rounded-2xl border border-primary bg-accent p-2"
+                  : "gap-2 rounded-2xl border border-border bg-card p-2 active:bg-secondary"
               }
             >
               <Artwork id={`${prefix}-${key}` as ArtworkId} />
               <View className="min-h-11 flex-row items-center gap-1">
                 <Text className="flex-1 text-sm font-medium">{title}</Text>
-                {selected ? (
-                  <SymbolView
-                    name={{ ios: "checkmark.circle.fill", android: "check_circle" }}
-                    size={18}
-                    tintColor={primary}
-                  />
-                ) : null}
+                <SymbolView
+                  name={
+                    selected
+                      ? { ios: "checkmark.circle.fill", android: "check_circle" }
+                      : { ios: "circle", android: "radio_button_unchecked" }
+                  }
+                  size={18}
+                  tintColor={selected ? primary : muted}
+                />
               </View>
             </Pressable>
           );
@@ -211,7 +213,7 @@ export function ChoiceTiles({
             </Text>
           </Pressable>
           {showPrevious ? (
-            <View className="flex-row flex-wrap gap-2">
+            <View className="flex-row flex-wrap items-start gap-2">
               {oldSelections.map(([key, label]) => (
                 <ChoiceChip
                   key={key}
@@ -224,7 +226,7 @@ export function ChoiceTiles({
           ) : null}
         </View>
       ) : null}
-      <View className="flex-row flex-wrap gap-2">
+      <View className="flex-row flex-wrap items-start gap-2">
         {value.other.map((label, index) => (
           <ChoiceChip
             key={`${index}:${label}`}
@@ -240,7 +242,7 @@ export function ChoiceTiles({
         ))}
         <Pressable
           accessibilityRole="button"
-          className="min-h-11 justify-center rounded-full border border-border px-4 py-2"
+          className="min-h-11 justify-center rounded-full border border-border bg-card px-4 py-2"
           onPress={() => {
             setCustom("");
             setAttempted(false);

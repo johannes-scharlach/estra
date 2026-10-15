@@ -49,6 +49,9 @@ separate planning round.
   on a device. Automate them only with a real native harness and when their
   regression cost justifies that harness.
 
+For the working simulator interaction and capture procedure, see
+[Mobile UI verification](mobile-ui-verification.md).
+
 Avoid homemade React runtimes and broad mock graphs. They duplicate framework
 semantics, couple tests to implementation, and can pass while the app fails.
 

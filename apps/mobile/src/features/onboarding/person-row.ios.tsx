@@ -15,6 +15,25 @@ export function PersonRow({ name, detail, onEdit, onRemove }: PersonRowProps) {
   const mutedColor = useResolveClassNames("text-muted-foreground").color;
   const swipeable = useRef<SwipeableMethods>(null);
 
+  const row = (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`Edit ${name}`}
+      className="min-h-16 flex-row items-center gap-3 bg-card px-4 py-3 active:bg-accent"
+      onPress={onEdit}
+    >
+      <View className="flex-1 gap-1">
+        <Text className="text-[17px] font-medium">{name}</Text>
+        <Text className="text-sm leading-5 text-muted-foreground">
+          {detail}
+        </Text>
+      </View>
+      <SymbolView name="chevron.right" size={16} tintColor={mutedColor} />
+    </Pressable>
+  );
+
+  if (!onRemove) return row;
+
   return (
     <Swipeable
       ref={swipeable}
@@ -36,20 +55,7 @@ export function PersonRow({ name, detail, onEdit, onRemove }: PersonRowProps) {
         </Pressable>
       )}
     >
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={`Edit ${name}`}
-        className="min-h-16 flex-row items-center gap-3 bg-card px-4 py-3 active:bg-accent"
-        onPress={onEdit}
-      >
-        <View className="flex-1 gap-1">
-          <Text className="text-[17px] font-medium">{name}</Text>
-          <Text className="text-sm leading-5 text-muted-foreground">
-            {detail}
-          </Text>
-        </View>
-        <SymbolView name="chevron.right" size={16} tintColor={mutedColor} />
-      </Pressable>
+      {row}
     </Swipeable>
   );
 }

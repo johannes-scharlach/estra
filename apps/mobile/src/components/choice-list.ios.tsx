@@ -33,41 +33,44 @@ export function ChoiceList({
       {choices.map((choice, index) => {
         const selected = selectedKeys.includes(choice.key);
         return (
-          <Pressable
-            key={choice.key}
-            accessibilityRole={selection === "single" ? "radio" : "checkbox"}
-            accessibilityState={{ checked: selected }}
-            className={
-              index
-                ? "min-h-14 flex-row items-center gap-4 border-t border-border px-4 py-3 active:bg-accent"
-                : "min-h-14 flex-row items-center gap-4 px-4 py-3 active:bg-accent"
-            }
-            onPress={() => onSelect(choice.key)}
-          >
-            <View className="flex-1 gap-0.5">
-              <Text className="font-medium">{choice.title}</Text>
-              {choice.detail ? (
-                <Text className="text-sm leading-5 text-muted-foreground">
-                  {choice.detail}
-                </Text>
-              ) : null}
-            </View>
-            {selection === "single" ? (
-              selected ? (
-                <SymbolView name="checkmark" size={18} tintColor={primary} />
-              ) : null
-            ) : (
-              <SymbolView
-                name={selected ? "checkmark.circle.fill" : "circle"}
-                size={21}
-                tintColor={selected ? primary : muted}
-              />
-            )}
-          </Pressable>
+          <View key={choice.key}>
+            {index > 0 ? (
+              <View className="ml-4 border-t border-border" />
+            ) : null}
+            <Pressable
+              accessibilityRole={selection === "single" ? "radio" : "checkbox"}
+              accessibilityState={{ checked: selected }}
+              className="min-h-14 flex-row items-center gap-4 px-4 py-3 active:bg-accent"
+              onPress={() => onSelect(choice.key)}
+            >
+              <View className="flex-1 gap-0.5">
+                <Text className="font-medium">{choice.title}</Text>
+                {choice.detail ? (
+                  <Text className="text-sm leading-5 text-muted-foreground">
+                    {choice.detail}
+                  </Text>
+                ) : null}
+              </View>
+              {selection === "single" ? (
+                selected ? (
+                  <SymbolView name="checkmark" size={18} tintColor={primary} />
+                ) : null
+              ) : (
+                <SymbolView
+                  name={selected ? "checkmark.circle.fill" : "circle"}
+                  size={21}
+                  tintColor={selected ? primary : muted}
+                />
+              )}
+            </Pressable>
+          </View>
         );
       })}
       {children ? (
-        <View className="border-t border-border">{children}</View>
+        <View>
+          <View className="ml-4 border-t border-border" />
+          {children}
+        </View>
       ) : null}
     </View>
   );

@@ -21,6 +21,25 @@ export function PersonRow({ name, detail, onEdit, onRemove }: PersonRowProps) {
   const mutedColor = useResolveClassNames("text-muted-foreground").color;
   const [anchor, setAnchor] = useState<AndroidMenuAnchor | null>(null);
 
+  if (!onRemove) {
+    return (
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`Edit ${name}`}
+        className="min-h-16 flex-row items-center gap-3 px-4 py-3 active:bg-accent"
+        onPress={onEdit}
+      >
+        <View className="flex-1 gap-1">
+          <Text className="text-[17px] font-medium">{name}</Text>
+          <Text className="text-sm leading-5 text-muted-foreground">
+            {detail}
+          </Text>
+        </View>
+        <SymbolView name={EDIT_ICON} tintColor={mutedColor} size={18} />
+      </Pressable>
+    );
+  }
+
   return (
     <View>
       <Pressable

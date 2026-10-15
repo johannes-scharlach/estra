@@ -5,6 +5,13 @@ Expo Router + PowerSync + op-sqlite. Repo-wide rules in root `AGENTS.md`.
 Targets iOS and Android only. Web is not supported; do not add web fallbacks
 or web-parity code.
 
+## Native verification
+
+Before operating simulators or capturing UI screenshots, read
+`docs/mobile-ui-verification.md` from the repository root. It documents the
+working DeviceHub/cliclick and ADB paths, coordinate pitfalls, app reload, and
+the boundary between visual critique and interaction verification.
+
 ## UI stack
 
 Standard-choice rule: pick the closest-to-default option, no custom design

@@ -24,7 +24,7 @@ insert into auth.users (
 )
 values (
   '00000000-0000-0000-0000-000000000000',
-  '11111111-1111-1111-1111-111111111111',
+  '11111111-1111-4111-8111-111111111111',
   'authenticated', 'authenticated', 'dev@magpie.local',
   crypt('magpie-dev', gen_salt('bf')), now(),
   '{"provider":"email","providers":["email"]}', '{}',
@@ -40,26 +40,26 @@ insert into auth.identities (
 )
 values (
   gen_random_uuid(),
-  '11111111-1111-1111-1111-111111111111',
-  '11111111-1111-1111-1111-111111111111',
-  '{"sub":"11111111-1111-1111-1111-111111111111","email":"dev@magpie.local"}',
+  '11111111-1111-4111-8111-111111111111',
+  '11111111-1111-4111-8111-111111111111',
+  '{"sub":"11111111-1111-4111-8111-111111111111","email":"dev@magpie.local"}',
   'email', now(), now()
 )
 on conflict do nothing;
 
 insert into public.lists (id, name, invite_code, created_by)
 values (
-  '33333333-3333-3333-3333-333333333333',
+  '33333333-3333-4333-8333-333333333333',
   'Home',
   'magpiedev',
-  '11111111-1111-1111-1111-111111111111'
+  '11111111-1111-4111-8111-111111111111'
 )
 on conflict (id) do nothing;
 
 insert into public.list_members (list_id, user_id)
 values (
-  '33333333-3333-3333-3333-333333333333',
-  '11111111-1111-1111-1111-111111111111'
+  '33333333-3333-4333-8333-333333333333',
+  '11111111-1111-4111-8111-111111111111'
 )
 on conflict (list_id, user_id) do nothing;
 
@@ -88,9 +88,9 @@ $$;
 
 insert into public.list_items (id, list_id, name, name_key, category_id, status, purchase_count, added_by)
 values
-  (public.uuid_for_item('33333333-3333-3333-3333-333333333333', 'Oat milk'),  '33333333-3333-3333-3333-333333333333', 'Oat milk',  'oat milk',  'dairy',    'active',    4, '11111111-1111-1111-1111-111111111111'),
-  (public.uuid_for_item('33333333-3333-3333-3333-333333333333', 'Bananas'),   '33333333-3333-3333-3333-333333333333', 'Bananas',   'bananas',   'produce',  'active',    9, '11111111-1111-1111-1111-111111111111'),
-  (public.uuid_for_item('33333333-3333-3333-3333-333333333333', 'Sourdough'), '33333333-3333-3333-3333-333333333333', 'Sourdough', 'sourdough', 'bakery',   'active',    2, '11111111-1111-1111-1111-111111111111'),
-  (public.uuid_for_item('33333333-3333-3333-3333-333333333333', 'Coffee'),    '33333333-3333-3333-3333-333333333333', 'Coffee',    'coffee',    'breakfast',   'purchased', 6, '11111111-1111-1111-1111-111111111111'),
-  (public.uuid_for_item('33333333-3333-3333-3333-333333333333', 'Dish soap'), '33333333-3333-3333-3333-333333333333', 'Dish soap', 'dish soap', 'household','purchased', 1, '11111111-1111-1111-1111-111111111111')
+  (public.uuid_for_item('33333333-3333-4333-8333-333333333333', 'Oat milk'),  '33333333-3333-4333-8333-333333333333', 'Oat milk',  'oat milk',  'dairy',    'active',    4, '11111111-1111-4111-8111-111111111111'),
+  (public.uuid_for_item('33333333-3333-4333-8333-333333333333', 'Bananas'),   '33333333-3333-4333-8333-333333333333', 'Bananas',   'bananas',   'produce',  'active',    9, '11111111-1111-4111-8111-111111111111'),
+  (public.uuid_for_item('33333333-3333-4333-8333-333333333333', 'Sourdough'), '33333333-3333-4333-8333-333333333333', 'Sourdough', 'sourdough', 'bakery',   'active',    2, '11111111-1111-4111-8111-111111111111'),
+  (public.uuid_for_item('33333333-3333-4333-8333-333333333333', 'Coffee'),    '33333333-3333-4333-8333-333333333333', 'Coffee',    'coffee',    'breakfast',   'purchased', 6, '11111111-1111-4111-8111-111111111111'),
+  (public.uuid_for_item('33333333-3333-4333-8333-333333333333', 'Dish soap'), '33333333-3333-4333-8333-333333333333', 'Dish soap', 'dish soap', 'household','purchased', 1, '11111111-1111-4111-8111-111111111111')
 on conflict (list_id, name_key) where planned_meal_id is null do nothing;

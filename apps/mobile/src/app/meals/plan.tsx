@@ -1,12 +1,15 @@
+import { useQuery } from "@powersync/react";
 import * as Crypto from "expo-crypto";
+import { LinearGradient } from "expo-linear-gradient";
 import { Stack, useRouter } from "expo-router";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   KeyboardAvoidingView,
   PanResponder,
   Platform,
   ScrollView,
   TextInput,
+  useColorScheme,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -23,6 +26,8 @@ import { ImageAttachmentMenu } from "@/features/chat/image-attachment-menu";
 import { ImageAttachmentStrip } from "@/features/chat/image-attachment-strip";
 import { queueMessage } from "@/features/chat/message-queue";
 import { dateKey, MONTH_SHORT, WEEKDAY_LONG } from "@/features/meals/slots";
+import { useHouseholdAccess } from "@/features/onboarding/access";
+import { tonalPair } from "@/features/variants/tonal";
 import { cn } from "@/lib/utils";
 import { useResolveClassNames } from "uniwind";
 
@@ -44,6 +49,14 @@ function rollingWeek(): Date[] {
 
 type Box = { x: number; y: number; width: number; height: number };
 
+type PlannedMeal = {
+  id: string;
+  variant_id: string | null;
+  meal: Meal;
+  slot_date: string;
+  name: string | null;
+};
+
 export default function PlanMeals() {
   const mutedColor = useResolveClassNames("text-muted-foreground").color;
   const router = useRouter();
@@ -55,6 +68,29 @@ export default function PlanMeals() {
   const [pickingAttachments, setPickingAttachments] = useState(false);
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
   const starting = useRef(false);
+  const dark = useColorScheme() === "dark";
+
+  const dayKeys = days.map(dateKey);
+  const { listId } = useHouseholdAccess();
+  const { data: plannedMeals } = useQuery<PlannedMeal>(
+    listId
+      ? `SELECT p.id, p.variant_id, p.meal, p.slot_date, COALESCE(p.name, v.name) AS name
+         FROM planned_meals p LEFT JOIN variants v ON v.id = p.variant_id
+         WHERE p.list_id = ? AND p.slot_date BETWEEN ? AND ?`
+      : "SELECT * FROM planned_meals WHERE 0",
+    listId ? [listId, dayKeys[0], dayKeys[6]] : [],
+  );
+  // Already-planned slots wear their recipe's tonalPair, like Home, and
+  // can't be picked again.
+  const planned = new Map<string, PlannedMeal>();
+  dayKeys.forEach((day, dayIndex) => {
+    for (const meal of MEALS) {
+      const found = plannedMeals.find(
+        (m) => m.slot_date === day && m.meal === meal,
+      );
+      if (found) planned.set(keyOf(dayIndex, meal), found);
+    }
+  });
 
   const slots = days.flatMap((day, dayIndex) =>
     MEALS.filter((meal) => picked[keyOf(dayIndex, meal)]).map((meal) => ({
@@ -102,6 +138,11 @@ export default function PlanMeals() {
   // they cannot close over state. setSlot is the only writer, keeping the two
   // in sync.
   const pickedRef = useRef(picked);
+  // Same for `planned`, which arrives from the query after mount.
+  const plannedRef = useRef(planned);
+  useEffect(() => {
+    plannedRef.current = planned;
+  });
   const drag = useRef<{ paint: boolean; meal: Meal; startKey: string } | null>(
     null,
   );
@@ -159,6 +200,7 @@ export default function PlanMeals() {
   }
 
   function setSlot(key: string, value: boolean) {
+    if (plannedRef.current.has(key)) return;
     pickedRef.current = { ...pickedRef.current, [key]: value };
     setPicked(pickedRef.current);
   }
@@ -280,13 +322,17 @@ export default function PlanMeals() {
                   >
                     {days.map((day, dayIndex) => {
                       const on = !!picked[keyOf(dayIndex, meal)];
+                      const plannedMeal = planned.get(keyOf(dayIndex, meal));
                       return (
                         <View
                           key={day.toDateString()}
                           accessible
                           accessibilityRole="checkbox"
-                          accessibilityLabel={`${WEEKDAY_LONG[day.getDay()]}, ${MONTH_SHORT[day.getMonth()]} ${day.getDate()}, ${meal}`}
-                          accessibilityState={{ checked: on }}
+                          accessibilityLabel={`${WEEKDAY_LONG[day.getDay()]}, ${MONTH_SHORT[day.getMonth()]} ${day.getDate()}, ${meal}${plannedMeal ? `, planned: ${plannedMeal.name ?? "meal"}` : ""}`}
+                          accessibilityState={{
+                            checked: on,
+                            disabled: !!plannedMeal,
+                          }}
                           accessibilityActions={[
                             { name: "activate", label: "Toggle meal" },
                           ]}
@@ -298,16 +344,28 @@ export default function PlanMeals() {
                           }
                           className="h-12 flex-1 justify-center px-[3px]"
                         >
-                          <View
-                            className={cn(
-                              "h-9 items-center justify-center rounded-sm",
-                              on ? "bg-secondary" : "bg-muted/45",
-                            )}
-                          >
-                            {on ? (
-                              <View className="size-1.5 rounded-full bg-secondary-foreground/70" />
-                            ) : null}
-                          </View>
+                          {plannedMeal ? (
+                            <LinearGradient
+                              colors={tonalPair(
+                                plannedMeal.variant_id ?? plannedMeal.id,
+                                dark,
+                              )}
+                              start={{ x: 0, y: 0 }}
+                              end={{ x: 1, y: 1 }}
+                              style={{ height: 36, borderRadius: 8 }}
+                            />
+                          ) : (
+                            <View
+                              className={cn(
+                                "h-9 items-center justify-center rounded-sm",
+                                on ? "bg-secondary" : "bg-muted/45",
+                              )}
+                            >
+                              {on ? (
+                                <View className="size-1.5 rounded-full bg-secondary-foreground/70" />
+                              ) : null}
+                            </View>
+                          )}
                         </View>
                       );
                     })}

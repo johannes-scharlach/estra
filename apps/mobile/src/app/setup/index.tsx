@@ -92,11 +92,11 @@ export default function Welcome() {
           accessibilityRole="header"
           className="text-4xl font-bold leading-11 tracking-tight"
         >
-          Found something good? Let’s cook it.
+          Magpie is the meal plan that adapts to your life.
         </Text>
         <Text className="text-xl leading-6 text-muted-foreground">
-          Choose the meals you want. Magpie helps with the ingredients, the
-          shopping, and making it all work when plans change.
+          Move meals around whenever your day changes. Magpie suggests what
+          suits you: from your own cookbook, or from what&apos;s on hand.
         </Text>
       </View>
       <FormError message={error ?? access.error} />

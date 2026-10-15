@@ -104,6 +104,7 @@ export function OnboardingScreen({
           ) : null}
           {children}
         </KeyboardAwareScrollView>
+        <ScrollEdgeFade edge="top" height={insets.top} />
         {onBack ? (
           <View
             pointerEvents="box-none"
